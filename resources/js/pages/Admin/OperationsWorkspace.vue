@@ -489,15 +489,15 @@ function printCalendarSchedules() {
 
 <template>
     <div class="space-y-5">
-        <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Operations Workspace</p>
-            <h1 class="mt-2 text-2xl font-bold text-slate-900">Attendance And Schedule Monitoring</h1>
-            <p class="mt-2 max-w-3xl text-sm text-slate-500">
+        <section class="rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Operations Workspace</p>
+            <h1 class="mt-2 text-2xl font-bold">Attendance And Schedule Monitoring</h1>
+            <p class="mt-2 max-w-3xl text-sm text-white/85">
                 Review team schedules, monitor attendance activity, inspect exception cases, and open schedule drilldowns from one shared operations workspace.
             </p>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                     v-model="filterForm.search"
@@ -520,7 +520,7 @@ function printCalendarSchedules() {
                     :key="period.key || 'all-time'"
                     type="button"
                     class="rounded-full px-3 py-1 text-xs font-medium"
-                    :class="filterForm.period === period.key ? 'bg-[#1f2937] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                    :class="filterForm.period === period.key ? 'border border-[#034485]/35 bg-[#034485] text-white' : 'border border-[#034485]/15 bg-[#034485]/5 text-[#034485] hover:bg-[#034485]/10'"
                     @click="setPeriod(period.key)"
                 >
                     {{ period.label }}
@@ -580,7 +580,7 @@ function printCalendarSchedules() {
             </div>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
+        <section class="rounded-3xl border border-[#034485]/35 bg-white p-4">
             <div class="mb-4 flex flex-wrap gap-2">
                 <button
                     type="button"
@@ -609,7 +609,7 @@ function printCalendarSchedules() {
             </div>
 
             <div v-if="activeTab === 'calendar'" class="grid grid-cols-1 gap-4 xl:grid-cols-4">
-                <section class="xl:col-span-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+                <section class="xl:col-span-3 overflow-hidden rounded-2xl border border-[#034485]/25 bg-white p-3">
                     <div class="mb-3 flex flex-wrap items-center gap-2" aria-label="Sport legend">
                         <button
                             type="button"
@@ -658,7 +658,7 @@ function printCalendarSchedules() {
                     />
                 </section>
 
-                <aside class="max-h-[660px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <aside class="max-h-[660px] overflow-y-auto rounded-2xl border border-[#034485]/25 bg-[#034485]/5 p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
                         <h2 class="text-sm font-semibold text-slate-800">Schedules</h2>
                         <button
@@ -696,7 +696,7 @@ function printCalendarSchedules() {
             </div>
 
             <div v-else class="space-y-3">
-                <div class="overflow-x-auto rounded-lg border border-slate-200">
+                <div class="overflow-x-auto rounded-2xl border border-[#034485]/25">
                     <table class="w-full text-sm">
                         <thead class="bg-[#034485] text-white">
                             <tr>
@@ -772,7 +772,7 @@ function printCalendarSchedules() {
         <div v-if="scheduleDrawerOpen" class="fixed inset-0 z-40 bg-black/20" @click="closeDrawer"></div>
         <aside
             v-if="scheduleDrawerOpen"
-            class="fixed inset-y-0 right-0 z-50 w-full max-w-xl border-l border-slate-200 bg-white p-5 shadow-2xl"
+            class="fixed inset-y-0 right-0 z-50 w-full max-w-xl border-l border-[#034485]/25 bg-white p-5"
         >
             <div class="mb-4 flex items-start justify-between gap-3">
                 <div>
@@ -785,7 +785,7 @@ function printCalendarSchedules() {
             <div v-if="drilldownLoading" class="text-sm text-slate-500">Loading schedule details...</div>
 
             <div v-else-if="drilldown" class="space-y-4">
-                <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
+                <div class="rounded-2xl border border-[#034485]/30 bg-[#034485]/5 p-4">
                     <p class="text-base font-semibold text-slate-900">{{ drilldown.schedule.title }}</p>
                     <p class="text-xs text-slate-600">{{ drilldown.schedule.team_name }} • {{ drilldown.schedule.sport_name }}</p>
                     <p class="text-xs text-slate-600">{{ formatDateTime(drilldown.schedule.start_time) }}</p>
@@ -809,7 +809,7 @@ function printCalendarSchedules() {
                     </div>
                 </div>
 
-                <div class="max-h-[55vh] overflow-y-auto rounded-lg border border-slate-200">
+                <div class="max-h-[55vh] overflow-y-auto rounded-2xl border border-[#034485]/25">
                     <table class="w-full text-xs">
                         <thead class="sticky top-0 bg-[#034485] text-white">
                             <tr>

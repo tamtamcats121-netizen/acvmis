@@ -202,7 +202,7 @@ function confirmRestore() {
 
 <template>
     <div class="space-y-6">
-        <section class="rounded-3xl border border-slate-300/80 bg-[linear-gradient(135deg,_#0f172a_0%,_#334155_55%,_#475569_100%)] p-6 text-white shadow-[0_24px_60px_-36px_rgba(15,23,42,0.55)]">
+        <section class="rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
             <div class="space-y-3">
                 <div>
                     <h1 class="text-3xl font-bold">Archived Team Records</h1>
@@ -213,7 +213,7 @@ function confirmRestore() {
             </div>
         </section>
 
-        <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+        <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-slate-900">Search Archived Teams</h2>
@@ -274,14 +274,14 @@ function confirmRestore() {
         </section>
 
         <section class="space-y-4">
-            <div v-if="teams.data.length === 0" class="rounded-3xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center text-sm text-slate-500 shadow-sm">
+            <div v-if="teams.data.length === 0" class="rounded-3xl border border-dashed border-[#034485]/25 bg-white px-5 py-12 text-center text-sm text-slate-500">
                 No archived teams found for the selected filters.
             </div>
 
             <article
                 v-for="team in teams.data"
                 :key="team.id"
-                class="rounded-3xl border border-[#034485]/15 bg-white p-5 shadow-sm"
+                class="rounded-3xl border border-[#034485]/35 bg-white p-5"
             >
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div class="flex min-w-0 items-start gap-4">

@@ -79,14 +79,14 @@ const workspaceMeta = computed(() =>
               title: 'Athlete Health Clearance Monitoring',
               description:
                   'Review submitted medical clearances, check document validity, and monitor which student-athletes are cleared, restricted, or expired.',
-              accentClass: 'from-[#034485] via-[#0b5db3] to-[#89b6ff]',
+              accentClass: 'from-[#034485] via-[#0b5db3] to-[#6da9ff]',
           }
         : {
               eyebrow: 'Wellness Workspace',
               title: 'Post-Session Wellness Monitoring',
               description:
                   'Track coach-recorded wellness observations, inspect fatigue and injury signals, and review recovery-related remarks across teams and sessions.',
-              accentClass: 'from-[#0f172a] via-[#14532d] to-[#4d7c0f]',
+              accentClass: 'from-[#034485] via-[#0b5db3] to-[#6da9ff]',
           },
 );
 
@@ -186,7 +186,7 @@ function resetWellness() {
     <Head title="Health Workspace" />
 
     <div class="space-y-5">
-        <section class="overflow-hidden rounded-3xl border border-[#034485]/15 bg-white shadow-sm">
+        <section class="overflow-hidden rounded-3xl border border-[#034485]/35 bg-white">
             <div class="bg-gradient-to-r p-6 text-white" :class="workspaceMeta.accentClass">
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                     <div class="max-w-3xl">
@@ -223,7 +223,7 @@ function resetWellness() {
 
             <div class="p-5">
                 <div v-if="isClearance && clearance" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <article class="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+                    <article class="rounded-2xl border border-[#034485]/20 bg-white px-5 py-4">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Total Records</p>
                         <p class="mt-2 text-2xl font-bold text-slate-900">{{ clearance.kpis.total_records }}</p>
                     </article>
@@ -235,14 +235,14 @@ function resetWellness() {
                         <p class="text-xs uppercase tracking-wide text-amber-700">Expiring Soon</p>
                         <p class="mt-2 text-2xl font-bold text-amber-900">{{ clearance.kpis.expiring_30_count }}</p>
                     </article>
-                    <article class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                    <article class="rounded-2xl border border-[#034485]/20 bg-[#034485]/5 px-5 py-4">
                         <p class="text-xs uppercase tracking-wide text-slate-600">Reviewed</p>
                         <p class="mt-2 text-2xl font-bold text-slate-900">{{ clearance.kpis.reviewed_count }}</p>
                     </article>
                 </div>
 
                 <div v-else-if="!isClearance && wellness" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <article class="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+                    <article class="rounded-2xl border border-[#034485]/20 bg-white px-5 py-4">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Total Logs</p>
                         <p class="mt-2 text-2xl font-bold text-slate-900">{{ wellness.kpis.total_logs }}</p>
                     </article>
@@ -273,7 +273,7 @@ function resetWellness() {
         </section>
 
         <template v-if="isClearance && clearance">
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Clearance Filters</p>
                     <h2 class="mt-2 text-xl font-semibold text-slate-900">Medical Clearance Records</h2>
@@ -321,7 +321,7 @@ function resetWellness() {
                 </div>
             </section>
 
-            <section class="overflow-hidden rounded-3xl border border-[#034485]/20 bg-white shadow-sm">
+            <section class="overflow-hidden rounded-3xl border border-[#034485]/35 bg-white">
                 <div class="border-b border-slate-200 px-5 py-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Clearance List</p>
                     <h2 class="mt-2 text-lg font-semibold text-slate-900">Submitted Health Clearances</h2>
@@ -397,7 +397,7 @@ function resetWellness() {
         </template>
 
         <template v-if="!isClearance && wellness">
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Wellness Filters</p>
                     <h2 class="mt-2 text-xl font-semibold text-slate-900">Coach Wellness Observations</h2>
@@ -447,7 +447,7 @@ function resetWellness() {
                 <article
                     v-for="row in wellness.logs.data"
                     :key="row.id"
-                    class="rounded-3xl border border-[#034485]/15 bg-white p-5 shadow-sm"
+                    class="rounded-3xl border border-[#034485]/35 bg-white p-5"
                 >
                     <div class="flex items-start justify-between gap-3">
                         <div>
@@ -464,20 +464,20 @@ function resetWellness() {
                     </div>
 
                     <div class="mt-4 grid grid-cols-2 gap-3">
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="rounded-2xl border border-[#034485]/20 bg-[#034485]/5 px-4 py-3">
                             <p class="text-[11px] uppercase tracking-wide text-slate-500">Team</p>
                             <p class="mt-1 text-sm font-semibold text-slate-900">{{ row.team_name || '-' }}</p>
                         </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="rounded-2xl border border-[#034485]/20 bg-[#034485]/5 px-4 py-3">
                             <p class="text-[11px] uppercase tracking-wide text-slate-500">Schedule</p>
                             <p class="mt-1 text-sm font-semibold text-slate-900">{{ row.schedule_type || '-' }}</p>
                             <p class="mt-1 text-xs text-slate-500">{{ row.schedule_title || '-' }}</p>
                         </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="rounded-2xl border border-[#034485]/20 bg-[#034485]/5 px-4 py-3">
                             <p class="text-[11px] uppercase tracking-wide text-slate-500">Fatigue Level</p>
                             <p class="mt-1 text-sm font-semibold text-slate-900">{{ row.fatigue_level ?? '-' }}</p>
                         </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="rounded-2xl border border-[#034485]/20 bg-[#034485]/5 px-4 py-3">
                             <p class="text-[11px] uppercase tracking-wide text-slate-500">Performance</p>
                             <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="performanceTone(row.performance_condition)">
                                 {{ row.performance_condition || '-' }}
@@ -490,7 +490,7 @@ function resetWellness() {
                             <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-700">Injury Notes</p>
                             <p class="mt-1 text-slate-700">{{ row.injury_notes }}</p>
                         </div>
-                        <div v-if="row.remarks" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div v-if="row.remarks" class="rounded-2xl border border-[#034485]/20 bg-[#034485]/5 px-4 py-3">
                             <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Remarks</p>
                             <p class="mt-1 text-slate-700">{{ row.remarks }}</p>
                         </div>
@@ -500,7 +500,7 @@ function resetWellness() {
 
                 <div
                     v-if="wellness.logs.data.length === 0"
-                    class="rounded-3xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center text-sm text-slate-500 shadow-sm md:col-span-2 2xl:col-span-3"
+                    class="rounded-3xl border border-dashed border-[#034485]/25 bg-white px-5 py-12 text-center text-sm text-slate-500 md:col-span-2 2xl:col-span-3"
                 >
                     No wellness logs found.
                 </div>

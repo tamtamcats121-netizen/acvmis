@@ -213,16 +213,17 @@ function formatPercent(value: number) {
     <Head title="Reports" />
 
     <div class="space-y-5">
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Reports Workspace</h1>
-                    <p class="text-sm text-slate-600">Generate exportable attendance and roster reports for meetings, monitoring, and decision support.</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Reporting And Analytics</p>
+                    <h1 class="mt-2 text-2xl font-bold">Reports Workspace</h1>
+                    <p class="mt-2 text-sm text-white/85">Generate exportable attendance and roster reports for meetings, monitoring, and decision support.</p>
                 </div>
             </div>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
             <div class="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-7">
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Period</label>
@@ -340,7 +341,7 @@ function formatPercent(value: number) {
             </div>
         </section>
 
-        <section id="attendance-report" class="space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5 scroll-mt-24">
+        <section id="attendance-report" class="space-y-4 rounded-3xl border border-[#034485]/35 bg-white p-5 scroll-mt-24">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 class="text-base font-semibold text-slate-900">Attendance Summary Report</h2>
@@ -366,7 +367,7 @@ function formatPercent(value: number) {
             </div>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="rounded-2xl border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Attendance Rate</p>
                     <p class="mt-1 text-2xl font-bold text-[#034485]">{{ formatPercent(props.attendanceReport.summary.attendance_rate) }}</p>
                 </article>
@@ -396,7 +397,7 @@ function formatPercent(value: number) {
                 No attendance data found for the selected filters.
             </div>
 
-            <div v-else class="overflow-x-auto rounded-xl border border-[#034485]/45">
+            <div v-else class="overflow-x-auto rounded-2xl border border-[#034485]/35">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -434,7 +435,7 @@ function formatPercent(value: number) {
             </div>
         </section>
 
-        <section id="roster-report" class="space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5 scroll-mt-24">
+        <section id="roster-report" class="space-y-4 rounded-3xl border border-[#034485]/35 bg-white p-5 scroll-mt-24">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 class="text-base font-semibold text-slate-900">Team Roster Report</h2>
@@ -460,7 +461,7 @@ function formatPercent(value: number) {
             </div>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="rounded-2xl border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Total Players</p>
                     <p class="mt-1 text-2xl font-bold text-[#034485]">{{ props.rosterReport.summary.total_players }}</p>
                 </article>
@@ -490,7 +491,7 @@ function formatPercent(value: number) {
                 No roster data found for the selected filters.
             </div>
 
-            <div v-else class="overflow-x-auto rounded-xl border border-[#034485]/45">
+            <div v-else class="overflow-x-auto rounded-2xl border border-[#034485]/35">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -526,7 +527,7 @@ function formatPercent(value: number) {
             </div>
         </section>
 
-        <section id="academic-report" class="space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5 scroll-mt-24">
+        <section id="academic-report" class="space-y-4 rounded-3xl border border-[#034485]/35 bg-white p-5 scroll-mt-24">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 class="text-base font-semibold text-slate-900">Academic Submission Status Report</h2>
@@ -552,7 +553,7 @@ function formatPercent(value: number) {
             </div>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-5">
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="rounded-2xl border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Total Submissions</p>
                     <p class="mt-1 text-2xl font-bold text-[#034485]">{{ props.academicReport.summary.total_submissions }}</p>
                 </article>
@@ -578,7 +579,7 @@ function formatPercent(value: number) {
                 No academic submission data found for the selected filters.
             </div>
 
-            <div v-else class="overflow-x-auto rounded-xl border border-[#034485]/45">
+            <div v-else class="overflow-x-auto rounded-2xl border border-[#034485]/35">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -613,7 +614,7 @@ function formatPercent(value: number) {
             </div>
         </section>
 
-        <section id="health-report" class="space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5 scroll-mt-24">
+        <section id="health-report" class="space-y-4 rounded-3xl border border-[#034485]/35 bg-white p-5 scroll-mt-24">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 class="text-base font-semibold text-slate-900">Health Clearance Status Report</h2>
@@ -639,7 +640,7 @@ function formatPercent(value: number) {
             </div>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="rounded-2xl border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Total Records</p>
                     <p class="mt-1 text-2xl font-bold text-[#034485]">{{ props.healthReport.summary.total_records }}</p>
                 </article>
@@ -669,7 +670,7 @@ function formatPercent(value: number) {
                 No health clearance data found for the selected filters.
             </div>
 
-            <div v-else class="overflow-x-auto rounded-xl border border-[#034485]/45">
+            <div v-else class="overflow-x-auto rounded-2xl border border-[#034485]/35">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
