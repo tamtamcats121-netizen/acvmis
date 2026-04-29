@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue';
 import { showAppToast } from '@/composables/useAppToast';
 import { useSportColors } from '@/composables/useSportColors';
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue';
+import { resolveTeamAvatarUrl as teamAvatarUrl, resolveUserAvatarUrl as userAvatarUrl } from '@/utils/media';
 
 defineOptions({
     layout: StudentAthleteDashboard,
@@ -127,22 +128,6 @@ function saveDesiredJersey() {
             },
         },
     );
-}
-
-function teamAvatarUrl(path?: string | null) {
-    if (!path) return '/images/default-avatar.svg';
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
-        return path;
-    }
-    return `/storage/${path}`;
-}
-
-function userAvatarUrl(path?: string | null) {
-    if (!path) return '/images/default-avatar.svg';
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
-        return path;
-    }
-    return `/storage/${path}`;
 }
 
 function initialsFromParts(...parts: Array<string | null | undefined>) {

@@ -17,7 +17,7 @@ const currentYear = new Date().getFullYear()
 <template>
   
   <footer
-    class="role-footer mt-10 mr-4 rounded-tr-[2rem] border-t border-slate-200/60 bg-[#034485] sm:mr-6 lg:mr-10"
+    class="role-footer mt-10 mr-4 rounded-tr-[2rem] border-t border-slate-200/60 bg-[#b91c1c] sm:mr-6 lg:mr-10"
     :class="props.bottomNav ? 'pb-[calc(env(safe-area-inset-bottom,0px)+5.25rem)] md:pb-5' : 'pb-5'"
   >
     <div class="mx-auto w-full max-w-[1240px] px-4 pt-5 sm:px-6 lg:px-10">

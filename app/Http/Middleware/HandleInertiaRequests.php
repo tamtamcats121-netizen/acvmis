@@ -74,6 +74,7 @@ class HandleInertiaRequests extends Middleware
                         'approval_status' => $request->user()->approval_status,
                         'must_change_password' => (bool) $request->user()->must_change_password,
                         'avatar' => $request->user()->avatar,
+                        'avatar_url' => $request->user()->avatar_url,
                     ]
                     : null,
                 'identity' => fn () => $request->user()

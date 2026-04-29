@@ -2,6 +2,8 @@
 import { router, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
+import { resolveUserAvatarUrl } from '@/utils/media'
+
 const props = withDefaults(defineProps<{
   dark?: boolean
   menuPlacement?: 'bottom' | 'top' | 'right'
@@ -22,11 +24,7 @@ const userRole = computed(() => String(user.value?.role ?? ''))
 const isStudentUser = computed(() => ['student', 'student-athlete'].includes(userRole.value))
 
 const avatarUrl = computed(() => {
-  const path = String(user.value?.avatar ?? '')
-  if (!path) return '/images/default-avatar.svg'
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  if (path.startsWith('/storage/')) return path
-  return `/storage/${path}`
+  return resolveUserAvatarUrl(String(user.value?.avatar_url ?? user.value?.avatar ?? ''))
 })
 
 const fullName = computed(() => String(user.value?.name ?? 'User'))

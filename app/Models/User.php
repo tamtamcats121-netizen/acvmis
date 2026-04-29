@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Announcement;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -11,7 +12,7 @@ use App\Models\Student;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\UserSetting;
-use App\Models\Announcement;
+use App\Support\MediaUrl;
 
 class User extends Authenticatable
 {
@@ -35,6 +36,7 @@ class User extends Authenticatable
         'name',
         'account_state',
         'approval_status',
+        'avatar_url',
     ];
 
     protected $hidden = [
@@ -87,6 +89,11 @@ class User extends Authenticatable
         }
 
         return 'pending';
+    }
+
+    public function getAvatarUrlAttribute(): string
+    {
+        return MediaUrl::public($this->attributes['avatar'] ?? null, '/images/default-avatar.svg');
     }
 
     public function isActiveAccount(): bool

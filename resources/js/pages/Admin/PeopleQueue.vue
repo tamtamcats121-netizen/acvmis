@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
+import { resolveUserAvatarUrl } from '@/utils/media';
 
 defineOptions({
     layout: AdminDashboard,
@@ -515,7 +516,7 @@ function rejectUser() {
                                         class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border text-sm font-bold transition-colors duration-200 ease-out"
                                         :class="selectedUser?.id === user.id ? 'border-white/25 bg-white/15 text-white' : 'border-[#034485]/20 bg-[#e9f2ff] text-[#034485]'"
                                     >
-                                        <img v-if="user.avatar" :src="user.avatar" :alt="user.name" class="h-full w-full object-cover">
+                                        <img v-if="user.avatar" :src="resolveUserAvatarUrl(user.avatar)" :alt="user.name" class="h-full w-full object-cover">
                                         <span v-else>{{ userInitials(user) }}</span>
                                     </div>
                                     <div class="min-w-0 flex-1">
@@ -562,7 +563,7 @@ function rejectUser() {
                             <div class="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div class="flex items-start gap-3">
                                     <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-[#e9f2ff] text-base font-bold text-[#034485]">
-                                        <img v-if="selectedUser.avatar" :src="selectedUser.avatar" :alt="selectedUser.name" class="h-full w-full object-cover">
+                                        <img v-if="selectedUser.avatar" :src="resolveUserAvatarUrl(selectedUser.avatar)" :alt="selectedUser.name" class="h-full w-full object-cover">
                                         <span v-else>{{ userInitials(selectedUser) }}</span>
                                     </div>
                                     <div class="min-w-0">

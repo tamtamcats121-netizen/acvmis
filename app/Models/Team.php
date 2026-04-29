@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -22,6 +23,7 @@ class Team extends Model
     protected $appends = [
         'coach_id',
         'assistant_coach_id',
+        'team_avatar_url',
     ];
 
     protected $casts = [
@@ -128,6 +130,11 @@ class Team extends Model
             : $this->assistantCoachAssignment()->first();
 
         return $assignment?->coach_id ? (int) $assignment->coach_id : null;
+    }
+
+    public function getTeamAvatarUrlAttribute(): string
+    {
+        return MediaUrl::public($this->attributes['team_avatar'] ?? null, '/images/default-avatar.svg');
     }
 
     public function scopeForCoach($query, int $coachId)

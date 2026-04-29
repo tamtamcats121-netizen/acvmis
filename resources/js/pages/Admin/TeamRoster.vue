@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3'
 
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
+import { resolveTeamAvatarUrl as teamAvatarUrl, resolveUserAvatarUrl as userAvatarUrl } from '@/utils/media'
 
 defineOptions({
     layout: AdminDashboard,
@@ -41,22 +42,6 @@ const props = defineProps<{
 }>()
 
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
-
-function teamAvatarUrl(path?: string | null) {
-    if (!path) return '/images/default-avatar.svg'
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
-        return path
-    }
-    return `/storage/${path}`
-}
-
-function userAvatarUrl(path?: string | null) {
-    if (!path) return '/images/default-avatar.svg'
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
-        return path
-    }
-    return `/storage/${path}`
-}
 
 function initialsFromText(value?: string | null) {
     return String(value ?? '')

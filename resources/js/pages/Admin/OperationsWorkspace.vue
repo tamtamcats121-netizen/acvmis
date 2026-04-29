@@ -489,31 +489,12 @@ function printCalendarSchedules() {
 
 <template>
     <div class="space-y-5">
-        <section class="grid grid-cols-1 gap-3 md:grid-cols-6">
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                <p class="text-xs text-slate-500">Attendance Rate</p>
-                <p class="mt-1 text-2xl font-bold text-emerald-700">{{ kpis.summary.attendance_rate_percent }}%</p>
-            </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                <p class="text-xs text-slate-500">Response Rate</p>
-                <p class="mt-1 text-2xl font-bold text-slate-700">{{ kpis.summary.response_rate_percent }}%</p>
-            </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-amber-50 p-4">
-                <p class="text-xs text-amber-700">Needs Attention: No Response</p>
-                <p class="mt-1 text-2xl font-bold text-amber-900">{{ kpis.needs_attention.no_response }}</p>
-            </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-red-50 p-4">
-                <p class="text-xs text-red-700">Needs Attention: Late Spikes</p>
-                <p class="mt-1 text-2xl font-bold text-red-900">+{{ kpis.needs_attention.late_spike_delta }}</p>
-            </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-orange-50 p-4">
-                <p class="text-xs text-orange-700">Needs Attention: At-Risk Teams</p>
-                <p class="mt-1 text-2xl font-bold text-orange-900">{{ kpis.needs_attention.at_risk_teams }}</p>
-            </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                <p class="text-xs text-slate-500">Total Records</p>
-                <p class="mt-1 text-2xl font-bold text-slate-900">{{ kpis.summary.total_records }}</p>
-            </article>
+        <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Operations Workspace</p>
+            <h1 class="mt-2 text-2xl font-bold text-slate-900">Attendance And Schedule Monitoring</h1>
+            <p class="mt-2 max-w-3xl text-sm text-slate-500">
+                Review team schedules, monitor attendance activity, inspect exception cases, and open schedule drilldowns from one shared operations workspace.
+            </p>
         </section>
 
         <section class="rounded-xl border border-[#034485]/45 bg-white p-5">

@@ -434,7 +434,7 @@ watch(mobileMenuOpen, (open) => {
     margin-top: 1rem;
     padding-top: 1.2rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    background: #0b2f5f !important;
+    background: #b91c1c !important;
     border-radius: 18px 18px 0 0;
     margin-left: 1.5rem;
     margin-right: 1.5rem;

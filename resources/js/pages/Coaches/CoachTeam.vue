@@ -6,6 +6,7 @@ import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
+import { resolveTeamAvatarUrl as teamAvatarUrl, resolveUserAvatarUrl as userAvatarUrl } from '@/utils/media'
 
 defineOptions({
     layout: CoachDashboard,
@@ -113,22 +114,6 @@ function positionsForSport(): string[] {
 const filteredPlayers = computed(() => {
     return players.value
 })
-
-function teamAvatarUrl(path?: string | null) {
-    if (!path) return '/images/default-avatar.svg'
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
-        return path
-    }
-    return `/storage/${path}`
-}
-
-function userAvatarUrl(path?: string | null) {
-    if (!path) return '/images/default-avatar.svg'
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
-        return path
-    }
-    return `/storage/${path}`
-}
 
 function initialsFromParts(...parts: Array<string | null | undefined>) {
     return parts

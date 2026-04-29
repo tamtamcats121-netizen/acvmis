@@ -2909,7 +2909,7 @@ watch(mobileMenuOpen, (open) => {
     padding-top: clamp(1rem, 3vw, 1.5rem);
     padding-bottom: 1.3rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    background: #0b2f5f;
+    background: #b91c1c;
     border-radius: 18px 18px 0 0;
     margin-left: 1.5rem;
     margin-right: 1.5rem;

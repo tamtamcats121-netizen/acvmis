@@ -46,29 +46,10 @@ class CreateTeamController extends Controller
             'team_avatar' => 'nullable|image|max:4096',
             'sport_id' => ['required', Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'year' => 'required|digits:4',
-            'coach_id' => 'required|exists:coaches,id',
-            'assistant_coach_id' => 'nullable|exists:coaches,id|different:coach_id',
-            'players' => 'nullable|string',
             'description' => 'nullable|string',
         ]);
 
-        $playerIds = $this->decodePlayerIds($validated['players'] ?? '[]');
-        $maxPlayers = $this->maxPlayersForSport((int) $validated['sport_id']);
-        if ($playerIds->count() > $maxPlayers) {
-            throw ValidationException::withMessages([
-                'players' => "Selected players exceed the max allowed for this sport ({$maxPlayers}).",
-            ]);
-        }
-
-        $this->validateCoachAssignmentConflicts(
-            (int) $validated['coach_id'],
-            isset($validated['assistant_coach_id']) ? (int) $validated['assistant_coach_id'] : null,
-            null
-        );
-
-        $this->validatePlayerConflicts($playerIds, null);
-
-        $team = DB::transaction(function () use ($request, $validated, $playerIds) {
+        $team = DB::transaction(function () use ($request, $validated) {
             $avatarPath = null;
             if ($request->hasFile('team_avatar')) {
                 $avatarPath = $this->secureUpload->storePublic(
@@ -88,31 +69,10 @@ class CreateTeamController extends Controller
                 'archived_by' => null,
             ]);
 
-            $team->syncStaffAssignments(
-                (int) $validated['coach_id'],
-                isset($validated['assistant_coach_id']) ? (int) $validated['assistant_coach_id'] : null,
-                auth()->id()
-            );
-
-            foreach ($playerIds as $studentId) {
-                TeamPlayer::create([
-                    'team_id' => $team->id,
-                    'student_id' => $studentId,
-                    'jersey_number' => null,
-                    'athlete_position' => null,
-                ]);
-            }
-
             return $team;
         });
 
-        $team->load('sport');
-        $this->logRosterMembershipChanges($team, $playerIds->all(), 'roster_added_to_team');
-        $this->notifyTeamAssignmentAdded($team, (int) $validated['coach_id'], 'head coach');
-        $this->notifyTeamAssignmentAdded($team, $validated['assistant_coach_id'] ? (int) $validated['assistant_coach_id'] : null, 'assistant coach');
-        $this->notifyPlayersAdded($team, $playerIds->all());
-        $playerIds->each(fn ($studentId) => $this->teamPlayerStatuses->syncStudent((int) $studentId));
-        return redirect('/teams')->with('success', 'The team has been created successfully.');
+        return redirect()->route('admin.teams.roster.page', $team)->with('success', 'Team created. Continue with coach and player assignments.');
     }
 
     public function edit(Team $team)
@@ -124,41 +84,15 @@ class CreateTeamController extends Controller
     {
         $this->authorizeMutation();
 
-        $oldCoachId = (int) $team->coach_id;
-        $oldAssistantCoachId = $team->assistant_coach_id ? (int) $team->assistant_coach_id : null;
-        $existingPlayerIds = TeamPlayer::where('team_id', $team->id)
-            ->pluck('student_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
         $validated = $request->validate([
             'team_name' => 'required|string|max:255',
             'team_avatar' => 'nullable|image|max:4096',
             'sport_id' => ['required', Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'year' => 'required|digits:4',
-            'coach_id' => 'required|exists:coaches,id',
-            'assistant_coach_id' => 'nullable|exists:coaches,id|different:coach_id',
-            'players' => 'nullable|string',
             'description' => 'nullable|string',
         ]);
 
-        $playerIds = $this->decodePlayerIds($validated['players'] ?? '[]');
-        $maxPlayers = $this->maxPlayersForSport((int) $validated['sport_id']);
-        if ($playerIds->count() > $maxPlayers) {
-            throw ValidationException::withMessages([
-                'players' => "Selected players exceed the max allowed for this sport ({$maxPlayers}).",
-            ]);
-        }
-
-        $this->validateCoachAssignmentConflicts(
-            (int) $validated['coach_id'],
-            isset($validated['assistant_coach_id']) ? (int) $validated['assistant_coach_id'] : null,
-            $team->id
-        );
-
-        $this->validatePlayerConflicts($playerIds, $team->id);
-
-        DB::transaction(function () use ($request, $validated, $playerIds, $team) {
+        DB::transaction(function () use ($request, $validated, $team) {
             $avatarPath = $team->team_avatar;
             if ($request->hasFile('team_avatar')) {
                 $newAvatarPath = $this->secureUpload->storePublic(
@@ -180,56 +114,9 @@ class CreateTeamController extends Controller
                 'year' => $validated['year'],
                 'description' => $validated['description'] ?? null,
             ]);
-
-            $team->syncStaffAssignments(
-                (int) $validated['coach_id'],
-                isset($validated['assistant_coach_id']) ? (int) $validated['assistant_coach_id'] : null,
-                auth()->id()
-            );
-
-            TeamPlayer::where('team_id', $team->id)
-                ->whereNotIn('student_id', $playerIds->all())
-                ->delete();
-
-            $existingIds = TeamPlayer::where('team_id', $team->id)
-                ->pluck('student_id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
-
-            $missingIds = $playerIds->diff($existingIds)->all();
-            foreach ($missingIds as $studentId) {
-                TeamPlayer::create([
-                    'team_id' => $team->id,
-                    'student_id' => $studentId,
-                    'jersey_number' => null,
-                    'athlete_position' => null,
-                ]);
-            }
         });
 
-        $newCoachId = (int) $validated['coach_id'];
-        $newAssistantCoachId = $validated['assistant_coach_id'] ? (int) $validated['assistant_coach_id'] : null;
-        $addedPlayerIds = array_values(array_diff($playerIds->all(), $existingPlayerIds));
-        $removedPlayerIds = array_values(array_diff($existingPlayerIds, $playerIds->all()));
-
-        $team->refresh()->load('sport');
-        if ($oldCoachId !== $newCoachId) {
-            $this->notifyTeamAssignmentRemoved($team, $oldCoachId, 'head coach');
-            $this->notifyTeamAssignmentAdded($team, $newCoachId, 'head coach');
-        }
-
-        if ($oldAssistantCoachId !== $newAssistantCoachId) {
-            $this->notifyTeamAssignmentRemoved($team, $oldAssistantCoachId, 'assistant coach');
-            $this->notifyTeamAssignmentAdded($team, $newAssistantCoachId, 'assistant coach');
-        }
-
-        $this->logRosterMembershipChanges($team, $addedPlayerIds, 'roster_added_to_team');
-        $this->logRosterMembershipChanges($team, $removedPlayerIds, 'roster_removed_from_team');
-        $this->notifyPlayersAdded($team, $addedPlayerIds);
-        $this->notifyPlayersRemoved($team, $removedPlayerIds);
-        collect($addedPlayerIds)->each(fn ($studentId) => $this->teamPlayerStatuses->syncStudent((int) $studentId));
-
-        return redirect('/teams')->with('success', 'The team has been updated successfully.');
+        return redirect()->route('admin.teams.roster.page', $team)->with('success', 'Team details updated. Manage coaches and players from the roster workspace.');
     }
 
     public function teamSetup(Request $request)

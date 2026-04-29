@@ -3,6 +3,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
+import { resolveUserAvatarUrl } from '@/utils/media';
 
 defineOptions({
     layout: AdminDashboard,
@@ -858,8 +859,8 @@ watch(
                     <div class="flex h-full min-h-full flex-col border-b border-slate-200 bg-slate-50/45 xl:border-r xl:border-b-0">
                         <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">User Directory</p>
-                            <p class="mt-1 text-sm text-slate-600">
-                                {{ isDeactivatedView ? 'Review deactivated accounts and restore access without leaving the page.' : 'Review active accounts efficiently and open full profiles within the page.' }}
+                            <p v-if="isDeactivatedView" class="mt-1 text-sm text-slate-600">
+                                Review deactivated accounts and restore access without leaving the page.
                             </p>
                         </div>
                         <div class="flex-1 bg-white">
@@ -879,7 +880,7 @@ watch(
                                     >
                                         <img
                                             v-if="user.avatar"
-                                            :src="`/storage/${user.avatar}`"
+                                            :src="resolveUserAvatarUrl(user.avatar)"
                                             :alt="`${user.name} avatar`"
                                             class="h-full w-full object-cover"
                                         />
@@ -931,7 +932,7 @@ watch(
                                     <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-[#e9f2ff] text-base font-bold text-[#034485]">
                                         <img
                                             v-if="selectedUser.avatar"
-                                            :src="`/storage/${selectedUser.avatar}`"
+                                            :src="resolveUserAvatarUrl(selectedUser.avatar)"
                                             :alt="`${selectedUser.name} avatar`"
                                             class="h-full w-full object-cover"
                                         />

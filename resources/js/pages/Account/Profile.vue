@@ -5,12 +5,11 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import AccountShell from '@/components/Account/AccountShell.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { normalizeWorkspaceRole, resolveAccountLayout } from '@/pages/Account/accountRole'
+import { resolveUserAvatarUrl } from '@/utils/media'
 
 defineOptions({
   layout: (h: any, page: any) => h(resolveAccountLayout(page), [page]),
 })
-
-const DEFAULT_AVATAR_URL = '/images/default-avatar.svg'
 
 const props = defineProps<{
   profile: {
@@ -94,11 +93,7 @@ const cropImageStyle = computed(() => ({
 
 const avatarUrl = computed(() => {
   if (avatarPreview.value) return avatarPreview.value
-  const path = String(user.value?.avatar ?? '')
-  if (!path) return DEFAULT_AVATAR_URL
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  if (path.startsWith('/storage/')) return path
-  return `/storage/${path}`
+  return resolveUserAvatarUrl(String(user.value?.avatar_url ?? user.value?.avatar ?? ''))
 })
 
 const roleLabel = computed(() => {

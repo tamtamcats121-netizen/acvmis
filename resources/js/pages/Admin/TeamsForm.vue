@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { Head, Link, router } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, ref } from 'vue'
 
-import MultiSelectSearch from '@/components/MultiSelectSearch.vue'
-import SingleSelectSearch from '@/components/SingleSelectSearch.vue'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
+import { resolveTeamAvatarUrl } from '@/utils/media'
 
 defineOptions({
     layout: AdminDashboard,
@@ -24,262 +23,32 @@ type TeamPayload = {
     player_ids: number[]
 }
 
-type PlayerOption = {
-    id: number
-    name: string
-    student_id_number: string | null
-    email?: string | null
-    academic_level_label?: string | null
-    is_available?: boolean
-    assigned_team_id?: number | null
-    unavailable_reason?: string | null
-}
-
 const props = defineProps<{
-    coaches: {
-        id: number
-        name: string
-        status?: string | null
-        email?: string | null
-        is_available?: boolean
-        assigned_team_id?: number | null
-        assigned_role?: string | null
-        unavailable_reason?: string | null
-    }[]
-    players: PlayerOption[]
     sports: { id: number; name: string; max_players: number }[]
     selectedTeam?: TeamPayload | null
-    coachWorkloads?: Record<number, { team_id: number; role: string; team_name: string; sport_id: number; year: string | number }[]>
 }>()
 
-const teamName = ref('')
+const { sportColor, sportTextColor, sportLabel } = useSportColors()
+
+const teamName = ref(props.selectedTeam?.team_name ?? '')
 const teamAvatar = ref<File | null>(null)
-const avatarPreview = ref<string | null>(null)
+const avatarPreview = ref<string | null>(
+    props.selectedTeam?.team_avatar ? resolveTeamAvatarUrl(props.selectedTeam.team_avatar) : null,
+)
 const avatarPreviewFromUpload = ref(false)
-const sport = ref('')
-const year = ref('')
-const description = ref('')
-const coach = ref<number | null>(null)
-const assistantCoach = ref<number | null>(null)
-const selectedPlayerIds = ref<number[]>([])
+const sport = ref(props.selectedTeam?.sport_id ? String(props.selectedTeam.sport_id) : '')
+const year = ref(props.selectedTeam?.year ?? '')
+const description = ref(props.selectedTeam?.description ?? '')
 const errors = ref<Record<string, string>>({})
 const isSaving = ref(false)
-const isOptionLoading = ref(false)
-const draftMessage = ref('')
-const playerAcademicLevelFilter = ref('all')
-let optionLoadingTimer: ReturnType<typeof setTimeout> | null = null
-let autosaveTimer: ReturnType<typeof setTimeout> | null = null
 
-const allCoaches = ref(props.coaches || [])
-const allPlayers = ref(props.players || [])
-const allSports = ref(props.sports || [])
-
+const isEditMode = computed(() => !!props.selectedTeam?.id)
 const currentYear = new Date().getFullYear()
 const yearOptions = Array.from({ length: 10 }, (_, i) => String(currentYear + 3 - i))
-const selectedPlayerCount = computed(() => selectedPlayerIds.value.length)
-const isEditMode = computed(() => !!props.selectedTeam?.id)
-const selectedSport = computed(() => allSports.value.find((s) => String(s.id) === sport.value) || null)
-const maxPlayersForSelectedSport = computed(() => selectedSport.value?.max_players ?? 0)
-const sportSelected = computed(() => !!sport.value)
-const selectableCoaches = computed(() =>
-    allCoaches.value.map((coachOption) => ({
-        ...coachOption,
-        disabled: coachOption.is_available === false,
-        meta: [coachOption.email ? `Email: ${coachOption.email}` : null, coachOption.status ? `Status: ${coachOption.status}` : null, `ID: ${coachOption.id}`]
-            .filter(Boolean)
-            .join(' • '),
-    }))
-)
-const playerAcademicLevelOptions = computed(() => {
-    const set = new Set<string>()
-    allPlayers.value.forEach((player) => {
-        if (player.academic_level_label) set.add(String(player.academic_level_label))
-    })
-    return Array.from(set).sort()
-})
-const selectablePlayers = computed(() => {
-    const filtered = allPlayers.value.filter((player) => {
-        if (playerAcademicLevelFilter.value !== 'all' && player.academic_level_label !== playerAcademicLevelFilter.value) return false
-        return true
-    })
-    const selectedSet = new Set(selectedPlayerIds.value)
-    const selectedOptions = allPlayers.value.filter((player) => selectedSet.has(player.id))
-    return [
-        ...selectedOptions,
-        ...filtered.filter((player) => !selectedSet.has(player.id)),
-    ].map((playerOption) => ({
-        ...playerOption,
-        disabled: playerOption.is_available === false,
-        meta: [
-            playerOption.student_id_number ? `Student ID: ${playerOption.student_id_number}` : null,
-            playerOption.email ? `Email: ${playerOption.email}` : null,
-            playerOption.academic_level_label ? `Academic Level: ${playerOption.academic_level_label}` : null,
-        ]
-            .filter(Boolean)
-            .join(' • '),
-    }))
-})
-const draftKey = computed(() => `ac-vmis:teams:draft:${isEditMode.value ? `edit:${props.selectedTeam?.id}` : 'create'}`)
-const isOverLimit = computed(() => maxPlayersForSelectedSport.value > 0 && selectedPlayerCount.value > maxPlayersForSelectedSport.value)
-const isAtLimit = computed(() => maxPlayersForSelectedSport.value > 0 && selectedPlayerCount.value === maxPlayersForSelectedSport.value)
-const remainingSlots = computed(() => {
-    if (!maxPlayersForSelectedSport.value) return 0
-    return Math.max(0, maxPlayersForSelectedSport.value - selectedPlayerCount.value)
-})
-const previewCoachName = computed(() => allCoaches.value.find((c) => c.id === coach.value)?.name || 'Unassigned')
-const previewAssistantName = computed(() => allCoaches.value.find((c) => c.id === assistantCoach.value)?.name || 'Unassigned')
-const { sportColor, sportTextColor } = useSportColors()
-const playerTagStyle = () => {
-    if (!sportSelected.value) {
-        return {
-            backgroundColor: '#e2e8f0',
-            color: '#1f2937',
-            borderColor: '#cbd5e1',
-        }
-    }
-    const sportValue = selectedSport.value?.name ?? selectedSport.value?.id ?? ''
-    const bg = sportColor(sportValue)
-    const text = sportTextColor(sportValue)
-    return {
-        backgroundColor: bg,
-        color: text,
-        borderColor: bg,
-    }
-}
-
-const coachAssignments = computed(() => {
-    if (!coach.value || !props.coachWorkloads) return []
-    return props.coachWorkloads[coach.value] || []
-})
-
-const assistantAssignments = computed(() => {
-    if (!assistantCoach.value || !props.coachWorkloads) return []
-    return props.coachWorkloads[assistantCoach.value] || []
-})
-
-const headCoachConflictHint = computed(() => {
-    if (!sport.value || !year.value) return []
-    return coachAssignments.value.filter((assignment) => {
-        if (isEditMode.value && assignment.team_id === props.selectedTeam?.id) return false
-        return String(assignment.sport_id) === sport.value && String(assignment.year) === year.value
-    })
-})
-
-const assistantConflictHint = computed(() => {
-    if (!sport.value || !year.value) return []
-    return assistantAssignments.value.filter((assignment) => {
-        if (isEditMode.value && assignment.team_id === props.selectedTeam?.id) return false
-        return String(assignment.sport_id) === sport.value && String(assignment.year) === year.value
-    })
-})
-
-const unavailableCoaches = computed(() => allCoaches.value.filter((c) => c.is_available === false))
-const unavailablePlayers = computed(() => allPlayers.value.filter((p) => p.is_available === false))
-
-function captureCurrentState() {
-    return {
-        team_name: teamName.value,
-        sport_id: sport.value,
-        year: year.value,
-        coach_id: coach.value,
-        assistant_coach_id: assistantCoach.value,
-        description: description.value,
-        players: selectedPlayerIds.value,
-    }
-}
-
-function saveDraftSoon() {
-    if (isSaving.value) return
-    if (autosaveTimer) clearTimeout(autosaveTimer)
-
-    autosaveTimer = setTimeout(() => {
-        try {
-            localStorage.setItem(draftKey.value, JSON.stringify(captureCurrentState()))
-            draftMessage.value = `Draft autosaved at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-        } catch {
-            draftMessage.value = 'Autosave failed (storage unavailable).'
-        }
-    }, 400)
-}
-
-function restoreDraftIfNeeded() {
-    if (isEditMode.value) return
-
-    try {
-        const raw = localStorage.getItem(draftKey.value)
-        if (!raw) return
-        const parsed = JSON.parse(raw)
-
-        if (typeof parsed.team_name === 'string') teamName.value = parsed.team_name
-        if (typeof parsed.sport_id === 'string') sport.value = parsed.sport_id
-        if (typeof parsed.year === 'string') year.value = parsed.year
-        if (typeof parsed.description === 'string') description.value = parsed.description
-        if (parsed.head_coach && typeof parsed.head_coach.id === 'number') coach.value = parsed.head_coach.id
-        if (parsed.assistant_coach && typeof parsed.assistant_coach.id === 'number') assistantCoach.value = parsed.assistant_coach.id
-        if (Array.isArray(parsed.players)) {
-            selectedPlayerIds.value = (parsed.players as unknown[]).filter((id: unknown): id is number => typeof id === 'number')
-        }
-        draftMessage.value = 'Restored autosaved draft.'
-    } catch {
-        draftMessage.value = ''
-    }
-}
-
-function clearDraft() {
-    localStorage.removeItem(draftKey.value)
-    if (!isEditMode.value) {
-        draftMessage.value = 'Draft cleared.'
-    }
-}
-
-if (props.selectedTeam) {
-    teamName.value = props.selectedTeam.team_name ?? ''
-    sport.value = props.selectedTeam.sport_id ? String(props.selectedTeam.sport_id) : ''
-    year.value = props.selectedTeam.year ?? ''
-    coach.value = props.selectedTeam.head_coach?.id ?? null
-    assistantCoach.value = props.selectedTeam.assistant_coach?.id ?? null
-    description.value = props.selectedTeam.description ?? ''
-    selectedPlayerIds.value = props.selectedTeam.player_ids ?? []
-    if (props.selectedTeam.team_avatar) {
-        avatarPreview.value = props.selectedTeam.team_avatar.startsWith('/storage/')
-            ? props.selectedTeam.team_avatar
-            : `/storage/${props.selectedTeam.team_avatar}`
-    }
-} else {
-    restoreDraftIfNeeded()
-}
-
-watch([teamName, sport, year, coach, assistantCoach, description, selectedPlayerIds], saveDraftSoon, { deep: true })
-
-watch([coach, assistantCoach], () => {
-    if (coach.value && assistantCoach.value && coach.value === assistantCoach.value) {
-        assistantCoach.value = null
-    }
-})
-
-watch(sport, (newSport, oldSport) => {
-    if (!newSport) {
-        coach.value = null
-        assistantCoach.value = null
-        selectedPlayerIds.value = []
-        return
-    }
-
-    if (oldSport && newSport !== oldSport) {
-        isOptionLoading.value = true
-        if (optionLoadingTimer) clearTimeout(optionLoadingTimer)
-        optionLoadingTimer = setTimeout(() => {
-            isOptionLoading.value = false
-        }, 300)
-        coach.value = null
-        assistantCoach.value = null
-        selectedPlayerIds.value = []
-    }
-})
-
-watch(selectedPlayerIds, () => {
-    errors.value = { ...errors.value, players: '' }
-})
+const selectedSport = computed(() => props.sports.find((item) => String(item.id) === sport.value) || null)
+const rosterCount = computed(() => props.selectedTeam?.player_ids?.length ?? 0)
+const currentHeadCoach = computed(() => props.selectedTeam?.head_coach?.name || 'Unassigned')
+const currentAssistantCoach = computed(() => props.selectedTeam?.assistant_coach?.name || 'Unassigned')
 
 function goBack() {
     router.get('/teams')
@@ -300,40 +69,10 @@ function handleAvatarUpload(event: Event) {
 
 function validate() {
     const nextErrors: Record<string, string> = {}
+
     if (!teamName.value.trim()) nextErrors.team_name = 'Team name is required.'
     if (!sport.value) nextErrors.sport_id = 'Select a sport.'
     if (!year.value) nextErrors.year = 'Select a year.'
-    if (!coach.value) nextErrors.coach_id = 'Select a head coach.'
-
-    if (selectedPlayerIds.value.length > maxPlayersForSelectedSport.value) {
-        nextErrors.players = `Maximum players for ${selectedSport.value?.name ?? 'this sport'} is ${maxPlayersForSelectedSport.value}.`
-    }
-
-    if (headCoachConflictHint.value.length > 0) {
-        nextErrors.coach_id = 'Selected head coach already has an assignment in the same sport and year.'
-    }
-
-    if (assistantConflictHint.value.length > 0) {
-        nextErrors.assistant_coach_id = 'Selected assistant coach already has an assignment in the same sport and year.'
-    }
-
-    const headCoachOption = allCoaches.value.find((c) => c.id === coach.value)
-    if (headCoachOption && headCoachOption.is_available === false) {
-        nextErrors.coach_id = headCoachOption.unavailable_reason || 'Selected head coach is already assigned to another active team.'
-    }
-
-    const assistantOption = allCoaches.value.find((c) => c.id === assistantCoach.value)
-    if (assistantOption && assistantOption.is_available === false) {
-        nextErrors.assistant_coach_id = assistantOption.unavailable_reason || 'Selected assistant coach is already assigned to another active team.'
-    }
-
-    const unavailableSelectedPlayers = selectedPlayerIds.value
-        .map((id) => allPlayers.value.find((p) => p.id === id))
-        .filter((p): p is PlayerOption => p != null && p.is_available === false)
-
-    if (unavailableSelectedPlayers.length > 0) {
-        nextErrors.players = unavailableSelectedPlayers[0].unavailable_reason || 'One or more selected players are already assigned to another active team.'
-    }
 
     errors.value = nextErrors
     return Object.keys(nextErrors).length === 0
@@ -348,9 +87,6 @@ function submitTeam() {
     if (teamAvatar.value) formData.append('team_avatar', teamAvatar.value)
     formData.append('sport_id', sport.value)
     formData.append('year', year.value)
-    formData.append('coach_id', String(coach.value))
-    formData.append('assistant_coach_id', String(assistantCoach.value ?? ''))
-    formData.append('players', JSON.stringify(selectedPlayerIds.value.map((id) => ({ student_id: id }))))
     formData.append('description', description.value)
 
     const endpoint = isEditMode.value ? `/teams/${props.selectedTeam?.id}` : '/teams/create'
@@ -362,9 +98,6 @@ function submitTeam() {
         },
         onFinish: () => {
             isSaving.value = false
-        },
-        onSuccess: () => {
-            clearDraft()
         },
         onError: (backendErrors: Record<string, any>) => {
             const normalized: Record<string, string> = {}
@@ -385,247 +118,226 @@ function submitTeam() {
 }
 
 onBeforeUnmount(() => {
-    if (avatarPreview.value && avatarPreviewFromUpload.value) URL.revokeObjectURL(avatarPreview.value)
-    if (optionLoadingTimer) clearTimeout(optionLoadingTimer)
-    if (autosaveTimer) clearTimeout(autosaveTimer)
+    if (avatarPreview.value && avatarPreviewFromUpload.value) {
+        URL.revokeObjectURL(avatarPreview.value)
+    }
 })
 </script>
 
 <template>
+    <Head :title="isEditMode ? 'Edit Team' : 'Create Team'" />
+
     <div class="space-y-6">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-center gap-3">
-                <button @click="goBack" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100">
-                    Back to Teams
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="space-y-1">
+                <button
+                    type="button"
+                    class="text-sm font-medium text-[#034485] hover:text-[#033a70]"
+                    @click="goBack"
+                >
+                    ← Back to Teams
                 </button>
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900">{{ isEditMode ? 'Edit Team' : 'Create Team' }}</h1>
-                    <p class="text-sm text-slate-600">Set sport first, then assign coaches and players with roster rules.</p>
-                </div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">
+                    {{ isEditMode ? 'Edit Team' : 'Create Team' }}
+                </p>
             </div>
-            <div class="text-right">
-                <p class="text-xs text-slate-500">{{ draftMessage }}</p>
-                <button v-if="!isEditMode" type="button" class="text-xs text-slate-600 underline" @click="clearDraft">Clear draft</button>
+
+            <div v-if="isEditMode && selectedTeam" class="flex flex-wrap gap-2">
+                <Link
+                    :href="`/teams/${selectedTeam.id}/view-roster`"
+                    class="rounded-full border border-[#034485]/25 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#034485]/5"
+                >
+                    Open Roster Workspace
+                </Link>
             </div>
         </div>
 
-        <section class="space-y-5 rounded-xl border border-[#034485]/45 bg-white p-5">
-            <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-                <div class="space-y-5">
-                    <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                        <div class="space-y-4 lg:col-span-2">
-                            <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">Team Name</label>
-                                <input
-                                    v-model="teamName"
-                                    type="text"
-                                    placeholder="e.g., Falcons A-Team"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                                />
-                                <p v-if="errors.team_name" class="mt-1 text-xs text-red-600">{{ errors.team_name }}</p>
-                            </div>
-
-                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div>
-                                    <label class="mb-1 block text-sm font-medium text-slate-700">Sport</label>
-                                    <select v-model="sport" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                                        <option value="" disabled>Select sport</option>
-                                        <option v-for="s in allSports" :key="s.id" :value="String(s.id)">
-                                            {{ s.name }} (Max {{ s.max_players }})
-                                        </option>
-                                    </select>
-                                    <p v-if="errors.sport_id" class="mt-1 text-xs text-red-600">{{ errors.sport_id }}</p>
-                                </div>
-
-                                <div>
-                                    <label class="mb-1 block text-sm font-medium text-slate-700">Year</label>
-                                    <select v-model="year" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                                        <option value="" disabled>Select year</option>
-                                        <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-                                    </select>
-                                    <p v-if="errors.year" class="mt-1 text-xs text-red-600">{{ errors.year }}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-slate-700">Team Avatar</label>
-                            <input type="file" accept="image/*" @change="handleAvatarUpload" class="w-full text-sm text-slate-600" />
-                            <div class="flex h-40 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                                <img
-                                    v-if="avatarPreview"
-                                    :src="avatarPreview"
-                                    alt="Avatar Preview"
-                                    class="h-full w-full object-cover"
-                                />
-                                <span v-else class="text-xs text-slate-400">No image selected</span>
-                            </div>
+        <section class="rounded-3xl bg-[#034485] p-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="h-20 w-20 overflow-hidden rounded-2xl border border-white/20 bg-white/10">
+                        <img v-if="avatarPreview" :src="avatarPreview" alt="Team preview" class="h-full w-full object-cover" />
+                        <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-white/70">
+                            Team
                         </div>
                     </div>
-
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Head Coach</label>
-                        <SingleSelectSearch
-                            v-model="coach"
-                            :options="selectableCoaches"
-                            :loading="isOptionLoading"
-                            :placeholder="sportSelected ? 'Search head coach...' : 'Select sport first'"
-                            badge-class="bg-[#034485] text-white"
-                            remove-class="text-white/80 hover:text-white"
-                        />
-                        <button
-                            v-if="coach"
-                            type="button"
-                            class="mt-1 text-xs font-medium text-[#034485] underline hover:text-[#023666]"
-                            @click="coach = null"
-                        >
-                            Remove head coach
-                        </button>
-                        <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first for conflict-aware guidance.</p>
-                        <p v-if="sportSelected && unavailableCoaches.length" class="mt-1 text-xs text-slate-500">
-                            {{ unavailableCoaches.length }} coach(es) unavailable due to active assignments.
-                        </p>
-                        <p v-if="sportSelected && selectableCoaches.length === 0" class="mt-1 text-xs text-amber-700">No coaches loaded. Check coach records in People.</p>
-                        <p v-else-if="headCoachConflictHint.length" class="mt-1 text-xs text-amber-700">
-                            Coach conflict hint: already assigned to {{ headCoachConflictHint.map((x) => x.team_name).join(', ') }} in this sport/year.
-                        </p>
-                        <p v-if="errors.coach_id" class="mt-1 text-xs text-red-600">{{ errors.coach_id }}</p>
-                    </div>
-
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Assistant Coach (Optional)</label>
-                        <SingleSelectSearch
-                            v-model="assistantCoach"
-                            :options="selectableCoaches"
-                            :loading="isOptionLoading"
-                            :placeholder="sportSelected ? 'Search assistant coach...' : 'Select sport first'"
-                            badge-class="bg-[#034485] text-white"
-                            remove-class="text-white/80 hover:text-white"
-                        />
-                        <button
-                            v-if="assistantCoach"
-                            type="button"
-                            class="mt-1 text-xs font-medium text-[#034485] underline hover:text-[#023666]"
-                            @click="assistantCoach = null"
-                        >
-                            Remove assistant coach
-                        </button>
-                        <p v-if="coach && assistantCoach && coach === assistantCoach" class="mt-1 text-xs text-amber-700">
-                            Assistant coach cannot be the same as head coach.
-                        </p>
-                        <p v-else-if="assistantConflictHint.length" class="mt-1 text-xs text-amber-700">
-                            Assistant conflict hint: already assigned to {{ assistantConflictHint.map((x) => x.team_name).join(', ') }} in this sport/year.
-                        </p>
-                        <p v-if="errors.assistant_coach_id" class="mt-1 text-xs text-red-600">{{ errors.assistant_coach_id }}</p>
-                    </div>
-
-                    <div>
-                        <div class="mb-1 flex items-center justify-between">
-                            <label class="block text-sm font-medium text-slate-700">Players</label>
-                            <span class="text-xs text-slate-500">
-                                {{ selectedPlayerCount }} / {{ maxPlayersForSelectedSport || 0 }} selected
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span
+                                class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                                :style="{ backgroundColor: sportColor(selectedSport?.name ?? ''), color: sportTextColor(selectedSport?.name ?? '') }"
+                            >
+                                {{ selectedSport ? sportLabel(selectedSport.name) : 'Select Sport' }}
+                            </span>
+                            <span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">
+                                {{ year || 'Select Year' }}
                             </span>
                         </div>
-
-                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600">Academic Level</label>
-                                <select v-model="playerAcademicLevelFilter" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs">
-                                    <option value="all">All Levels</option>
-                                    <option v-for="level in playerAcademicLevelOptions" :key="level" :value="level">
-                                        {{ level }}
-                                    </option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <MultiSelectSearch
-                            v-model="selectedPlayerIds"
-                            :options="selectablePlayers"
-                            :loading="isOptionLoading"
-                            :placeholder="sportSelected ? `Search players (max ${maxPlayersForSelectedSport})...` : 'Select sport first'"
-                            :tag-style="playerTagStyle"
-                        />
-                        <button
-                            v-if="selectedPlayerIds.length"
-                            type="button"
-                            class="mt-1 text-xs font-medium text-[#034485] underline hover:text-[#023666]"
-                            @click="selectedPlayerIds = []"
-                        >
-                            Clear selected players
-                        </button>
-                        <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first to apply roster limits correctly.</p>
-                        <p v-if="sportSelected && unavailablePlayers.length" class="mt-1 text-xs text-slate-500">
-                            {{ unavailablePlayers.length }} player(s) unavailable due to active team assignment.
+                        <h1 class="mt-3 text-3xl font-bold">{{ teamName || (isEditMode ? 'Edit Team Details' : 'Create a New Team') }}</h1>
+                        <p class="mt-2 max-w-2xl text-sm text-white/80">
+                            {{ isEditMode
+                                ? 'Update the core team details here. Coach and player assignments are managed from the roster workspace.'
+                                : 'Start by defining the team identity first. Coach and player assignments will be handled right after creation in the roster workspace.' }}
                         </p>
-                        <p v-if="sportSelected && selectablePlayers.length === 0" class="mt-1 text-xs text-amber-700">No players loaded. Check student-athlete records in People.</p>
-                        <p v-else class="mt-1 text-xs text-slate-500">
-                            Max players for {{ selectedSport?.name }}: {{ maxPlayersForSelectedSport }}.
-                        </p>
-                        <p v-if="isOverLimit" class="mt-1 text-xs font-semibold text-rose-600">
-                            Over limit by {{ selectedPlayerCount - maxPlayersForSelectedSport }} players. Please remove extras.
-                        </p>
-                        <p v-else-if="isAtLimit && maxPlayersForSelectedSport" class="mt-1 text-xs text-amber-600">
-                            Max capacity reached. Remove a player to add a new one.
-                        </p>
-                        <p v-if="errors.players" class="mt-1 text-xs text-red-600">{{ errors.players }}</p>
-                    </div>
-
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Description (Optional)</label>
-                        <textarea
-                            v-model="description"
-                            rows="3"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            placeholder="Team description..."
-                        />
                     </div>
                 </div>
 
-                <aside class="rounded-xl border border-[#034485]/45 bg-[#034485] p-4 text-white">
-                    <h2 class="text-sm font-semibold text-white/90">Live Preview</h2>
-                    <div class="mt-3 flex items-center gap-3">
-                        <div class="h-12 w-12 overflow-hidden rounded-lg border border-white/20 bg-white/10">
-                            <img v-if="avatarPreview" :src="avatarPreview" alt="Team Avatar" class="h-full w-full object-cover" />
-                            <div v-else class="flex h-full w-full items-center justify-center text-xs text-white/70">Logo</div>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="truncate text-base font-semibold text-white">{{ teamName || 'Team Name' }}</p>
-                            <span class="mt-1 inline-flex rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-white">
-                                {{ selectedSport?.name || 'Select sport' }}
-                            </span>
-                        </div>
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+                        <p class="text-[11px] uppercase tracking-wide text-white/70">Max Players</p>
+                        <p class="mt-1 text-xl font-bold">{{ selectedSport?.max_players ?? '-' }}</p>
                     </div>
-
-                    <div class="mt-4 space-y-2 text-xs text-white/80">
-                        <p><span class="font-semibold text-white/90">Year:</span> {{ year || 'Unassigned' }}</p>
-                        <p><span class="font-semibold text-white/90">Head Coach:</span> {{ previewCoachName }}</p>
-                        <p><span class="font-semibold text-white/90">Assistant:</span> {{ previewAssistantName }}</p>
+                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+                        <p class="text-[11px] uppercase tracking-wide text-white/70">Current Head Coach</p>
+                        <p class="mt-1 text-sm font-semibold">{{ currentHeadCoach }}</p>
                     </div>
-
-                    <div class="mt-4 rounded-lg border border-white/20 bg-white/10 p-3 text-xs text-white/80">
-                        <p class="font-semibold text-white/90">Roster Capacity</p>
-                        <p class="mt-1">Selected: {{ selectedPlayerCount }}</p>
-                        <p>Max Players: {{ maxPlayersForSelectedSport || 0 }}</p>
-                        <p>Open Slots: {{ remainingSlots }}</p>
-                        <p v-if="isOverLimit" class="mt-2 font-semibold text-rose-200">Over limit — adjust roster.</p>
-                        <p v-else-if="isAtLimit && maxPlayersForSelectedSport" class="mt-2 font-semibold text-amber-200">At max capacity.</p>
-                        <p v-else class="mt-2 text-white/70">Capacity available.</p>
+                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+                        <p class="text-[11px] uppercase tracking-wide text-white/70">Current Assistant</p>
+                        <p class="mt-1 text-sm font-semibold">{{ currentAssistantCoach }}</p>
                     </div>
-                </aside>
+                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+                        <p class="text-[11px] uppercase tracking-wide text-white/70">Players on Roster</p>
+                        <p class="mt-1 text-xl font-bold">{{ rosterCount }}</p>
+                    </div>
+                </div>
             </div>
+        </section>
 
-            <div class="flex justify-end border-t border-slate-200 pt-2">
-                <button
-                    @click="submitTeam"
-                    :disabled="isSaving || isOverLimit"
-                    class="rounded-lg bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#334155] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <span class="inline-flex items-center gap-2">
-                        <Spinner v-if="isSaving" class="h-4 w-4 text-white" />
-                        {{ isSaving ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Team' : 'Create Team') }}
-                    </span>
-                </button>
+        <section class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+                <div>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Team Identity</p>
+                    <h2 class="mt-2 text-xl font-semibold text-slate-900">Basic Team Information</h2>
+                    <p class="mt-1 text-sm text-slate-500">Create the team record first, then move into coach and player management from the roster page.</p>
+                </div>
+
+                <div class="mt-5 grid gap-5">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Team Name</label>
+                        <input
+                            v-model="teamName"
+                            type="text"
+                            placeholder="e.g., Falcons A-Team"
+                            class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                        />
+                        <p v-if="errors.team_name" class="mt-1 text-xs text-red-600">{{ errors.team_name }}</p>
+                    </div>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-slate-700">Sport</label>
+                            <select v-model="sport" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+                                <option value="" disabled>Select sport</option>
+                                <option v-for="item in sports" :key="item.id" :value="String(item.id)">
+                                    {{ item.name }} (Max {{ item.max_players }})
+                                </option>
+                            </select>
+                            <p v-if="errors.sport_id" class="mt-1 text-xs text-red-600">{{ errors.sport_id }}</p>
+                        </div>
+
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-slate-700">Year</label>
+                            <select v-model="year" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+                                <option value="" disabled>Select year</option>
+                                <option v-for="item in yearOptions" :key="item" :value="item">{{ item }}</option>
+                            </select>
+                            <p v-if="errors.year" class="mt-1 text-xs text-red-600">{{ errors.year }}</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Description</label>
+                        <textarea
+                            v-model="description"
+                            rows="4"
+                            class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                            placeholder="Add optional notes about the team."
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <section class="space-y-6">
+                <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+                    <div>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Avatar</p>
+                        <h2 class="mt-2 text-xl font-semibold text-slate-900">Team Photo</h2>
+                        <p class="mt-1 text-sm text-slate-500">Upload a logo or team image now, or add it later from the edit flow.</p>
+                    </div>
+
+                    <div class="mt-5 space-y-4">
+                        <div class="flex h-52 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                            <img
+                                v-if="avatarPreview"
+                                :src="avatarPreview"
+                                alt="Team avatar preview"
+                                class="h-full w-full object-cover"
+                            />
+                            <span v-else class="text-sm text-slate-400">No image selected</span>
+                        </div>
+
+                        <div>
+                            <input type="file" accept="image/*" @change="handleAvatarUpload" class="w-full text-sm text-slate-600" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+                    <div>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Workflow</p>
+                        <h2 class="mt-2 text-xl font-semibold text-slate-900">Next Step After Save</h2>
+                        <p class="mt-1 text-sm text-slate-500">The team record is created here. Staff and roster assignments continue in the dedicated roster pages.</p>
+                    </div>
+
+                    <div class="mt-5 space-y-3">
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">1. Save Team</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">{{ isEditMode ? 'Update the team identity details.' : 'Create the base team record.' }}</p>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">2. Open Roster Workspace</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">Use `Manage Coaches` and `Manage Players` from the roster page.</p>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">3. Finalize Assignments</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">Assign coaches and student-athletes through the dedicated selection pages.</p>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </section>
+
+        <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Save Team</h2>
+                    <p class="text-sm text-slate-500">
+                        {{ isEditMode
+                            ? 'After saving, you will return to the roster workspace for coach and player management.'
+                            : 'After creation, you will be redirected to the roster workspace to assign coaches and players.' }}
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                    <button
+                        type="button"
+                        class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        @click="goBack"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-full bg-[#034485] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#033a70] disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="isSaving"
+                        @click="submitTeam"
+                    >
+                        <span class="inline-flex items-center gap-2">
+                            <Spinner v-if="isSaving" class="h-4 w-4 text-white" />
+                            {{ isSaving ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Team' : 'Create Team') }}
+                        </span>
+                    </button>
+                </div>
             </div>
         </section>
     </div>

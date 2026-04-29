@@ -6,6 +6,7 @@ import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
+import { resolveTeamAvatarUrl as teamAvatarUrl } from '@/utils/media'
 
 defineOptions({
     layout: AdminDashboard,
@@ -124,14 +125,6 @@ function fullName(person: any): string {
     const last = person?.last_name ?? ''
     const out = `${first} ${last}`.trim()
     return out || 'N/A'
-}
-
-function teamAvatarUrl(path: string | null) {
-    if (!path) return '/images/default-avatar.svg'
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
-        return path
-    }
-    return `/storage/${path}`
 }
 
 function rosterToneClass(tone: string) {
