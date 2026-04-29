@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 import Spinner from '@/components/ui/spinner/Spinner.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import { resolveTeamAvatarUrl } from '@/utils/media'
@@ -106,6 +107,19 @@ function submitTeam() {
                 normalized[key] = Array.isArray(val) ? String(val[0]) : String(val)
             })
             errors.value = normalized
+            const firstError = Object.values(normalized)[0]
+            showAppToast(firstError || 'Unable to save the team right now.', 'error', {
+                summary: isEditMode.value ? 'Team Update Failed' : 'Team Creation Failed',
+            })
+        },
+        onSuccess: () => {
+            showAppToast(
+                isEditMode.value ? 'Team details updated successfully.' : 'Team created successfully.',
+                'success',
+                {
+                    summary: isEditMode.value ? 'Team Updated' : 'Team Created',
+                },
+            )
         },
     }
 
@@ -177,7 +191,7 @@ onBeforeUnmount(() => {
                         <p class="mt-2 max-w-2xl text-sm text-white/80">
                             {{ isEditMode
                                 ? 'Update the core team details here. Coach and player assignments are managed from the roster workspace.'
-                                : 'Start by defining the team identity first. Coach and player assignments will be handled right after creation in the roster workspace.' }}
+                                : 'Create the team record here, then return to the teams workspace to continue management.' }}
                         </p>
                     </div>
                 </div>
@@ -286,7 +300,7 @@ onBeforeUnmount(() => {
                     <div>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Workflow</p>
                         <h2 class="mt-2 text-xl font-semibold text-slate-900">Next Step After Save</h2>
-                        <p class="mt-1 text-sm text-slate-500">The team record is created here. Staff and roster assignments continue in the dedicated roster pages.</p>
+                        <p class="mt-1 text-sm text-slate-500">The team record is created here. After saving, you will return to the teams workspace.</p>
                     </div>
 
                     <div class="mt-5 space-y-3">
@@ -295,12 +309,12 @@ onBeforeUnmount(() => {
                             <p class="mt-1 text-sm font-semibold text-slate-900">{{ isEditMode ? 'Update the team identity details.' : 'Create the base team record.' }}</p>
                         </div>
                         <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <p class="text-[11px] uppercase tracking-wide text-slate-500">2. Open Roster Workspace</p>
-                            <p class="mt-1 text-sm font-semibold text-slate-900">Use `Manage Coaches` and `Manage Players` from the roster page.</p>
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">2. Return To Teams</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">Review the new team from the teams workspace.</p>
                         </div>
                         <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <p class="text-[11px] uppercase tracking-wide text-slate-500">3. Finalize Assignments</p>
-                            <p class="mt-1 text-sm font-semibold text-slate-900">Assign coaches and student-athletes through the dedicated selection pages.</p>
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">3. Manage Assignments</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">Open roster management from the team list whenever you are ready to assign coaches and players.</p>
                         </div>
                     </div>
                 </section>
@@ -314,7 +328,7 @@ onBeforeUnmount(() => {
                     <p class="text-sm text-slate-500">
                         {{ isEditMode
                             ? 'After saving, you will return to the roster workspace for coach and player management.'
-                            : 'After creation, you will be redirected to the roster workspace to assign coaches and players.' }}
+                            : 'After creation, you will be redirected back to the teams workspace.' }}
                     </p>
                 </div>
 

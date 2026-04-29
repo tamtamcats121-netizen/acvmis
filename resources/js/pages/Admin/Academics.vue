@@ -280,6 +280,9 @@ function confirmDeletePeriod() {
     router.delete(`/academics/periods/${periodId}`, {
         preserveScroll: true,
         onSuccess: () => {
+            showAppToast('Academic period deleted successfully.', 'success', {
+                summary: 'Period Removed',
+            })
             noticeDialog.value = {
                 open: true,
                 title: 'Period removed',
@@ -288,6 +291,9 @@ function confirmDeletePeriod() {
             router.get('/academics', {}, { preserveScroll: true })
         },
         onError: () => {
+            showAppToast('This period cannot be deleted once it has submissions.', 'error', {
+                summary: 'Delete Blocked',
+            })
             noticeDialog.value = {
                 open: true,
                 title: 'Delete blocked',

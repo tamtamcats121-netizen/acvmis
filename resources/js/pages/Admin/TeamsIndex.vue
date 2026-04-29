@@ -210,11 +210,35 @@ function confirmTeamAction() {
 
     teamActionDialogOpen.value = false
     if (action.type === 'archive') {
-        router.post(`/teams/${action.team.id}/archive`, {}, { preserveScroll: true })
+        router.post(`/teams/${action.team.id}/archive`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                showAppToast(`${action.team.team_name} archived successfully.`, 'success', {
+                    summary: 'Team Archived',
+                })
+            },
+            onError: () => {
+                showAppToast('Unable to archive the team right now.', 'error', {
+                    summary: 'Archive Failed',
+                })
+            },
+        })
         return
     }
 
-    router.post(`/teams/${action.team.id}/reactivate`, {}, { preserveScroll: true })
+    router.post(`/teams/${action.team.id}/reactivate`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAppToast(`${action.team.team_name} reactivated successfully.`, 'success', {
+                summary: 'Team Reactivated',
+            })
+        },
+        onError: () => {
+            showAppToast('Unable to reactivate the team right now.', 'error', {
+                summary: 'Reactivation Failed',
+            })
+        },
+    })
 }
 
 function markRequestRead(id: number) {

@@ -72,7 +72,7 @@ class CreateTeamController extends Controller
             return $team;
         });
 
-        return redirect()->route('admin.teams.roster.page', $team)->with('success', 'Team created. Continue with coach and player assignments.');
+        return redirect()->route('admin.teams.index')->with('success', 'Team created successfully.');
     }
 
     public function edit(Team $team)

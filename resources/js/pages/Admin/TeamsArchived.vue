@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3'
 import { computed, reactive, ref } from 'vue'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import { resolveTeamAvatarUrl as teamAvatarUrl } from '@/utils/media'
@@ -181,45 +182,33 @@ function promptRestore(team: TeamRow) {
 
 function confirmRestore() {
     if (!pendingRestoreTeam.value) return
+    const team = pendingRestoreTeam.value
     restoreDialogOpen.value = false
-    router.post(`/teams/${pendingRestoreTeam.value.id}/reactivate`, {}, { preserveScroll: true })
+    router.post(`/teams/${team.id}/reactivate`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAppToast(`${team.team_name} reactivated successfully.`, 'success', {
+                summary: 'Team Reactivated',
+            })
+        },
+        onError: () => {
+            showAppToast('Unable to reactivate the archived team right now.', 'error', {
+                summary: 'Reactivation Failed',
+            })
+        },
+    })
 }
 </script>
 
 <template>
     <div class="space-y-6">
         <section class="rounded-3xl border border-slate-300/80 bg-[linear-gradient(135deg,_#0f172a_0%,_#334155_55%,_#475569_100%)] p-6 text-white shadow-[0_24px_60px_-36px_rgba(15,23,42,0.55)]">
-            <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div class="space-y-3">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/85">
-                            Archived Teams
-                        </span>
-                        <span class="rounded-full border border-amber-200/40 bg-amber-100/10 px-3 py-1 text-xs font-semibold text-amber-100">
-                            Historical / Read-Only
-                        </span>
-                    </div>
-                    <div>
-                        <h1 class="text-3xl font-bold">Archived Team Records</h1>
-                        <p class="mt-2 max-w-2xl text-sm text-white/75">
-                            Review past varsity team compositions, inspect archived rosters, print historical summaries, and restore a team when it needs to return to active operations.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
-                        <p class="text-[11px] uppercase tracking-wide text-white/65">Archived Teams</p>
-                        <p class="mt-1 text-2xl font-bold">{{ archivedCount }}</p>
-                    </div>
-                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
-                        <p class="text-[11px] uppercase tracking-wide text-white/65">Players Listed</p>
-                        <p class="mt-1 text-2xl font-bold">{{ totalPlayers }}</p>
-                    </div>
-                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
-                        <p class="text-[11px] uppercase tracking-wide text-white/65">Workflow</p>
-                        <p class="mt-1 text-sm font-semibold">Restore When Needed</p>
-                    </div>
+            <div class="space-y-3">
+                <div>
+                    <h1 class="text-3xl font-bold">Archived Team Records</h1>
+                    <p class="mt-2 max-w-2xl text-sm text-white/75">
+                        Review past varsity team compositions, inspect archived rosters, print historical summaries, and restore a team when it needs to return to active operations.
+                    </p>
                 </div>
             </div>
         </section>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
 
+import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import { resolveTeamAvatarUrl as teamAvatarUrl, resolveUserAvatarUrl as userAvatarUrl } from '@/utils/media'
@@ -77,6 +78,16 @@ function goToSchedules() {
 function archiveTeam() {
     router.post(`/teams/${props.team.id}/archive`, {}, {
         preserveScroll: true,
+        onSuccess: () => {
+            showAppToast(`${props.team.team_name} archived successfully.`, 'success', {
+                summary: 'Team Archived',
+            })
+        },
+        onError: () => {
+            showAppToast('Unable to archive the team right now.', 'error', {
+                summary: 'Archive Failed',
+            })
+        },
     })
 }
 </script>
