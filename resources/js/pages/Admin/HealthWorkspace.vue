@@ -95,7 +95,6 @@ const clearanceForm = reactive({
     status: props.clearance?.filters.status ?? 'all',
     validity: props.clearance?.filters.validity ?? 'all',
     reviewed: props.clearance?.filters.reviewed ?? 'all',
-    per_page: String(props.clearance?.filters.per_page ?? 15),
 });
 
 const wellnessForm = reactive({
@@ -105,7 +104,6 @@ const wellnessForm = reactive({
     team_id: props.wellness?.filters.team_id ? String(props.wellness.filters.team_id) : '',
     start_date: props.wellness?.filters.start_date ?? '',
     end_date: props.wellness?.filters.end_date ?? '',
-    per_page: String(props.wellness?.filters.per_page ?? 15),
 });
 
 function setTab(tab: 'clearance' | 'wellness') {
@@ -142,7 +140,6 @@ function reloadClearance(page = 1) {
             status: clearanceForm.status,
             validity: clearanceForm.validity,
             reviewed: clearanceForm.reviewed,
-            per_page: clearanceForm.per_page,
             page,
         },
         { preserveState: true, preserveScroll: true, replace: true },
@@ -154,7 +151,6 @@ function resetClearance() {
     clearanceForm.status = 'all';
     clearanceForm.validity = 'all';
     clearanceForm.reviewed = 'all';
-    clearanceForm.per_page = '15';
     reloadClearance(1);
 }
 
@@ -169,7 +165,6 @@ function reloadWellness(page = 1) {
             team_id: wellnessForm.team_id || undefined,
             start_date: wellnessForm.start_date || undefined,
             end_date: wellnessForm.end_date || undefined,
-            per_page: wellnessForm.per_page,
             page,
         },
         { preserveState: true, preserveScroll: true, replace: true },
@@ -183,7 +178,6 @@ function resetWellness() {
     wellnessForm.team_id = '';
     wellnessForm.start_date = '';
     wellnessForm.end_date = '';
-    wellnessForm.per_page = '15';
     reloadWellness(1);
 }
 </script>
@@ -286,14 +280,25 @@ function resetWellness() {
                     <p class="mt-1 text-sm text-slate-500">Filter active, expiring, expired, and reviewed health clearance submissions.</p>
                 </div>
 
-                <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
-                    <input
-                        v-model="clearanceForm.search"
-                        type="text"
-                        placeholder="Search athlete, ID, physician"
-                        class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
-                        @keyup.enter="reloadClearance(1)"
-                    />
+                <div class="mt-5 space-y-3">
+                    <div class="flex flex-col gap-3 lg:flex-row">
+                        <input
+                            v-model="clearanceForm.search"
+                            type="text"
+                            placeholder="Search athlete, ID, physician"
+                            class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm lg:flex-1"
+                            @keyup.enter="reloadClearance(1)"
+                        />
+                        <div class="flex gap-2">
+                            <button type="button" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm hover:bg-slate-100" @click="reloadClearance(1)">
+                                Search
+                            </button>
+                            <button type="button" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm hover:bg-slate-100" @click="resetClearance">
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                     <select v-model="clearanceForm.status" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
                         <option value="all">Status: All</option>
                         <option value="fit">Status: Fit</option>
@@ -312,18 +317,6 @@ function resetWellness() {
                         <option value="reviewed">Review: Reviewed</option>
                         <option value="unreviewed">Review: Unreviewed</option>
                     </select>
-                    <div class="grid grid-cols-3 gap-2">
-                        <select v-model="clearanceForm.per_page" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
-                            <option value="15">15</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </select>
-                        <button type="button" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm hover:bg-slate-100" @click="reloadClearance(1)">
-                            Apply
-                        </button>
-                        <button type="button" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm hover:bg-slate-100" @click="resetClearance">
-                            Reset
-                        </button>
                     </div>
                 </div>
             </section>
@@ -411,14 +404,25 @@ function resetWellness() {
                     <p class="mt-1 text-sm text-slate-500">Focus on injury cases, fatigue trends, team activity, and post-session wellness remarks.</p>
                 </div>
 
-                <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-                    <input
-                        v-model="wellnessForm.search"
-                        type="text"
-                        placeholder="Search athlete/team/schedule"
-                        class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
-                        @keyup.enter="reloadWellness(1)"
-                    />
+                <div class="mt-5 space-y-3">
+                    <div class="flex flex-col gap-3 lg:flex-row">
+                        <input
+                            v-model="wellnessForm.search"
+                            type="text"
+                            placeholder="Search athlete/team/schedule"
+                            class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm lg:flex-1"
+                            @keyup.enter="reloadWellness(1)"
+                        />
+                        <div class="flex gap-2">
+                            <button type="button" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm hover:bg-slate-100" @click="reloadWellness(1)">
+                                Search
+                            </button>
+                            <button type="button" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm hover:bg-slate-100" @click="resetWellness">
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
                     <select v-model="wellnessForm.team_id" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
                         <option value="">All Teams</option>
                         <option v-for="team in wellness.options.teams" :key="team.id" :value="String(team.id)">{{ team.team_name }}</option>
@@ -435,18 +439,6 @@ function resetWellness() {
                     </label>
                     <input v-model="wellnessForm.start_date" type="date" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
                     <input v-model="wellnessForm.end_date" type="date" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
-                    <div class="grid grid-cols-3 gap-2">
-                        <select v-model="wellnessForm.per_page" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
-                            <option value="15">15</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </select>
-                        <button type="button" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm hover:bg-slate-100" @click="reloadWellness(1)">
-                            Apply
-                        </button>
-                        <button type="button" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm hover:bg-slate-100" @click="resetWellness">
-                            Reset
-                        </button>
                     </div>
                 </div>
             </section>

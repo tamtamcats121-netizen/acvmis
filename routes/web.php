@@ -304,9 +304,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('academic.evaluations.update');
     Route::delete('/academics/documents/{document}', [AcademicEligibilityController::class, 'destroyDocument'])
         ->name('academic.documents.destroy');
-    Route::get('/academics/print', [AcademicEligibilityController::class, 'printSummary'])
-        ->name('academic.print');
-
     // Legacy admin routes kept for backwards compatibility.
     Route::redirect('/ApprovalManagement', '/people/queue');
     Route::redirect('/UserManagement', '/people');

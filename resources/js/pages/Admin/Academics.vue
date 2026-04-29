@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { showAppToast } from '@/composables/useAppToast'
@@ -53,7 +53,6 @@ const props = defineProps<{
 }>()
 
 const selectedPeriodId = ref<number | null>(props.selectedPeriodId)
-const activeTab = ref<'periods' | 'evaluations'>('periods')
 const isLoading = ref(false)
 const showFilters = ref(false)
 const periodSaving = ref(false)
@@ -99,8 +98,38 @@ const activeFilterCount = computed(() => {
     return count
 })
 
-const tabIndex = computed(() => {
-    return activeTab.value === 'periods' ? 0 : 1
+const activeQuickRange = computed<'all' | 'today' | 'week' | 'month'>(() => {
+    const start = filterForm.start_date
+    const end = filterForm.end_date
+
+    if (!start && !end) return 'all'
+
+    const now = new Date()
+    const toIsoDate = (value: Date) => {
+        const yyyy = value.getFullYear()
+        const mm = String(value.getMonth() + 1).padStart(2, '0')
+        const dd = String(value.getDate()).padStart(2, '0')
+        return `${yyyy}-${mm}-${dd}`
+    }
+
+    const today = toIsoDate(now)
+    if (start === today && end === today) return 'today'
+
+    const weekStart = new Date(now)
+    const day = weekStart.getDay()
+    const deltaToMonday = day === 0 ? 6 : day - 1
+    weekStart.setDate(weekStart.getDate() - deltaToMonday)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+    if (start === toIsoDate(weekStart) && end === toIsoDate(weekEnd)) return 'week'
+
+    const monthStart = new Date(now)
+    monthStart.setDate(1)
+    const monthEnd = new Date(now)
+    monthEnd.setMonth(monthEnd.getMonth() + 1, 0)
+    if (start === toIsoDate(monthStart) && end === toIsoDate(monthEnd)) return 'month'
+
+    return 'all'
 })
 
 watch(
@@ -210,20 +239,13 @@ function applyQuickPeriod(period: 'today' | 'week' | 'month') {
 
     filterForm.start_date = toIsoDate(start)
     filterForm.end_date = toIsoDate(end)
-    fetchActiveTab(1)
+    fetchEvaluations(1)
 }
 
 function clearQuickDates() {
     filterForm.start_date = ''
     filterForm.end_date = ''
-    fetchActiveTab(1)
-}
-
-function setTab(tab: 'periods' | 'evaluations') {
-    activeTab.value = tab
-    if (tab === 'evaluations') {
-        fetchActiveTab(1)
-    }
+    fetchEvaluations(1)
 }
 
 function createPeriod() {
@@ -353,16 +375,6 @@ async function confirmEvaluationUpdate() {
     fetchEvaluations(evaluationsState.value.meta.current_page)
 }
 
-function printSummary() {
-    const params = new URLSearchParams()
-    const query = buildQuery(1)
-    if (query.period_id) {
-        params.set('period_id', String(query.period_id))
-    }
-    const suffix = params.toString() ? `?${params.toString()}` : ''
-    window.open(`/academics/print${suffix}`, '_blank')
-}
-
 async function fetchEvaluations(page = 1) {
     isLoading.value = true
 
@@ -385,13 +397,6 @@ async function fetchEvaluations(page = 1) {
     evaluationsState.value = payload
 }
 
-function fetchActiveTab(page = 1) {
-    if (activeTab.value === 'evaluations') {
-        fetchEvaluations(page)
-        return
-    }
-}
-
 function deadlineCountdown(endsOn: string | null) {
     if (!endsOn) return 'No deadline'
     const now = new Date()
@@ -410,7 +415,7 @@ function resetFilters() {
     filterForm.start_date = ''
     filterForm.end_date = ''
     filterForm.per_page = '15'
-    fetchActiveTab(1)
+    fetchEvaluations(1)
 }
 
 function changePeriod() {
@@ -419,10 +424,20 @@ function changePeriod() {
         preserveState: true,
         replace: true,
         onSuccess: () => {
-            fetchActiveTab(1)
+            fetchEvaluations(1)
         },
     })
 }
+
+function quickRangeClass(range: 'all' | 'today' | 'week' | 'month') {
+    return activeQuickRange.value === range
+        ? 'border border-white/40 bg-white text-[#034485]'
+        : 'border border-[#034485]/20 bg-white/10 text-white/85 hover:bg-white/20'
+}
+
+onMounted(() => {
+    fetchEvaluations(1)
+})
 
 </script>
 
@@ -430,106 +445,18 @@ function changePeriod() {
     <Head title="Academics Workspace" />
 
     <div class="space-y-5">
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Academics Workspace</h1>
-                    <p class="text-sm text-slate-600">Period settings and evaluations queue for academic compliance.</p>
-                </div>
-                <button
-                    type="button"
-                    class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                    @click="printSummary"
-                >
-                    Print Summary
-                </button>
-            </div>
-
-            <div v-if="activeTab === 'evaluations'" class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
-                    v-model="filterForm.search"
-                    type="text"
-                    placeholder="Search student, ID, document"
-                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm sm:flex-1"
-                    @keyup.enter="fetchActiveTab(1)"
-                />
-                <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="fetchActiveTab(1)">
-                    Search
-                </button>
-                <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="showFilters = !showFilters">
-                    Filters <span v-if="activeFilterCount" class="ml-1 rounded-full bg-slate-200 px-1.5 py-0.5 text-xs">{{ activeFilterCount }}</span>
-                </button>
-            </div>
-
-            <div v-if="activeTab === 'evaluations'" class="mt-3 flex flex-wrap gap-2">
-                <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200" @click="clearQuickDates">All Time</button>
-                <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200" @click="applyQuickPeriod('today')">Today</button>
-                <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200" @click="applyQuickPeriod('week')">This Week</button>
-                <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200" @click="applyQuickPeriod('month')">This Month</button>
-            </div>
-
-            <div v-if="showFilters && activeTab === 'evaluations'" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 md:grid-cols-2 lg:grid-cols-4">
-                <select v-model="selectedPeriodId" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @change="changePeriod">
-                    <option :value="null" disabled>Select period</option>
-                    <option v-for="p in periods" :key="p.id" :value="p.id">
-                        {{ p.school_year }} - {{ termLabel(p.term) }}
-                    </option>
-                </select>
-
-                <select v-model="filterForm.status" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">All Statuses</option>
-                    <option value="eligible">Eligible</option>
-                    <option value="pending_review">Pending Review</option>
-                    <option value="ineligible">Ineligible</option>
-                    <option value="pending">Pending Evaluation</option>
-                </select>
-
-                <input v-model="filterForm.start_date" type="date" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-                <input v-model="filterForm.end_date" type="date" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-
-                <div class="grid grid-cols-3 gap-2">
-                    <select v-model="filterForm.per_page" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                        <option value="15">15</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                    </select>
-                    <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100" @click="fetchActiveTab(1)">Apply</button>
-                    <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100" @click="resetFilters">Reset</button>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Academic Oversight</p>
+                    <h1 class="mt-2 text-2xl font-bold">Academics Workspace</h1>
+                    <p class="mt-2 text-sm text-white/85">Period settings and evaluations queue for academic compliance.</p>
                 </div>
             </div>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
-            <div class="mb-4 flex flex-wrap gap-2">
-                <div class="relative inline-grid grid-cols-2 rounded-full border border-slate-300 bg-white p-1">
-                    <span
-                        class="absolute inset-y-1 left-1 rounded-full bg-[#1f2937] transition-transform duration-200"
-                        :style="{
-                            width: 'calc((100% - 0.5rem) / 2)',
-                            transform: `translateX(${tabIndex * 100}%)`,
-                        }"
-                        aria-hidden="true"
-                    ></span>
-                    <button
-                        type="button"
-                        class="relative z-10 rounded-full px-3 py-2 text-xs font-semibold transition-colors"
-                        :class="activeTab === 'periods' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
-                        @click="setTab('periods')"
-                    >
-                        Periods
-                    </button>
-                    <button
-                        type="button"
-                        class="relative z-10 rounded-full px-3 py-2 text-xs font-semibold transition-colors"
-                        :class="activeTab === 'evaluations' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
-                        @click="setTab('evaluations')"
-                    >
-                        Evaluations
-                    </button>
-                </div>
-            </div>
-
-            <section v-if="activeTab === 'periods'" class="space-y-4">
+        <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
+            <section class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h2 class="text-sm font-semibold text-slate-800">Period Management</h2>
                     <button
@@ -547,9 +474,21 @@ function changePeriod() {
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <div class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-800">Active Period</h2>
+                <div class="rounded-2xl border border-[#034485]/35 bg-white p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-800">Active Period</h2>
+                        </div>
+                        <select
+                            v-if="periods.length"
+                            v-model="selectedPeriodId"
+                            class="rounded-md border border-slate-300 px-3 py-2 text-sm sm:w-[240px]"
+                            @change="changePeriod"
+                        >
+                            <option v-for="p in periods" :key="p.id" :value="p.id">
+                                {{ p.school_year }} - {{ termLabel(p.term) }}
+                            </option>
+                        </select>
                         <button
                             v-if="selectedPeriod"
                             type="button"
@@ -560,9 +499,9 @@ function changePeriod() {
                             X
                         </button>
                     </div>
-                    <div v-if="selectedPeriod" class="mt-3 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                    <div v-if="selectedPeriod" class="mt-3 space-y-3 rounded-2xl border border-[#034485]/20 bg-[#034485]/5 p-3 text-sm text-slate-700">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="rounded-full bg-[#1f2937] px-2 py-0.5 text-xs font-semibold text-white">Active Period</span>
+                            <span class="rounded-full bg-[#034485] px-2 py-0.5 text-xs font-semibold text-white">Active Period</span>
                             <span class="font-semibold text-slate-900">{{ selectedPeriod.school_year }} - {{ termLabel(selectedPeriod.term) }}</span>
                             <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="periodStatusTone(selectedPeriod.status)">
                                 {{ periodStatusLabel(selectedPeriod.status).toUpperCase() }}
@@ -580,12 +519,12 @@ function changePeriod() {
                             </button>
                         </div>
                     </div>
-                    <div v-else class="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                    <div v-else class="mt-3 rounded-2xl border border-dashed border-[#034485]/25 bg-[#034485]/5 p-4 text-sm text-slate-500">
                         Select a period to view its status and controls.
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <div class="rounded-2xl border border-[#034485]/35 bg-white p-4">
                     <h2 class="mb-3 text-sm font-semibold text-slate-800">Create Academic Period</h2>
                     <div class="grid grid-cols-1 gap-2 md:grid-cols-5">
                         <div>
@@ -624,7 +563,59 @@ function changePeriod() {
 
             </section>
 
-            <section v-if="activeTab === 'evaluations'" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
+            <section class="mt-6 space-y-4">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-800">Evaluations</h2>
+                    <p class="mt-1 text-sm text-slate-500">Search and review the evaluation records for the selected academic period.</p>
+                </div>
+
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                        v-model="filterForm.search"
+                        type="text"
+                        placeholder="Search student, ID, document"
+                        class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm sm:flex-1"
+                        @keyup.enter="fetchEvaluations(1)"
+                    />
+                    <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="fetchEvaluations(1)">
+                        Search
+                    </button>
+                    <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="showFilters = !showFilters">
+                        Filters <span v-if="activeFilterCount" class="ml-1 rounded-full bg-slate-200 px-1.5 py-0.5 text-xs">{{ activeFilterCount }}</span>
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium" :class="quickRangeClass('all')" @click="clearQuickDates">All Time</button>
+                    <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium" :class="quickRangeClass('today')" @click="applyQuickPeriod('today')">Today</button>
+                    <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium" :class="quickRangeClass('week')" @click="applyQuickPeriod('week')">This Week</button>
+                    <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium" :class="quickRangeClass('month')" @click="applyQuickPeriod('month')">This Month</button>
+                </div>
+
+                <div v-if="showFilters" class="grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 md:grid-cols-2 lg:grid-cols-4">
+                    <select v-model="filterForm.status" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                        <option value="">All Statuses</option>
+                        <option value="eligible">Eligible</option>
+                        <option value="pending_review">Pending Review</option>
+                        <option value="ineligible">Ineligible</option>
+                        <option value="pending">Pending Evaluation</option>
+                    </select>
+
+                    <input v-model="filterForm.start_date" type="date" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                    <input v-model="filterForm.end_date" type="date" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <select v-model="filterForm.per_page" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                            <option value="15">15</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                        <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100" @click="fetchEvaluations(1)">Apply</button>
+                        <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100" @click="resetFilters">Reset</button>
+                    </div>
+                </div>
+
+                <section class="overflow-hidden rounded-2xl border border-[#034485]/35 bg-white">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead class="bg-[#034485] text-white">
@@ -668,9 +659,9 @@ function changePeriod() {
                         </transition-group>
                     </table>
                 </div>
-            </section>
+                </section>
 
-            <div v-if="activeTab === 'evaluations'" class="mt-4 flex items-center justify-between text-sm text-slate-600">
+            <div class="mt-4 flex items-center justify-between text-sm text-slate-600">
                 <p>
                     Showing
                     {{ evaluationsState.meta.from || 0 }}-
@@ -683,7 +674,7 @@ function changePeriod() {
                         type="button"
                         class="rounded-md border border-slate-300 bg-white px-3 py-1 hover:bg-slate-100 disabled:opacity-40"
                         :disabled="evaluationsState.meta.current_page <= 1 || isLoading"
-                        @click="fetchActiveTab(evaluationsState.meta.current_page - 1)"
+                        @click="fetchEvaluations(evaluationsState.meta.current_page - 1)"
                     >
                         Previous
                     </button>
@@ -691,12 +682,13 @@ function changePeriod() {
                         type="button"
                         class="rounded-md border border-slate-300 bg-white px-3 py-1 hover:bg-slate-100 disabled:opacity-40"
                         :disabled="evaluationsState.meta.current_page >= evaluationsState.meta.last_page || isLoading"
-                        @click="fetchActiveTab(evaluationsState.meta.current_page + 1)"
+                        @click="fetchEvaluations(evaluationsState.meta.current_page + 1)"
                     >
                         Next
                     </button>
                 </div>
             </div>
+            </section>
         </section>
 
         <ConfirmDialog

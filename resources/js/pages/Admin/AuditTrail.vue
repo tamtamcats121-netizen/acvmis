@@ -162,34 +162,34 @@ function categoryTone(value: AuditRow['category']) {
     <Head title="Audit Trail" />
 
     <div class="space-y-6">
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-[0.24em] text-blue-700">Admin Oversight</p>
-                    <h1 class="mt-2 text-2xl font-bold text-slate-900">Audit Trail</h1>
-                    <p class="mt-2 max-w-3xl text-sm text-slate-600">
+                    <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/80">Admin Oversight</p>
+                    <h1 class="mt-2 text-2xl font-bold">Audit Trail</h1>
+                    <p class="mt-2 max-w-3xl text-sm text-white/85">
                         Review approvals, account actions, roster changes, and academic evaluations in one consistent activity table.
                     </p>
                 </div>
 
                 <div class="grid gap-3 sm:grid-cols-3">
-                    <div class="rounded-xl border border-[#034485]/45 bg-slate-50 px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Approvals</p>
-                        <p class="mt-2 text-2xl font-bold text-slate-900">{{ props.summary.approval_events }}</p>
+                    <div class="rounded-2xl border border-white/25 bg-white/10 px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Approvals</p>
+                        <p class="mt-2 text-2xl font-bold text-white">{{ props.summary.approval_events }}</p>
                     </div>
-                    <div class="rounded-xl border border-[#034485]/45 bg-slate-50 px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Account Actions</p>
-                        <p class="mt-2 text-2xl font-bold text-slate-900">{{ props.summary.account_actions }}</p>
+                    <div class="rounded-2xl border border-white/25 bg-white/10 px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Account Actions</p>
+                        <p class="mt-2 text-2xl font-bold text-white">{{ props.summary.account_actions }}</p>
                     </div>
-                    <div class="rounded-xl border border-[#034485]/45 bg-slate-50 px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Evaluations</p>
-                        <p class="mt-2 text-2xl font-bold text-slate-900">{{ props.summary.academic_evaluations }}</p>
+                    <div class="rounded-2xl border border-white/25 bg-white/10 px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Evaluations</p>
+                        <p class="mt-2 text-2xl font-bold text-white">{{ props.summary.academic_evaluations }}</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
+        <section class="overflow-hidden rounded-3xl border border-[#034485]/35 bg-white">
             <header class="border-b border-slate-200 px-6 py-4">
                 <h2 class="text-base font-semibold text-slate-900">Activity Timeline</h2>
                 <p class="mt-1 text-sm text-slate-500">

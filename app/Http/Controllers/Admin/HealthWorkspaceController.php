@@ -249,7 +249,11 @@ class HealthWorkspaceController extends Controller
         $fatigueSeverity = $this->fatigueSeverity($avgFatigue);
 
         $paginator = WellnessLog::query()
-            ->with(['student', 'schedule.team', 'logger'])
+            ->with([
+                'student.user:id,first_name,last_name',
+                'schedule.team:id,team_name',
+                'logger:id,first_name,middle_name,last_name',
+            ])
             ->tap($applyFilters)
             ->latest('log_date')
             ->paginate($perPage)
@@ -258,11 +262,12 @@ class HealthWorkspaceController extends Controller
         $logs = collect($paginator->items())
             ->map(function ($log) {
                 $student = $log->student;
+                $studentUser = $student?->user;
                 $team = $log->schedule?->team;
                 return [
                     'id' => $log->id,
                     'log_date' => optional($log->log_date)->toDateString(),
-                    'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
+                    'student_name' => trim(($studentUser?->first_name ?? '') . ' ' . ($studentUser?->last_name ?? '')) ?: 'Unknown athlete',
                     'student_id_number' => $student->student_id_number ?? null,
                     'team_name' => $team?->team_name,
                     'team_id' => $team?->id,
