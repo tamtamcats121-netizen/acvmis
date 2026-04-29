@@ -521,59 +521,198 @@ class CreateTeamController extends Controller
             'players.student.user',
         ]);
 
-        $payload = $this->buildFormPayload($team);
-
         return Inertia::render('Admin/TeamRoster', [
-            'team' => [
-                'id' => $team->id,
-                'team_name' => $team->team_name,
-                'team_avatar' => $team->team_avatar,
-                'sport' => $team->sport ? [
-                    'id' => $team->sport->id,
-                    'name' => $team->sport->name,
-                ] : null,
-                'year' => $team->year,
-                'description' => $team->description,
-                'coach' => $team->coach ? [
-                    'id' => $team->coach->id,
-                    'user_id' => $team->coach->user_id,
-                    'name' => $this->resolveCoachDisplayName($team->coach),
-                    'email' => $team->coach->user?->email,
-                    'avatar' => $team->coach->user?->avatar,
-                    'coach_status' => $team->coach->coach_status,
-                ] : null,
-                'assistantCoach' => $team->assistantCoach ? [
-                    'id' => $team->assistantCoach->id,
-                    'user_id' => $team->assistantCoach->user_id,
-                    'name' => $this->resolveCoachDisplayName($team->assistantCoach),
-                    'email' => $team->assistantCoach->user?->email,
-                    'avatar' => $team->assistantCoach->user?->avatar,
-                    'coach_status' => $team->assistantCoach->coach_status,
-                ] : null,
-                'players' => $team->players
-                    ->sortBy(fn ($player) => strtolower(($player->student?->last_name ?? '') . ' ' . ($player->student?->first_name ?? '')))
-                    ->values()
-                    ->map(fn (TeamPlayer $player) => [
-                        'id' => $player->id,
-                        'student_id' => $player->student_id,
-                        'name' => $this->resolveStudentDisplayName($player->student),
-                        'student_id_number' => $player->student?->student_id_number,
-                        'academic_level_label' => $player->student?->academic_level_label,
-                        'course_or_strand' => $player->student?->course_or_strand,
-                        'email' => $player->student?->user?->email,
-                        'avatar' => $player->student?->user?->avatar,
-                        'height' => $player->student?->height,
-                        'weight' => $player->student?->weight,
-                        'jersey_number' => $player->jersey_number,
-                        'athlete_position' => $player->athlete_position,
-                        'player_status' => $player->player_status ?? TeamPlayer::STATUS_ACTIVE,
-                        'manual_inactive' => (bool) $player->manual_inactive,
-                    ]),
-            ],
-            'coaches' => $payload['coaches'],
-            'players' => $payload['players'],
+            'team' => $this->serializeRosterTeam($team),
             'readOnly' => auth()->user()?->role !== 'admin',
         ]);
+    }
+
+    public function showCoachManagerPage(Team $team)
+    {
+        $this->teamPlayerStatuses->syncAll();
+
+        $team->load([
+            'sport:id,name',
+            'coach.user',
+            'assistantCoach.user',
+            'headCoachAssignment',
+            'assistantCoachAssignment',
+            'players.student.user',
+        ]);
+
+        $payload = $this->buildFormPayload($team);
+
+        return Inertia::render('Admin/TeamCoachManager', [
+            'team' => $this->serializeRosterTeam($team),
+            'coaches' => $payload['coaches'],
+            'readOnly' => auth()->user()?->role !== 'admin',
+        ]);
+    }
+
+    public function showPlayerManagerPage(Team $team)
+    {
+        $this->teamPlayerStatuses->syncAll();
+
+        $team->load([
+            'sport:id,name',
+            'coach.user',
+            'assistantCoach.user',
+            'headCoachAssignment',
+            'assistantCoachAssignment',
+            'players.student.user',
+        ]);
+
+        $payload = $this->buildFormPayload($team);
+
+        return Inertia::render('Admin/TeamPlayerManager', [
+            'team' => $this->serializeRosterTeam($team),
+            'players' => $payload['players'],
+            'maxPlayers' => $this->maxPlayersForSport((int) $team->sport_id),
+            'readOnly' => auth()->user()?->role !== 'admin',
+        ]);
+    }
+
+    public function assignCoach(Request $request, Team $team, Coach $coach)
+    {
+        $this->authorizeMutation();
+
+        $validated = $request->validate([
+            'role' => ['required', Rule::in(['head', 'assistant'])],
+        ]);
+
+        $role = (string) $validated['role'];
+        $headCoachId = $team->coach_id;
+        $assistantCoachId = $team->assistant_coach_id;
+
+        if ($role === 'head') {
+            if ($assistantCoachId && (int) $assistantCoachId === (int) $coach->id) {
+                throw ValidationException::withMessages([
+                    'role' => 'This coach is already assigned as the assistant coach for this team.',
+                ]);
+            }
+
+            $newHeadCoachId = (int) $coach->id;
+            $newAssistantCoachId = $assistantCoachId ? (int) $assistantCoachId : null;
+        } else {
+            if ($headCoachId && (int) $headCoachId === (int) $coach->id) {
+                throw ValidationException::withMessages([
+                    'role' => 'This coach is already assigned as the head coach for this team.',
+                ]);
+            }
+
+            $newHeadCoachId = $headCoachId ? (int) $headCoachId : null;
+            $newAssistantCoachId = (int) $coach->id;
+        }
+
+        if (!$newHeadCoachId) {
+            throw ValidationException::withMessages([
+                'role' => 'A head coach must be assigned to the team.',
+            ]);
+        }
+
+        $this->validateCoachAssignmentConflicts($newHeadCoachId, $newAssistantCoachId, $team->id);
+
+        DB::transaction(function () use ($team, $newHeadCoachId, $newAssistantCoachId) {
+            $team->syncStaffAssignments($newHeadCoachId, $newAssistantCoachId, auth()->id());
+        });
+
+        $team->refresh()->load('sport');
+
+        if ((int) $headCoachId !== $newHeadCoachId) {
+            $this->notifyTeamAssignmentRemoved($team, $headCoachId ? (int) $headCoachId : null, 'head coach');
+            $this->notifyTeamAssignmentAdded($team, $newHeadCoachId, 'head coach');
+        }
+
+        if (($assistantCoachId ? (int) $assistantCoachId : null) !== $newAssistantCoachId) {
+            $this->notifyTeamAssignmentRemoved($team, $assistantCoachId ? (int) $assistantCoachId : null, 'assistant coach');
+            $this->notifyTeamAssignmentAdded($team, $newAssistantCoachId, 'assistant coach');
+        }
+
+        return back()->with('success', 'Coach assignment updated successfully.');
+    }
+
+    public function removeCoach(Team $team, string $role)
+    {
+        $this->authorizeMutation();
+
+        if (!in_array($role, ['head', 'assistant'], true)) {
+            abort(404);
+        }
+
+        if ($role === 'head') {
+            return back()->with('error', 'Head coach removal is not supported here. Assign a replacement head coach instead.');
+        }
+
+        $headCoachId = $team->coach_id ? (int) $team->coach_id : null;
+        $assistantCoachId = $team->assistant_coach_id ? (int) $team->assistant_coach_id : null;
+
+        if (!$assistantCoachId) {
+            return back()->with('warning', 'No assistant coach is currently assigned.');
+        }
+
+        DB::transaction(function () use ($team, $headCoachId) {
+            $team->syncStaffAssignments($headCoachId, null, auth()->id());
+        });
+
+        $team->refresh()->load('sport');
+        $this->notifyTeamAssignmentRemoved($team, $assistantCoachId, 'assistant coach');
+
+        return back()->with('success', 'Assistant coach removed from the team.');
+    }
+
+    public function addPlayerToRoster(Team $team, Student $student)
+    {
+        $this->authorizeMutation();
+
+        $maxPlayers = $this->maxPlayersForSport((int) $team->sport_id);
+        $currentPlayers = TeamPlayer::where('team_id', $team->id)->count();
+        if ($currentPlayers >= $maxPlayers) {
+            throw ValidationException::withMessages([
+                'player' => "This team already reached the max allowed players ({$maxPlayers}).",
+            ]);
+        }
+
+        $this->validatePlayerConflicts(collect([(int) $student->id]), $team->id);
+
+        $player = TeamPlayer::firstOrCreate(
+            [
+                'team_id' => $team->id,
+                'student_id' => $student->id,
+            ],
+            [
+                'jersey_number' => null,
+                'athlete_position' => null,
+            ]
+        );
+
+        if ($player->wasRecentlyCreated) {
+            $team->loadMissing('sport');
+            $this->logRosterMembershipChanges($team, [(int) $student->id], 'roster_added_to_team');
+            $this->notifyPlayersAdded($team, [(int) $student->id]);
+            $this->teamPlayerStatuses->syncStudent((int) $student->id);
+        }
+
+        return back()->with('success', $player->wasRecentlyCreated ? 'Student-athlete added to the team.' : 'Student-athlete is already assigned to this team.');
+    }
+
+    public function removePlayerFromRoster(Team $team, Student $student)
+    {
+        $this->authorizeMutation();
+
+        $player = TeamPlayer::where('team_id', $team->id)
+            ->where('student_id', $student->id)
+            ->first();
+
+        if (!$player) {
+            return back()->with('warning', 'Student-athlete is not assigned to this team.');
+        }
+
+        $player->delete();
+        $team->loadMissing('sport', 'activeStaffAssignments');
+        $this->logRosterMembershipChanges($team, [(int) $student->id], 'roster_removed_from_team');
+        $this->notifyPlayersRemoved($team, [(int) $student->id]);
+
+        return back()->with('success', 'Student-athlete removed from the team.');
     }
 
     public function updateRosterMembership(Request $request, Team $team)
@@ -872,6 +1011,8 @@ class CreateTeamController extends Controller
                     $coachAvailabilityMap[$t->coach_id] = [
                         'is_available' => false,
                         'assigned_team_id' => (int) $t->id,
+                        'assigned_team_name' => $t->team_name,
+                        'assigned_sport_name' => $t->sport?->name,
                         'assigned_role' => 'Head Coach',
                         'unavailable_reason' => "Assigned as Head Coach to {$teamLabel}.",
                     ];
@@ -890,6 +1031,8 @@ class CreateTeamController extends Controller
                     $coachAvailabilityMap[$t->assistant_coach_id] = [
                         'is_available' => false,
                         'assigned_team_id' => (int) $t->id,
+                        'assigned_team_name' => $t->team_name,
+                        'assigned_sport_name' => $t->sport?->name,
                         'assigned_role' => 'Assistant Coach',
                         'unavailable_reason' => "Assigned as Assistant Coach to {$teamLabel}.",
                     ];
@@ -929,6 +1072,8 @@ class CreateTeamController extends Controller
             $playerAvailabilityMap[$studentId] = [
                 'is_available' => false,
                 'assigned_team_id' => (int) $row->team_id,
+                'assigned_team_name' => $row->team_name,
+                'assigned_sport_name' => $row->sport_name,
                 'unavailable_reason' => "Assigned to {$teamLabel}.",
             ];
         }
@@ -945,8 +1090,11 @@ class CreateTeamController extends Controller
                     'name' => $this->resolveCoachDisplayName($c),
                     'status' => $c->coach_status,
                     'email' => $c->user?->email,
+                    'avatar' => $c->user?->avatar,
                     'is_available' => $availability['is_available'] ?? true,
                     'assigned_team_id' => $availability['assigned_team_id'] ?? null,
+                    'assigned_team_name' => $availability['assigned_team_name'] ?? null,
+                    'assigned_sport_name' => $availability['assigned_sport_name'] ?? null,
                     'assigned_role' => $availability['assigned_role'] ?? null,
                     'unavailable_reason' => $availability['unavailable_reason'] ?? null,
                 ];
@@ -954,7 +1102,7 @@ class CreateTeamController extends Controller
 
         $players = Student::query()
             ->with('user')
-            ->select('id', 'user_id', 'student_id_number', 'current_grade_level')
+            ->select('id', 'user_id', 'student_id_number', 'current_grade_level', 'course_or_strand', 'approval_status', 'height', 'weight')
             ->orderBy('id')
             ->get()
             ->map(function ($p) use ($playerAvailabilityMap) {
@@ -964,9 +1112,16 @@ class CreateTeamController extends Controller
                     'name' => $this->resolveStudentDisplayName($p),
                     'student_id_number' => $p->student_id_number,
                     'academic_level_label' => $p->academic_level_label,
+                    'course_or_strand' => $p->course_or_strand,
                     'email' => $p->user?->email,
+                    'avatar' => $p->user?->avatar,
+                    'status' => $p->approval_status,
+                    'height' => $p->height,
+                    'weight' => $p->weight,
                     'is_available' => $availability['is_available'] ?? true,
                     'assigned_team_id' => $availability['assigned_team_id'] ?? null,
+                    'assigned_team_name' => $availability['assigned_team_name'] ?? null,
+                    'assigned_sport_name' => $availability['assigned_sport_name'] ?? null,
                     'unavailable_reason' => $availability['unavailable_reason'] ?? null,
                 ];
             })->values();
@@ -981,8 +1136,11 @@ class CreateTeamController extends Controller
                     'name' => $this->resolveCoachDisplayName($team->coach),
                     'status' => $team->coach->coach_status ?? null,
                     'email' => $team->coach->user?->email,
+                    'avatar' => $team->coach->user?->avatar,
                     'is_available' => true,
                     'assigned_team_id' => null,
+                    'assigned_team_name' => null,
+                    'assigned_sport_name' => null,
                     'assigned_role' => null,
                     'unavailable_reason' => null,
                 ]);
@@ -993,8 +1151,11 @@ class CreateTeamController extends Controller
                     'name' => $this->resolveCoachDisplayName($team->assistantCoach),
                     'status' => $team->assistantCoach->coach_status ?? null,
                     'email' => $team->assistantCoach->user?->email,
+                    'avatar' => $team->assistantCoach->user?->avatar,
                     'is_available' => true,
                     'assigned_team_id' => null,
+                    'assigned_team_name' => null,
+                    'assigned_sport_name' => null,
                     'assigned_role' => null,
                     'unavailable_reason' => null,
                 ]);
@@ -1007,9 +1168,16 @@ class CreateTeamController extends Controller
                         'name' => $this->resolveStudentDisplayName($player->student),
                         'student_id_number' => $player->student->student_id_number,
                         'academic_level_label' => $player->student->academic_level_label,
+                        'course_or_strand' => $player->student->course_or_strand,
                         'email' => $player->student->user?->email,
+                        'avatar' => $player->student->user?->avatar,
+                        'status' => $player->student->approval_status,
+                        'height' => $player->student->height,
+                        'weight' => $player->student->weight,
                         'is_available' => true,
                         'assigned_team_id' => null,
+                        'assigned_team_name' => null,
+                        'assigned_sport_name' => null,
                         'unavailable_reason' => null,
                     ]);
                 }
@@ -1049,6 +1217,56 @@ class CreateTeamController extends Controller
             'sports' => $sports,
             'selectedTeam' => $selectedTeam,
             'coachWorkloads' => $coachWorkloads,
+        ];
+    }
+
+    private function serializeRosterTeam(Team $team): array
+    {
+        return [
+            'id' => $team->id,
+            'team_name' => $team->team_name,
+            'team_avatar' => $team->team_avatar,
+            'sport' => $team->sport ? [
+                'id' => $team->sport->id,
+                'name' => $team->sport->name,
+            ] : null,
+            'year' => $team->year,
+            'description' => $team->description,
+            'coach' => $team->coach ? [
+                'id' => $team->coach->id,
+                'user_id' => $team->coach->user_id,
+                'name' => $this->resolveCoachDisplayName($team->coach),
+                'email' => $team->coach->user?->email,
+                'avatar' => $team->coach->user?->avatar,
+                'coach_status' => $team->coach->coach_status,
+            ] : null,
+            'assistantCoach' => $team->assistantCoach ? [
+                'id' => $team->assistantCoach->id,
+                'user_id' => $team->assistantCoach->user_id,
+                'name' => $this->resolveCoachDisplayName($team->assistantCoach),
+                'email' => $team->assistantCoach->user?->email,
+                'avatar' => $team->assistantCoach->user?->avatar,
+                'coach_status' => $team->assistantCoach->coach_status,
+            ] : null,
+            'players' => $team->players
+                ->sortBy(fn ($player) => strtolower(($player->student?->last_name ?? '') . ' ' . ($player->student?->first_name ?? '')))
+                ->values()
+                ->map(fn (TeamPlayer $player) => [
+                    'id' => $player->id,
+                    'student_id' => $player->student_id,
+                    'name' => $this->resolveStudentDisplayName($player->student),
+                    'student_id_number' => $player->student?->student_id_number,
+                    'academic_level_label' => $player->student?->academic_level_label,
+                    'course_or_strand' => $player->student?->course_or_strand,
+                    'email' => $player->student?->user?->email,
+                    'avatar' => $player->student?->user?->avatar,
+                    'height' => $player->student?->height,
+                    'weight' => $player->student?->weight,
+                    'jersey_number' => $player->jersey_number,
+                    'athlete_position' => $player->athlete_position,
+                    'player_status' => $player->player_status ?? TeamPlayer::STATUS_ACTIVE,
+                    'manual_inactive' => (bool) $player->manual_inactive,
+                ]),
         ];
     }
 

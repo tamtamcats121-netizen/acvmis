@@ -197,8 +197,20 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.teams.update');
     Route::get('/teams/{team}/view-roster', [CreateTeamController::class, 'showRosterPage'])
         ->name('admin.teams.roster.page');
+    Route::get('/teams/{team}/manage-coaches', [CreateTeamController::class, 'showCoachManagerPage'])
+        ->name('admin.teams.coaches.page');
+    Route::get('/teams/{team}/manage-players', [CreateTeamController::class, 'showPlayerManagerPage'])
+        ->name('admin.teams.players.page');
     Route::put('/teams/{team}/view-roster', [CreateTeamController::class, 'updateRosterMembership'])
         ->name('admin.teams.roster.membership');
+    Route::post('/teams/{team}/coaches/{coach}', [CreateTeamController::class, 'assignCoach'])
+        ->name('admin.teams.coaches.assign');
+    Route::delete('/teams/{team}/coaches/{role}', [CreateTeamController::class, 'removeCoach'])
+        ->name('admin.teams.coaches.remove');
+    Route::post('/teams/{team}/players/{student}', [CreateTeamController::class, 'addPlayerToRoster'])
+        ->name('admin.teams.players.add');
+    Route::delete('/teams/{team}/players/{student}', [CreateTeamController::class, 'removePlayerFromRoster'])
+        ->name('admin.teams.players.remove');
     Route::get('/teams/{team}/roster', [CreateTeamController::class, 'roster'])
         ->name('admin.teams.roster');
     Route::get('/teams/{team}/print', [CreateTeamController::class, 'printRoster'])
