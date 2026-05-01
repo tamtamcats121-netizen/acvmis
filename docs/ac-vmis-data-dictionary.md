@@ -172,25 +172,6 @@ Legacy development tables such as `account_approvals`, `announcements`, `schedul
 | `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
 | `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
 
-## `athlete_health_clearances`
-
-| Field Name | Data Type | Constraints | Description |
-| --- | --- | --- | --- |
-| `id` | `bigint(20) unsigned` | Primary key; auto-increment; not null | Unique identifier of the athlete health clearance record. |
-| `student_id` | `bigint(20) unsigned` | Foreign key to `students.id`; not null | Identifies the student to whom the clearance applies. |
-| `clearance_date` | `date` | Not null | Stores the date on which the medical clearance was issued. |
-| `valid_until` | `date` | Nullable | Stores the date until which the clearance remains valid. |
-| `physician_name` | `varchar(255)` | Not null | Stores the name of the physician who issued the clearance. |
-| `conditions` | `text` | Nullable | Stores declared medical conditions relevant to sports participation. |
-| `allergies` | `text` | Nullable | Stores declared allergy information for the student. |
-| `restrictions` | `text` | Nullable | Stores medical restrictions or limitations imposed on the student. |
-| `certificate_path` | `varchar(255)` | Nullable | Stores the file location of the supporting medical certificate. |
-| `reviewed_by` | `bigint(20) unsigned` | Foreign key to `users.id`; nullable | Identifies the user who reviewed the clearance record. |
-| `reviewed_at` | `timestamp` | Nullable | Records the date and time when the clearance was reviewed. |
-| `notes` | `text` | Nullable | Stores additional remarks concerning the clearance. |
-| `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
-| `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
-
 ## `cache`
 
 | Field Name | Data Type | Constraints | Description |
@@ -438,8 +419,6 @@ Legacy development tables such as `account_approvals`, `announcements`, `schedul
 | `notify_attendance_exceptions` | `tinyint(1)` | Not null; default `1` | Indicates whether attendance exception notifications are enabled. |
 | `notify_wellness_injury_threshold` | `tinyint(1)` | Not null; default `1` | Indicates whether injury-threshold notifications are enabled. |
 | `wellness_injury_threshold_level` | `tinyint(3) unsigned` | Not null; default `3` | Stores the threshold level used for wellness injury alerts. |
-| `theme_preference` | `varchar(20)` | Not null; default `'system'` | Stores the user's preferred application theme. |
-| `timezone` | `varchar(60)` | Not null; default `'Asia/Manila'` | Stores the user's preferred time zone. |
 | `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
 | `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
 

@@ -17,20 +17,20 @@ const currentYear = new Date().getFullYear()
 <template>
   
   <footer
-    class="role-footer mt-10 mr-4 rounded-tr-[2rem] border-t border-slate-200/60 bg-[#b91c1c] sm:mr-6 lg:mr-10"
+    class="role-footer mt-10 mr-4 rounded-tr-[2rem] border-t border-slate-200/60 bg-[#dc2626] sm:mr-6 lg:mr-10"
     :class="props.bottomNav ? 'pb-[calc(env(safe-area-inset-bottom,0px)+5.25rem)] md:pb-5' : 'pb-5'"
   >
     <div class="mx-auto w-full max-w-[1240px] px-4 pt-5 sm:px-6 lg:px-10">
       <div class="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.85fr)] lg:items-end">
         <section class="space-y-3">
-          <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-blue-200">AC-VMIS</p>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-white">AC-VMIS</p>
           <div class="space-y-2">
             <p class="text-[15px] font-semibold text-white">{{ props.title }}</p>
-            <p v-if="props.description" class="max-w-2xl text-[12px] leading-6 text-blue-100/90">
+            <p v-if="props.description" class="max-w-2xl text-[12px] leading-6 text-white">
               {{ props.description }}
             </p>
           </div>
-          <div class="flex flex-wrap gap-2 text-[11px] text-blue-100">
+          <div class="flex flex-wrap gap-2 text-[11px] text-white">
             <p class="inline-flex items-center gap-2">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
                 <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -48,7 +48,7 @@ const currentYear = new Date().getFullYear()
         </section>
 
         <section aria-label="Institution Mission" class="rounded-2xl border border-white/12 bg-white/6 px-4 py-4 backdrop-blur-sm">
-          <div class="space-y-3 text-[11px] text-blue-100">
+          <div class="space-y-3 text-[11px] text-white">
             <div>
               <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/90">Vision</p>
               <p>To be a transformative educational institution committed to the success of its graduates through quality instruction, relevant research, and strong community engagement.</p>
@@ -61,7 +61,7 @@ const currentYear = new Date().getFullYear()
         </section>
       </div>
 
-      <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[10px] text-blue-200">
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[10px] text-white">
         <span>© {{ currentYear }} Asian College</span>
         <span class="text-white">Varsity Management Information System</span>
       </div>

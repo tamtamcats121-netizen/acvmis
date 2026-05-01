@@ -423,8 +423,8 @@ watch(mobileMenuOpen, (open) => {
     display: inline-block;
     padding: 0.22rem 0.7rem;
     border-radius: 999px;
-    background: #ffffff;
-    color: #0b1b2b;
+    background: var(--title-chip-bg);
+    color: var(--title-chip-text);
     line-height: 1.2;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
@@ -434,17 +434,19 @@ watch(mobileMenuOpen, (open) => {
     margin-top: 1rem;
     padding-top: 1.2rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    background: #b91c1c !important;
+    background: #dc2626 !important;
     border-radius: 18px 18px 0 0;
     margin-left: 1.5rem;
     margin-right: 1.5rem;
     overflow: hidden;
     color: #ffffff;
+    --title-chip-bg: rgba(255, 255, 255, 0.14);
+    --title-chip-text: #ffffff;
 }
 
 .footer-shell {
     padding: 0.2rem 0 0;
-    color: rgba(255, 255, 255, 0.75);
+    color: #ffffff;
     background: transparent !important;
     border: none !important;
 }
@@ -471,14 +473,14 @@ watch(mobileMenuOpen, (open) => {
 
 .footer-copy {
     margin-top: 0.55rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
     line-height: 1.6;
     font-size: 0.92rem;
 }
 
 .footer-contact {
     margin-top: 0.45rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
     font-size: 0.84rem;
     display: flex;
     align-items: flex-start;
@@ -489,7 +491,7 @@ watch(mobileMenuOpen, (open) => {
 .contact-icon {
     width: 0.92rem;
     height: 0.92rem;
-    color: rgba(255, 255, 255, 0.85);
+    color: #ffffff;
     flex-shrink: 0;
 }
 
@@ -521,7 +523,7 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-heading {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-size: 0.72rem;
@@ -536,7 +538,7 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-link {
-    color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
     text-decoration: none;
     font-size: 0.9rem;
     overflow-wrap: anywhere;
@@ -558,13 +560,13 @@ watch(mobileMenuOpen, (open) => {
     margin-top: 0.65rem;
     display: grid;
     gap: 0.7rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
     font-size: 0.84rem;
     line-height: 1.5;
 }
 
 .footer-info-title {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff;
     font-weight: 700;
     font-size: 0.76rem;
     text-transform: uppercase;
@@ -579,7 +581,7 @@ watch(mobileMenuOpen, (open) => {
     margin-top: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
     padding-top: 0.75rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: #ffffff;
     font-size: 0.78rem;
 }
 

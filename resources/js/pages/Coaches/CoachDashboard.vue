@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
-import { computed, useSlots } from 'vue'
+import { Head, Link } from '@inertiajs/vue3'
+import type { ApexOptions } from 'apexcharts'
+import { computed, ref, useSlots } from 'vue'
+import VueApexCharts from 'vue3-apexcharts'
 
 import CoachMobileShell from '@/components/coach/CoachMobileShell.vue'
 import { useSportColors } from '@/composables/useSportColors'
+import { useTheme } from '@/composables/useTheme'
 
 type TeamInfo = {
   id: number
@@ -11,32 +14,47 @@ type TeamInfo = {
   sport: string
 }
 
-type ScheduleInfo = {
+type Metrics = {
+  upcoming_sessions: number
+  attendance_needs_review: number
+  wellness_pending: number
+  roster_total: number
+}
+
+type AttendanceTrend = {
+  labels: string[]
+  series: {
+    present: number[]
+    late: number[]
+    absent: number[]
+    excused: number[]
+  }
+}
+
+type WellnessSnapshot = {
+  injury_observed_count: number
+  avg_fatigue: number
+  performance_breakdown: {
+    excellent: number
+    good: number
+    fair: number
+    poor: number
+  }
+  recent_injury_notes: Array<{
+    id: number
+    student_name: string
+    student_id_number?: string | null
+    injury_notes: string
+    log_date?: string | null
+  }>
+}
+
+type AttendanceActionSchedule = {
   id: number
   title: string
-  type: string | null
-  venue: string | null
-  start: string | null
-  end: string | null
-}
-
-type Metrics = {
-  attendance_needs_review: number
-  attendance_in_progress: number
-  wellness_pending: number
-  academic_missing: number
-  roster_total: number
-  roster_injured: number
-  roster_missing_positions: number
-  roster_jersey_pending: number
-  latest_period: string | null
-}
-
-type AttendanceSnapshot = {
-  present: number
-  late: number
-  absent: number
-  excused: number
+  type?: string | null
+  venue?: string | null
+  end_time?: string | null
 }
 
 const slots = useSlots()
@@ -44,68 +62,235 @@ const hasDefaultSlot = computed(() => Boolean(slots.default))
 
 const props = defineProps<{
   team?: TeamInfo | null
-  nextSchedule?: ScheduleInfo | null
   metrics?: Partial<Metrics>
-  attendanceSnapshot?: Partial<AttendanceSnapshot>
+  actions?: {
+    attendance_pending_schedule?: AttendanceActionSchedule | null
+  }
+  trends?: {
+    attendance?: Partial<AttendanceTrend>
+  }
+  wellness?: Partial<WellnessSnapshot>
 }>()
-const { sportColor, sportTextColor, sportLabel } = useSportColors()
-
-function goTo(route: string) {
-  router.get(route)
-}
+const { sportLabel } = useSportColors()
+const { isDarkMode } = useTheme()
+const attendanceChartMode = ref<'stacked' | 'line'>('stacked')
 
 function cardMotion(order: number) {
   return { '--card-order': String(order) }
 }
 
 const safeMetrics = computed<Metrics>(() => ({
+  upcoming_sessions: props.metrics?.upcoming_sessions ?? 0,
   attendance_needs_review: props.metrics?.attendance_needs_review ?? 0,
-  attendance_in_progress: props.metrics?.attendance_in_progress ?? 0,
   wellness_pending: props.metrics?.wellness_pending ?? 0,
-  academic_missing: props.metrics?.academic_missing ?? 0,
   roster_total: props.metrics?.roster_total ?? 0,
-  roster_injured: props.metrics?.roster_injured ?? 0,
-  roster_missing_positions: props.metrics?.roster_missing_positions ?? 0,
-  roster_jersey_pending: props.metrics?.roster_jersey_pending ?? 0,
-  latest_period: props.metrics?.latest_period ?? null,
 }))
 
-const safeSnapshot = computed<AttendanceSnapshot>(() => ({
-  present: props.attendanceSnapshot?.present ?? 0,
-  late: props.attendanceSnapshot?.late ?? 0,
-  absent: props.attendanceSnapshot?.absent ?? 0,
-  excused: props.attendanceSnapshot?.excused ?? 0,
+const attendanceTrend = computed<AttendanceTrend>(() => ({
+  labels: props.trends?.attendance?.labels ?? [],
+  series: {
+    present: props.trends?.attendance?.series?.present ?? [],
+    late: props.trends?.attendance?.series?.late ?? [],
+    absent: props.trends?.attendance?.series?.absent ?? [],
+    excused: props.trends?.attendance?.series?.excused ?? [],
+  },
 }))
 
-const nextScheduleTime = computed(() => {
-  if (!props.nextSchedule?.start) return null
-  return new Date(props.nextSchedule.start)
-})
+const attendanceTrendSeries = computed(() => [
+  { name: 'Present', data: attendanceTrend.value.series.present },
+  { name: 'Late', data: attendanceTrend.value.series.late },
+  { name: 'Absent', data: attendanceTrend.value.series.absent },
+  { name: 'Excused', data: attendanceTrend.value.series.excused },
+])
 
-function formatPHT(dt: string | null) {
-  if (!dt) return '-'
-  const date = new Date(dt)
-  return date.toLocaleString('en-PH', {
-    timeZone: 'Asia/Manila',
+const hasAttendanceTrendData = computed(() =>
+  attendanceTrendSeries.value.some((entry) => entry.data.some((value) => value > 0)),
+)
+
+const attendanceChartOptions = computed<ApexOptions>(() => ({
+  chart: {
+    type: attendanceChartMode.value === 'stacked' ? 'bar' : 'line',
+    stacked: attendanceChartMode.value === 'stacked',
+    toolbar: { show: false },
+    fontFamily: 'inherit',
+    foreColor: '#475569',
+    background: 'transparent',
+  },
+  colors: ['#034485', '#2563eb', '#60a5fa', '#93c5fd'],
+  stroke: {
+    width: attendanceChartMode.value === 'stacked' ? 0 : [3, 3, 3, 3],
+    curve: 'smooth',
+  },
+  dataLabels: { enabled: false },
+  fill: {
+    opacity: attendanceChartMode.value === 'stacked' ? 0.95 : 0.2,
+    type: attendanceChartMode.value === 'stacked' ? 'solid' : 'gradient',
+    gradient: {
+      shadeIntensity: 0.2,
+      opacityFrom: 0.35,
+      opacityTo: 0.05,
+      stops: [0, 90, 100],
+    },
+  },
+  legend: {
+    position: 'top',
+    horizontalAlign: 'left',
+    labels: { colors: isDarkMode.value ? '#cbd5e1' : '#475569' },
+  },
+  plotOptions: {
+    bar: {
+      borderRadius: 6,
+      columnWidth: '50%',
+    },
+  },
+  xaxis: {
+    categories: attendanceTrend.value.labels,
+    axisBorder: { color: 'rgba(148, 163, 184, 0.32)' },
+    axisTicks: { color: 'rgba(148, 163, 184, 0.32)' },
+    labels: {
+      style: {
+        colors: Array(attendanceTrend.value.labels.length).fill(isDarkMode.value ? '#94a3b8' : '#64748b'),
+        fontSize: '11px',
+      },
+    },
+  },
+  yaxis: {
+    min: 0,
+    forceNiceScale: true,
+    labels: {
+      style: {
+        colors: [isDarkMode.value ? '#94a3b8' : '#64748b'],
+        fontSize: '11px',
+      },
+    },
+  },
+  grid: {
+    borderColor: isDarkMode.value ? 'rgba(148, 163, 184, 0.14)' : 'rgba(148, 163, 184, 0.18)',
+    strokeDashArray: 4,
+  },
+  tooltip: {
+    theme: isDarkMode.value ? 'dark' : 'light',
+  },
+  responsive: [
+    {
+      breakpoint: 768,
+      options: {
+        plotOptions: {
+          bar: {
+            columnWidth: '68%',
+          },
+        },
+        legend: {
+          position: 'bottom',
+        },
+      },
+    },
+  ],
+}))
+
+const wellnessSnapshot = computed<WellnessSnapshot>(() => ({
+  injury_observed_count: props.wellness?.injury_observed_count ?? 0,
+  avg_fatigue: props.wellness?.avg_fatigue ?? 0,
+  performance_breakdown: {
+    excellent: props.wellness?.performance_breakdown?.excellent ?? 0,
+    good: props.wellness?.performance_breakdown?.good ?? 0,
+    fair: props.wellness?.performance_breakdown?.fair ?? 0,
+    poor: props.wellness?.performance_breakdown?.poor ?? 0,
+  },
+  recent_injury_notes: props.wellness?.recent_injury_notes ?? [],
+}))
+
+const performanceConditionSeries = computed(() => [
+  wellnessSnapshot.value.performance_breakdown.excellent,
+  wellnessSnapshot.value.performance_breakdown.good,
+  wellnessSnapshot.value.performance_breakdown.fair,
+  wellnessSnapshot.value.performance_breakdown.poor,
+])
+
+const hasPerformanceConditionData = computed(() => performanceConditionSeries.value.some((value) => value > 0))
+
+const performanceConditionOptions = computed<ApexOptions>(() => ({
+  chart: {
+    type: 'donut',
+    toolbar: { show: false },
+    fontFamily: 'inherit',
+    background: 'transparent',
+  },
+  labels: ['Excellent', 'Good', 'Fair', 'Poor'],
+  colors: ['#034485', '#2563eb', '#60a5fa', '#93c5fd'],
+  legend: {
+    position: 'bottom',
+    labels: { colors: isDarkMode.value ? '#cbd5e1' : '#475569' },
+  },
+  stroke: {
+    colors: [isDarkMode.value ? '#171717' : '#ffffff'],
+    width: 4,
+  },
+  dataLabels: {
+    enabled: false,
+  },
+  plotOptions: {
+    pie: {
+      donut: {
+        size: '70%',
+        labels: {
+          show: true,
+          name: {
+            show: true,
+            color: isDarkMode.value ? '#94a3b8' : '#64748b',
+            fontSize: '12px',
+            offsetY: 18,
+          },
+          value: {
+            show: true,
+            color: isDarkMode.value ? '#f8fafc' : '#0f172a',
+            fontSize: '28px',
+            fontWeight: 700,
+            offsetY: -10,
+            formatter: (value: string) => String(Math.round(Number(value))),
+          },
+          total: {
+            show: true,
+            label: 'Total Logs',
+            color: isDarkMode.value ? '#94a3b8' : '#64748b',
+            formatter: () => String(performanceConditionSeries.value.reduce((sum, value) => sum + value, 0)),
+          },
+        },
+      },
+    },
+  },
+  tooltip: {
+    theme: isDarkMode.value ? 'dark' : 'light',
+  },
+}))
+
+function formatIsoDate(value?: string | null) {
+  if (!value) return 'Recent'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleDateString('en-PH', {
     month: 'short',
     day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
+    year: 'numeric',
   })
 }
 
-const nextCountdown = computed(() => {
-  if (!nextScheduleTime.value) return null
-  const diff = nextScheduleTime.value.getTime() - Date.now()
-  if (diff <= 0) return 'Starting soon'
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-  if (days > 0) return `Starts in ${days}d ${hours % 24}h`
-  if (hours > 0) return `Starts in ${hours}h ${minutes % 60}m`
-  return `Starts in ${minutes}m`
-})
+function formatScheduleDateTime(value?: string | null) {
+  if (!value) return 'Recently completed'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
 </script>
 
 <template>
@@ -117,191 +302,222 @@ const nextCountdown = computed(() => {
     <section v-else class="space-y-5">
       <Head title="Coach Dashboard" />
 
-      <section class="page-card rounded-2xl border border-[#034485]/30 bg-white p-6" :style="cardMotion(1)">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div class="min-w-0">
-            <h1 class="mt-2 text-2xl font-bold text-slate-900">
-              {{ props.team?.team_name ? `${props.team.team_name} Workspace` : 'Coach Workspace' }}
+      <section class="page-card rounded-2xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
+        <div class="space-y-3">
+          <div>
+            <h1 class="text-2xl font-bold text-white">
+              {{ props.team?.team_name ? `${props.team.team_name} Dashboard` : 'Coach Workspace' }}
             </h1>
-            <div v-if="props.team?.sport" class="mt-3 flex flex-wrap items-center gap-2">
-              <span class="text-sm text-slate-600">Sport:</span>
-              <span
-                class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
-                :style="{ backgroundColor: sportColor(props.team.sport), color: sportTextColor(props.team.sport) }"
+            <p class="mt-2 max-w-3xl text-sm leading-6 text-white/85">
+              Access schedule coordination, attendance posting, wellness monitoring, and team oversight from one organized coaching workspace.
+            </p>
+          </div>
+
+          <div v-if="props.team?.sport" class="flex flex-wrap items-center gap-2">
+            <span class="text-sm text-white/80">Sport:</span>
+            <span
+              class="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white shadow-sm"
+            >
+              {{ sportLabel(props.team.sport) }}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4" :style="cardMotion(2)">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Upcoming Sessions</p>
+          <p class="mt-2 text-2xl font-bold text-[#034485]">{{ safeMetrics.upcoming_sessions }}</p>
+        </article>
+
+        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4" :style="cardMotion(3)">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Attendance Pending</p>
+          <p class="mt-2 text-2xl font-bold text-[#034485]">{{ safeMetrics.attendance_needs_review }}</p>
+        </article>
+
+        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4" :style="cardMotion(4)">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Wellness Pending</p>
+          <p class="mt-2 text-2xl font-bold text-[#034485]">{{ safeMetrics.wellness_pending }}</p>
+        </article>
+
+        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4" :style="cardMotion(5)">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Active Roster</p>
+          <p class="mt-2 text-2xl font-bold text-[#034485]">{{ safeMetrics.roster_total }}</p>
+        </article>
+      </section>
+
+      <section class="page-card rounded-2xl border border-[#034485]/22 bg-white p-5" :style="cardMotion(6)">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Primary Actions</p>
+          <h2 class="mt-2 text-xl font-bold text-slate-900">Coach Workspace Actions</h2>
+          <p class="mt-1 text-sm text-slate-600">Jump directly into the most important team coordination tasks.</p>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Link
+            href="/coach/schedule"
+            class="rounded-2xl border border-[#034485]/18 bg-slate-50 px-4 py-4 transition hover:border-[#034485]/35 hover:bg-[#034485]/5"
+          >
+            <p class="text-sm font-semibold text-slate-900">Open Schedule</p>
+            <p class="mt-1 text-xs text-slate-500">Review upcoming practices, games, and meetings.</p>
+          </Link>
+
+          <Link
+            href="/coach/schedule"
+            class="rounded-2xl border border-[#034485]/18 bg-slate-50 px-4 py-4 transition hover:border-[#034485]/35 hover:bg-[#034485]/5"
+          >
+            <p class="text-sm font-semibold text-slate-900">Post Attendance</p>
+            <template v-if="props.actions?.attendance_pending_schedule">
+              <p class="mt-1 text-xs font-medium text-[#034485]">
+                {{ props.actions.attendance_pending_schedule.title }}
+              </p>
+              <p class="mt-2 text-xs leading-5 text-slate-500">
+                {{
+                  [
+                    props.actions.attendance_pending_schedule.type,
+                    props.actions.attendance_pending_schedule.venue,
+                    formatScheduleDateTime(props.actions.attendance_pending_schedule.end_time),
+                  ]
+                    .filter(Boolean)
+                    .join(' • ')
+                }}
+              </p>
+            </template>
+            <p v-else class="mt-1 text-xs text-slate-500">No completed session is currently waiting for attendance posting.</p>
+          </Link>
+
+          <Link
+            href="/coach/wellness"
+            class="rounded-2xl border border-[#034485]/18 bg-slate-50 px-4 py-4 transition hover:border-[#034485]/35 hover:bg-[#034485]/5"
+          >
+            <p class="text-sm font-semibold text-slate-900">Open Wellness</p>
+            <p class="mt-1 text-xs text-slate-500">Log post-session injury, fatigue, and condition observations.</p>
+          </Link>
+
+          <Link
+            href="/coach/team"
+            class="rounded-2xl border border-[#034485]/18 bg-slate-50 px-4 py-4 transition hover:border-[#034485]/35 hover:bg-[#034485]/5"
+          >
+            <p class="text-sm font-semibold text-slate-900">View Roster</p>
+            <p class="mt-1 text-xs text-slate-500">Inspect assigned players, positions, and team details.</p>
+          </Link>
+        </div>
+      </section>
+
+      <section class="page-card rounded-2xl border border-[#034485]/22 bg-white p-5" :style="cardMotion(7)">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Attendance Trend</p>
+            <h2 class="mt-2 text-xl font-bold text-slate-900">Team Attendance Trend</h2>
+            <p class="mt-1 text-sm text-slate-600">Recent attendance posting for present, late, absent, and excused records.</p>
+          </div>
+
+          <div class="inline-flex items-center rounded-full border border-[#034485]/18 bg-slate-50 p-1">
+            <button
+              type="button"
+              class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
+              :class="attendanceChartMode === 'stacked' ? 'bg-[#034485] text-white shadow-sm' : 'text-slate-600 hover:text-[#034485]'"
+              @click="attendanceChartMode = 'stacked'"
+            >
+              Stacked Bar
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
+              :class="attendanceChartMode === 'line' ? 'bg-[#034485] text-white shadow-sm' : 'text-slate-600 hover:text-[#034485]'"
+              @click="attendanceChartMode = 'line'"
+            >
+              Trend Line
+            </button>
+          </div>
+        </div>
+
+        <div v-if="hasAttendanceTrendData" class="mt-5">
+          <VueApexCharts
+            height="320"
+            :type="attendanceChartMode === 'stacked' ? 'bar' : 'line'"
+            :options="attendanceChartOptions"
+            :series="attendanceTrendSeries"
+          />
+        </div>
+        <div
+          v-else
+          class="mt-5 rounded-2xl border border-dashed border-[#034485]/22 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500"
+        >
+          No attendance trend data is available yet for this team.
+        </div>
+      </section>
+
+      <section class="page-card rounded-2xl border border-[#034485]/22 bg-white p-5" :style="cardMotion(8)">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Wellness Snapshot</p>
+          <h2 class="mt-2 text-xl font-bold text-slate-900">Team Wellness Snapshot</h2>
+          <p class="mt-1 text-sm text-slate-600">Overall team wellness observations based on recent injury flags, fatigue levels, and performance condition logs.</p>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <article class="rounded-2xl border border-[#034485]/16 bg-slate-50 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Injury Observed Count</p>
+            <p class="mt-2 text-2xl font-bold text-slate-900">{{ wellnessSnapshot.injury_observed_count }}</p>
+          </article>
+
+          <article class="rounded-2xl border border-[#034485]/16 bg-slate-50 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Average Fatigue Level</p>
+            <p class="mt-2 text-2xl font-bold text-slate-900">{{ wellnessSnapshot.avg_fatigue.toFixed(2) }}</p>
+          </article>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <div class="rounded-2xl border border-[#034485]/16 bg-slate-50 p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900">Performance Condition Breakdown</h3>
+                <p class="mt-1 text-xs text-slate-500">Distribution of excellent, good, fair, and poor condition logs.</p>
+              </div>
+            </div>
+
+            <div v-if="hasPerformanceConditionData" class="mt-4">
+              <VueApexCharts height="300" type="donut" :options="performanceConditionOptions" :series="performanceConditionSeries" />
+            </div>
+            <div
+              v-else
+              class="mt-4 rounded-2xl border border-dashed border-[#034485]/22 bg-white px-4 py-10 text-center text-sm text-slate-500"
+            >
+              No performance condition data is available yet for this team.
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-[#034485]/16 bg-slate-50 p-4">
+            <div>
+              <h3 class="text-sm font-semibold text-slate-900">Players With Recent Injury Notes</h3>
+              <p class="mt-1 text-xs text-slate-500">Latest wellness entries where injury concerns were described by the coach.</p>
+            </div>
+
+            <div v-if="wellnessSnapshot.recent_injury_notes.length" class="mt-4 space-y-3">
+              <article
+                v-for="entry in wellnessSnapshot.recent_injury_notes"
+                :key="entry.id"
+                class="rounded-2xl border border-[#034485]/12 bg-white px-4 py-3"
               >
-                {{ sportLabel(props.team.sport) }}
-              </span>
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900">{{ entry.student_name }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ entry.student_id_number || 'No student ID' }}</p>
+                  </div>
+                  <span class="text-xs font-medium text-slate-500">{{ formatIsoDate(entry.log_date) }}</span>
+                </div>
+                <p class="mt-3 text-sm leading-6 text-slate-700">{{ entry.injury_notes }}</p>
+              </article>
             </div>
-            <p v-else class="text-sm text-slate-600">
-              Use this page to manage attendance, post-training condition records, and team schedules.
-            </p>
-          </div>
-          <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <button
-              type="button"
-              class="w-full rounded-full bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#033a70] sm:w-auto"
-              @click="goTo('/coach/schedule')"
+            <div
+              v-else
+              class="mt-4 rounded-2xl border border-dashed border-[#034485]/22 bg-white px-4 py-10 text-center text-sm text-slate-500"
             >
-              Record Attendance
-            </button>
-            <button
-              type="button"
-              class="w-full rounded-full border border-[#034485]/40 px-4 py-2 text-sm font-semibold text-[#034485] hover:border-[#034485]/70 hover:bg-[#034485]/5 sm:w-auto"
-              @click="goTo('/coach/schedule')"
-            >
-              Create Schedule
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr]">
-          <div class="page-card rounded-2xl border border-[#034485]/25 bg-white p-4" :style="cardMotion(2)">
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Next Schedule</p>
-            <p class="mt-2 text-lg font-semibold text-slate-900">{{ props.nextSchedule?.title ?? 'No upcoming schedule has been recorded' }}</p>
-            <p class="text-xs text-slate-500">
-              {{ props.nextSchedule ? `${formatPHT(props.nextSchedule.start)} • ${props.nextSchedule.venue || '-'}`
-                : 'Create a schedule to keep team activities properly organized.' }}
-            </p>
-            <p v-if="nextCountdown" class="mt-2 text-xs font-semibold text-[#1f2937]">{{ nextCountdown }}</p>
-          </div>
-          <div class="page-card rounded-2xl border border-[#034485]/25 bg-white p-4" :style="cardMotion(3)">
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Attendance Checks</p>
-            <p class="mt-2 text-lg font-semibold text-[#1f2937]">{{ safeMetrics.attendance_needs_review }}</p>
-            <p class="text-xs text-slate-500">Completed schedules that still require attendance records.</p>
-          </div>
-          <div class="page-card rounded-2xl border border-[#034485]/25 bg-white p-4" :style="cardMotion(4)">
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Condition Records Pending</p>
-            <p class="mt-2 text-lg font-semibold text-rose-600">{{ safeMetrics.wellness_pending }}</p>
-            <p class="text-xs text-slate-500">Sessions that still require post-training condition records.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="page-card rounded-2xl border border-[#034485]/30 bg-white p-5" :style="cardMotion(5)">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Primary Actions</h2>
-          <span class="text-xs text-slate-500">Primary workflows</span>
-        </div>
-        <div class="mt-4 grid gap-3 md:grid-cols-3">
-          <button
-            type="button"
-            @click="goTo('/coach/schedule')"
-            class="page-card group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
-            :style="cardMotion(6)"
-          >
-            <div class="flex items-start gap-3">
-              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <path d="M8 2v3M16 2v3M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
-                </svg>
-              </span>
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-slate-900">Schedule Management</p>
-                <p class="text-xs text-slate-500">Create, revise, and organize official team activities.</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            @click="goTo('/coach/schedule')"
-            class="page-card group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
-            :style="cardMotion(7)"
-          >
-            <div class="flex items-start gap-3">
-              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <path d="M9 3h6M9 1h6a2 2 0 0 1 2 2v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a2 2 0 0 1 2-2zm-1 11l2 2 4-4" />
-                </svg>
-              </span>
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-slate-900">Attendance Workflow</p>
-                <p class="text-xs text-slate-500">Open a schedule and record attendance directly from the schedule modal.</p>
-                <p v-if="safeMetrics.attendance_needs_review > 0 || safeMetrics.wellness_pending > 0" class="mt-1 text-[11px] font-semibold text-rose-600">
-                  {{ safeMetrics.attendance_needs_review }} attendance records pending • {{ safeMetrics.wellness_pending }} condition records pending
-                </p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            @click="goTo('/coach/academics')"
-            class="page-card group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
-            :style="cardMotion(8)"
-          >
-            <div class="flex items-start gap-3">
-              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <path d="M2 9l10-5 10 5-10 5-10-5zM6 11v5c0 1.6 2.7 3 6 3s6-1.4 6-3v-5" />
-                </svg>
-              </span>
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-slate-900">Academic Visibility</p>
-                <p class="text-xs text-slate-500">Review academic submissions and eligibility-related records.</p>
-                <p v-if="safeMetrics.academic_missing > 0" class="mt-1 text-[11px] font-semibold text-emerald-700">
-                  {{ safeMetrics.academic_missing }} submissions pending
-                </p>
-              </div>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      <section class="grid gap-4 lg:grid-cols-2">
-        <div class="page-card rounded-2xl border border-[#034485]/30 bg-white p-5" :style="cardMotion(9)">
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Roster Signals</h3>
-            <span class="text-xs text-slate-500">Total: {{ safeMetrics.roster_total }}</span>
-          </div>
-          <div class="mt-4 grid gap-3 sm:grid-cols-3">
-            <div class="page-card rounded-xl border border-[#034485]/20 bg-white p-3" :style="cardMotion(10)">
-              <p class="text-xs text-slate-500">Injured</p>
-              <p class="mt-1 text-lg font-semibold text-rose-600">{{ safeMetrics.roster_injured }}</p>
-            </div>
-            <div class="page-card rounded-xl border border-[#034485]/20 bg-white p-3" :style="cardMotion(11)">
-              <p class="text-xs text-slate-500">Missing Positions</p>
-              <p class="mt-1 text-lg font-semibold text-amber-600">{{ safeMetrics.roster_missing_positions }}</p>
-            </div>
-            <div class="page-card rounded-xl border border-[#034485]/20 bg-white p-3" :style="cardMotion(12)">
-              <p class="text-xs text-slate-500">Jersey Pending</p>
-              <p class="mt-1 text-lg font-semibold text-slate-900">{{ safeMetrics.roster_jersey_pending }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="page-card rounded-2xl border border-[#034485]/30 bg-white p-5" :style="cardMotion(13)">
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Attendance Snapshot (7 days)</h3>
-            <span class="text-xs text-slate-500">Team trend</span>
-          </div>
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
-            <div class="page-card rounded-xl border border-emerald-200 bg-emerald-50 p-3" :style="cardMotion(14)">
-              <p class="text-xs text-emerald-700">Present</p>
-              <p class="mt-1 text-lg font-semibold text-emerald-800">{{ safeSnapshot.present }}</p>
-            </div>
-            <div class="page-card rounded-xl border border-amber-200 bg-amber-50 p-3" :style="cardMotion(15)">
-              <p class="text-xs text-amber-700">Late</p>
-              <p class="mt-1 text-lg font-semibold text-amber-800">{{ safeSnapshot.late }}</p>
-            </div>
-            <div class="page-card rounded-xl border border-rose-200 bg-rose-50 p-3" :style="cardMotion(16)">
-              <p class="text-xs text-rose-700">Absent</p>
-              <p class="mt-1 text-lg font-semibold text-rose-800">{{ safeSnapshot.absent }}</p>
-            </div>
-            <div class="page-card rounded-xl border border-slate-200 bg-slate-50 p-3" :style="cardMotion(17)">
-              <p class="text-xs text-slate-600">Excused</p>
-              <p class="mt-1 text-lg font-semibold text-slate-800">{{ safeSnapshot.excused }}</p>
+              No recent injury notes have been logged for this team.
             </div>
           </div>
         </div>
       </section>
-
-      <div class="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+4.2rem)] z-30 px-4 md:hidden">
-        <div class="mx-auto flex max-w-md gap-2 rounded-xl border border-[#034485]/30 bg-white/95 p-2 backdrop-blur">
-          <button type="button" class="flex-1 rounded-md bg-[#034485] px-3 py-2 text-xs font-semibold text-white" @click="goTo('/coach/schedule')">Record Attendance</button>
-          <button type="button" class="flex-1 rounded-md border border-[#034485]/40 bg-white px-3 py-2 text-xs font-semibold text-[#034485]" @click="goTo('/coach/schedule')">Create Schedule</button>
-        </div>
-      </div>
     </section>  
   </CoachMobileShell>
 </template>

@@ -102,7 +102,7 @@ const faqs = [
     },
     {
         question: 'Why do I need to record my post-training condition?',
-        answer: 'Post-training condition records help the varsity program monitor fatigue, discomfort, and other health-related observations after training or competition.',
+        answer: 'Post-training condition records help the varsity program monitor fatigue, discomfort, and other wellness observations after training or competition.',
     },
     {
         question: 'How does Academic Eligibility work?',
@@ -116,7 +116,7 @@ const faqs = [
 const privacyPolicyItems = [
     'Account and profile details',
     'Team, schedule, and attendance records',
-    'Wellness and health clearance submissions',
+    'Wellness monitoring submissions',
     'Academic documents and eligibility results',
     'System announcements and notification logs',
 ];
@@ -859,40 +859,6 @@ watch(mobileMenuOpen, (open) => {
     font-size: 1rem;
     line-height: 1.6;
     overflow-x: hidden;
-}
-
-:global(html.theme-dark) .page {
-    --brand-blue: var(--blue-dark-accent-strong);
-    --brand-line: rgba(147, 197, 253, 0.35);
-    --brand-line-soft: rgba(147, 197, 253, 0.22);
-    --page-bg: var(--blue-dark-bg);
-    --page-surface: var(--blue-dark-surface);
-    --page-surface-alt: var(--blue-dark-surface-alt);
-    --page-text: var(--blue-dark-text);
-    --page-text-muted: var(--blue-dark-text-muted);
-    --page-header-bg: rgba(11, 47, 95, 0.92);
-    --page-accent: var(--blue-dark-accent);
-    --page-accent-strong: var(--blue-dark-accent-strong);
-    --page-accent-soft: #bfdbfe;
-    --page-btn-text: #0b2f5f;
-    --page-hover-bg: rgba(96, 165, 250, 0.16);
-    --page-card-shadow: rgba(3, 20, 40, 0.5);
-    --page-card-shadow-strong: rgba(3, 20, 40, 0.6);
-    --page-hero-overlay-strong: rgba(2, 12, 28, 0.72);
-    --page-hero-overlay-mid: rgba(2, 12, 28, 0.55);
-    --page-hero-overlay-soft: rgba(2, 12, 28, 0.4);
-    --page-hero-glow-1: rgba(96, 165, 250, 0.14);
-    --page-hero-glow-2: rgba(96, 165, 250, 0.18);
-    --page-hero-glow-3: rgba(96, 165, 250, 0.12);
-    --feature-bg-1: #082244;
-    --feature-bg-2: #0b2f5f;
-    --feature-bg-3: #0f3b73;
-    --feature-bg-4: #145aa6;
-    --feature-glow-1: rgba(96, 165, 250, 0.32);
-    --feature-glow-2: rgba(3, 20, 40, 0.5);
-    --feature-card-bg: var(--blue-dark-surface);
-    --feature-card-text: var(--blue-dark-text-muted);
-    --feature-card-title: var(--blue-dark-text);
 }
 
 .welcome-reveal {
@@ -2909,19 +2875,19 @@ watch(mobileMenuOpen, (open) => {
     padding-top: clamp(1rem, 3vw, 1.5rem);
     padding-bottom: 1.3rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    background: #b91c1c;
+    background: #dc2626;
     border-radius: 18px 18px 0 0;
     margin-left: 1.5rem;
     margin-right: 1.5rem;
     overflow: hidden;
     color: #ffffff;
-    --title-chip-bg: #ffffff;
-    --title-chip-text: #0b1b2b;
+    --title-chip-bg: rgba(255, 255, 255, 0.14);
+    --title-chip-text: #ffffff;
 }
 
 .footer-shell {
     padding: 0.2rem 0 0;
-    color: rgba(255, 255, 255, 0.75);
+    color: #ffffff;
 }
 
 .footer-grid {
@@ -2946,14 +2912,14 @@ watch(mobileMenuOpen, (open) => {
 
 .footer-copy {
     margin-top: 0.55rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
     line-height: 1.6;
     font-size: 0.92rem;
 }
 
 .footer-contact {
     margin-top: 0.45rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
     font-size: 0.84rem;
     display: inline-flex;
     align-items: center;
@@ -2963,7 +2929,7 @@ watch(mobileMenuOpen, (open) => {
 .contact-icon {
     width: 0.92rem;
     height: 0.92rem;
-    color: rgba(255, 255, 255, 0.85);
+    color: #ffffff;
     flex-shrink: 0;
 }
 
@@ -3002,7 +2968,7 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-heading {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-size: 0.72rem;
@@ -3017,7 +2983,7 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-link {
-    color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
     text-decoration: none;
     font-size: 0.9rem;
     overflow-wrap: anywhere;
@@ -3039,13 +3005,13 @@ watch(mobileMenuOpen, (open) => {
     margin-top: 0.65rem;
     display: grid;
     gap: 0.7rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
     font-size: 0.84rem;
     line-height: 1.5;
 }
 
 .footer-info-title {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff;
     font-weight: 700;
     font-size: 0.76rem;
     text-transform: uppercase;
@@ -3060,7 +3026,7 @@ watch(mobileMenuOpen, (open) => {
     margin-top: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
     padding-top: 0.75rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: #ffffff;
     font-size: 0.78rem;
 }
 

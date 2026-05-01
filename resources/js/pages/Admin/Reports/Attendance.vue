@@ -33,7 +33,6 @@ const reportTabs = [
     { label: 'Attendance', href: '/reports/attendance' },
     { label: 'Roster', href: '/reports/roster' },
     { label: 'Academics', href: '/reports/academics' },
-    { label: 'Health', href: '/reports/health' },
 ]
 
 const props = defineProps<{
@@ -112,7 +111,7 @@ function formatPercent(value: number) {
     <Head title="Attendance Report" />
 
     <div class="space-y-5">
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold text-slate-900">Attendance Report</h1>
@@ -133,7 +132,7 @@ function formatPercent(value: number) {
             </div>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Team</label>
@@ -182,29 +181,29 @@ function formatPercent(value: number) {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Attendance Rate</p>
                     <p class="mt-1 text-2xl font-bold text-[#034485]">{{ formatPercent(props.attendanceReport.summary.attendance_rate) }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Present</p>
                     <p class="mt-1 text-2xl font-bold text-emerald-700">{{ props.attendanceReport.summary.present }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Absent</p>
                     <p class="mt-1 text-2xl font-bold text-rose-700">{{ props.attendanceReport.summary.absent }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Late</p>
                     <p class="mt-1 text-2xl font-bold text-amber-700">{{ props.attendanceReport.summary.late }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Excused</p>
                     <p class="mt-1 text-2xl font-bold text-slate-900">{{ props.attendanceReport.summary.excused }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">No Response</p>
                     <p class="mt-1 text-2xl font-bold text-slate-900">{{ props.attendanceReport.summary.no_response }}</p>
                 </article>

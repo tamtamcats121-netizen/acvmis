@@ -60,8 +60,6 @@ erDiagram
         boolean notify_attendance_exceptions
         boolean notify_wellness_injury_threshold
         tinyint wellness_injury_threshold_level
-        varchar theme_preference
-        varchar timezone
         timestamp created_at
         timestamp updated_at
     }
@@ -148,23 +146,6 @@ erDiagram
         tinyint fatigue_level
         enum performance_condition
         text remarks
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    ATHLETE_HEALTH_CLEARANCES {
-        bigint id PK
-        bigint student_id FK
-        date clearance_date
-        date valid_until
-        varchar physician_name
-        text conditions
-        text allergies
-        text restrictions
-        varchar certificate_path
-        bigint reviewed_by FK
-        timestamp reviewed_at
-        text notes
         timestamp created_at
         timestamp updated_at
     }

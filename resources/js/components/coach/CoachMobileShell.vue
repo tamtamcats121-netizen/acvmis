@@ -228,7 +228,7 @@ watch(isNavCollapsed, (collapsed) => {
                     >
                         <button
                             type="button"
-                            class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                            class="announcement-bell relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
                             aria-label="Open announcements"
                         >
                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -245,7 +245,7 @@ watch(isNavCollapsed, (collapsed) => {
 
                         <div
                             v-if="notificationsOpen"
-                            class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                            class="coach-shell__announcement-menu absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
                         >
                             <div
                                 class="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase"
@@ -289,7 +289,7 @@ watch(isNavCollapsed, (collapsed) => {
                             </div>
                         </div>
                     </div>
-                    <UserAccountMenu :dark="false" menu-placement="bottom" compact />
+                    <UserAccountMenu :inverse="false" menu-placement="bottom" compact />
                 </div>
             </div>
         </header>
@@ -427,11 +427,11 @@ watch(isNavCollapsed, (collapsed) => {
             </aside>
 
             <aside
-                class="fixed inset-y-0 left-0 z-50 w-[82vw] max-w-xs border-r border-[#bfd4eb] bg-[#eef5ff] p-4 transition md:hidden"
+                class="coach-shell__mobile-sidebar fixed inset-y-0 left-0 z-50 w-[82vw] max-w-xs border-r border-[#bfd4eb] bg-[#eef5ff] p-4 transition md:hidden"
                 :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
             >
                 <div class="mb-4 flex items-center justify-between">
-                    <p class="text-sm font-bold text-[#1f2937]">Coach Menu</p>
+                    <p class="coach-shell__mobile-title text-sm font-bold text-[#1f2937]">Coach Menu</p>
                     <button type="button" class="rounded border border-slate-300 px-2 py-1 text-xs" @click="mobileMenuOpen = false">Close</button>
                 </div>
 

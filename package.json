@@ -32,6 +32,7 @@
         "@vitejs/plugin-vue": "^6.0.0",
         "@vueuse/core": "^12.8.2",
         "0g": "^0.4.2",
+        "apexcharts": "^5.10.6",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "concurrently": "^9.0.1",
@@ -44,7 +45,8 @@
         "typescript": "^5.2.2",
         "vite": "^7.0.4",
         "vue": "^3.5.13",
-        "vue-cal": "^5.0.1-rc.34"
+        "vue-cal": "^5.0.1-rc.34",
+        "vue3-apexcharts": "^1.11.1"
     },
     "optionalDependencies": {
         "@rollup/rollup-linux-x64-gnu": "4.9.5",

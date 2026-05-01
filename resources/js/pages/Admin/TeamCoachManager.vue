@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
+import BackLinkButton from '@/components/ui/BackLinkButton.vue'
+import EmptyResultsState from '@/components/ui/EmptyResultsState.vue'
+import SearchFilterPanel from '@/components/ui/SearchFilterPanel.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
@@ -148,13 +151,11 @@ function removeAssistantCoach() {
 
     <div class="space-y-6">
         <div class="space-y-1">
-            <Link :href="`/teams/${team.id}/view-roster`" class="text-sm font-medium text-[#034485] hover:text-[#033a70]">
-                ← Back to View Roster
-            </Link>
+            <BackLinkButton :href="`/teams/${team.id}/view-roster`" label="Back to View Roster" />
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Coach assignment manager</p>
         </div>
 
-        <section class="rounded-3xl bg-[#034485] p-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
+        <section class="page-card rounded-3xl bg-[#034485] p-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
             <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
                     <div class="h-20 w-20 overflow-hidden rounded-2xl border border-white/20 bg-white/10">
@@ -182,7 +183,7 @@ function removeAssistantCoach() {
         </section>
 
         <section class="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="page-card rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
                 <div>
                     <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Current Assignments</p>
                     <h2 class="mt-2 text-xl font-semibold text-slate-900">Team Staff</h2>
@@ -190,7 +191,7 @@ function removeAssistantCoach() {
                 </div>
 
                 <div class="mt-5 space-y-4">
-                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <article class="page-card rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Head Coach</p>
                         <div class="mt-3 flex items-center gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700">
@@ -205,7 +206,7 @@ function removeAssistantCoach() {
                         </div>
                     </article>
 
-                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <article class="page-card rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Assistant Coach</p>
@@ -235,25 +236,28 @@ function removeAssistantCoach() {
                 </div>
             </section>
 
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="page-card rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Available Coaches</p>
                         <h2 class="mt-2 text-xl font-semibold text-slate-900">Select a Coach</h2>
                         <p class="mt-1 text-sm text-slate-500">Search the coach pool and assign each coach directly to this team.</p>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <input
+                    <div class="w-full lg:w-[28rem]">
+                        <SearchFilterPanel
                             v-model="search"
-                            type="text"
-                            placeholder="Search by name or email"
-                            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm sm:w-64"
-                        />
-                        <select v-model="availabilityFilter" class="rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                            <option value="all">All Coaches</option>
-                            <option value="available">Available</option>
-                            <option value="assigned">Assigned Elsewhere</option>
-                        </select>
+                            placeholder="Search by name, email, team, sport, or status"
+                            :show-submit="false"
+                            :show-filters-toggle="false"
+                        >
+                            <template #actions>
+                                <select v-model="availabilityFilter" class="rounded-xl border border-[#034485]/20 px-3 py-2 text-sm">
+                                    <option value="all">All Coaches</option>
+                                    <option value="available">Available</option>
+                                    <option value="assigned">Assigned Elsewhere</option>
+                                </select>
+                            </template>
+                        </SearchFilterPanel>
                     </div>
                 </div>
 
@@ -261,7 +265,7 @@ function removeAssistantCoach() {
                     <article
                         v-for="coach in filteredCoaches"
                         :key="coach.id"
-                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                        class="page-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div class="flex min-w-0 items-start gap-3">
@@ -310,8 +314,11 @@ function removeAssistantCoach() {
                         </div>
                     </article>
 
-                    <div v-if="filteredCoaches.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                        No coaches matched the current search or filter.
+                    <div v-if="filteredCoaches.length === 0">
+                        <EmptyResultsState
+                            title="No coaches matched your search"
+                            description="Try another name, email, assignment, or availability filter."
+                        />
                     </div>
                 </div>
             </section>

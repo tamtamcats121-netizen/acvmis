@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
 
+import BackLinkButton from '@/components/ui/BackLinkButton.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
@@ -98,9 +99,7 @@ function archiveTeam() {
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="space-y-1">
-                <Link href="/teams" class="text-sm font-medium text-[#034485] hover:text-[#033a70]">
-                    ← Back to Teams
-                </Link>
+                <BackLinkButton href="/teams" label="Back to Teams" />
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Admin team workspace</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -122,7 +121,7 @@ function archiveTeam() {
             </div>
         </div>
 
-        <section class="rounded-3xl bg-[#034485] p-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
+        <section class="page-card rounded-3xl bg-[#034485] p-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
             <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
                     <div class="h-20 w-20 overflow-hidden rounded-2xl border border-white/20 bg-white/10">
@@ -168,7 +167,7 @@ function archiveTeam() {
             </div>
         </section>
 
-        <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+        <section class="page-card rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-slate-900">Roster Actions</h2>
@@ -192,7 +191,7 @@ function archiveTeam() {
         </section>
 
         <section class="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="page-card rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Current Coaches</p>
@@ -208,7 +207,7 @@ function archiveTeam() {
                 </div>
 
                 <div class="mt-5 space-y-4">
-                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <article class="page-card rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Head Coach</p>
                         <div class="mt-3 flex items-center gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700">
@@ -223,7 +222,7 @@ function archiveTeam() {
                         </div>
                     </article>
 
-                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <article class="page-card rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Assistant Coach</p>
                         <div class="mt-3 flex items-center gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700">
@@ -240,7 +239,7 @@ function archiveTeam() {
                 </div>
             </section>
 
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="page-card rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Current Players</p>
@@ -259,7 +258,7 @@ function archiveTeam() {
                     <article
                         v-for="player in team.players"
                         :key="player.id"
-                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                        class="page-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
                         <div class="flex items-start gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-sm font-bold text-slate-700">
@@ -300,7 +299,7 @@ function archiveTeam() {
 
                     <div
                         v-if="team.players.length === 0"
-                        class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500 md:col-span-2"
+                        class="page-card rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500 md:col-span-2"
                     >
                         No student-athletes are assigned to this team yet.
                     </div>

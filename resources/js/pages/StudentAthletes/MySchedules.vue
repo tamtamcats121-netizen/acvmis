@@ -204,28 +204,30 @@ function cardMotion(order: number) {
 
 <template>
     <div class="schedule-page-view space-y-5">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">My Schedule</h1>
-                <p class="text-sm text-slate-500">View your team schedule. Attendance is now recorded by the coach or assistant coach during the session.</p>
+                <h1 class="text-2xl font-bold text-white">My Schedule</h1>
+                <p class="text-sm text-white/80">View your team schedule. Attendance is now recorded by the coach or assistant coach during the session.</p>
             </div>
             <div v-if="!accessLocked" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <button
                     @click="showCalendar = !showCalendar"
-                    class="w-full rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70] sm:w-auto"
+                    class="w-full rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15 sm:w-auto"
                 >
                     {{ showCalendar ? 'Hide Calendar' : 'Show Calendar' }}
                 </button>
                 <button
                     @click="showCompleted = !showCompleted"
-                    class="w-full rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70] sm:w-auto"
+                    class="w-full rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15 sm:w-auto"
                 >
                     {{ showCompleted ? 'Hide Completed' : 'Show Completed' }}
                 </button>
             </div>
         </div>
+        </section>
 
-        <div v-if="accessLocked" class="page-card rounded-xl border border-[#034485]/30 bg-[#034485]/5 p-6 text-slate-700" :style="cardMotion(1)">
+        <div v-if="accessLocked" class="page-card rounded-xl border border-[#034485]/30 bg-[#034485]/5 p-6 text-slate-700" :style="cardMotion(2)">
             <h2 class="text-sm font-semibold text-slate-800">Schedule Access Paused</h2>
             <p class="mt-1 text-sm text-slate-600">{{ lockMessage || 'Schedule access is paused during the academic submission window.' }}</p>
             <div class="mt-3 text-xs text-slate-600">
@@ -325,18 +327,19 @@ function cardMotion(order: number) {
                             <div
                                 v-for="(item, index) in upcomingSchedules"
                                 :key="item.id"
-                                class="page-card student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
+                                class="page-card student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/35 bg-white p-5 transition"
                                 :style="cardMotion(8 + index)"
                                 :class="item.id === selectedScheduleId ? 'border-[#034485] bg-[#034485]/5' : ''"
                             >
-                                <div class="pointer-events-none absolute right-3 top-1/2 flex h-[88%] -translate-y-1/2 rotate-6 gap-1 opacity-20" aria-hidden="true">
+                                <div class="pointer-events-none absolute bottom-4 left-4 top-4 flex w-2 gap-1 opacity-75" aria-hidden="true">
                                     <span class="h-full w-1 rounded-full" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
                                     <span class="h-full w-1 rounded-full" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
                                 </div>
-                                <div class="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="relative z-10 pl-6">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div class="min-w-0">
-                                        <div class="font-medium leading-tight text-slate-900">{{ item.title }}</div>
-                                        <div class="text-xs text-slate-500">{{ item.type }} • {{ item.venue || '-' }}</div>
+                                        <div class="font-semibold leading-tight text-slate-900">{{ item.title }}</div>
+                                        <div class="mt-1 text-xs text-slate-500">{{ item.type }} • {{ item.venue || '-' }}</div>
                                     </div>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="rounded px-2 py-0.5 text-[10px]" :class="statusClass(item)">
@@ -351,15 +354,24 @@ function cardMotion(order: number) {
                                     </div>
                                 </div>
 
-                                <div class="relative z-10 mt-2 flex flex-wrap gap-2 text-[11px]">
+                                <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
                                     <span class="rounded-full border px-2 py-0.5" :class="timingClass(item)">{{ timingLabel(item) }}</span>
                                     <span v-if="isToday(item)" class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700">Today</span>
                                 </div>
 
-                                <div class="relative z-10 mt-2 text-xs text-slate-600">{{ formatPHT(item.start) }}</div>
-                                <div class="relative z-10 text-xs text-slate-600">{{ formatPHT(item.end) }}</div>
-                                <div v-if="item.notes" class="relative z-10 mt-2 text-xs text-slate-500">{{ item.notes }}</div>
-                                <div v-if="item.attendance_notes" class="relative z-10 mt-2 text-xs text-amber-600">Coach note: {{ item.attendance_notes }}</div>
+                                <div class="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                                    <div class="rounded-2xl border border-[#034485]/12 bg-[#f8fbff] px-3 py-2">
+                                        <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Start</p>
+                                        <p class="mt-1">{{ formatPHT(item.start) }}</p>
+                                    </div>
+                                    <div class="rounded-2xl border border-[#034485]/12 bg-[#f8fbff] px-3 py-2">
+                                        <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">End</p>
+                                        <p class="mt-1">{{ formatPHT(item.end) }}</p>
+                                    </div>
+                                </div>
+                                <div v-if="item.notes" class="mt-3 text-xs text-slate-500">{{ item.notes }}</div>
+                                <div v-if="item.attendance_notes" class="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">Coach note: {{ item.attendance_notes }}</div>
+                                </div>
                             </div>
                         </div>
 
@@ -373,18 +385,19 @@ function cardMotion(order: number) {
                                 <div
                                     v-for="(item, index) in completedSchedules"
                                     :key="item.id"
-                                    class="page-card student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
+                                    class="page-card student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/35 bg-white p-5 transition"
                                     :style="cardMotion(20 + index)"
                                     :class="item.id === selectedScheduleId ? 'border-[#034485] bg-[#034485]/5' : ''"
                                 >
-                                    <div class="pointer-events-none absolute right-3 top-1/2 flex h-[88%] -translate-y-1/2 rotate-6 gap-1 opacity-20" aria-hidden="true">
+                                    <div class="pointer-events-none absolute bottom-4 left-4 top-4 flex w-2 gap-1 opacity-75" aria-hidden="true">
                                         <span class="h-full w-1 rounded-full" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
                                         <span class="h-full w-1 rounded-full" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
                                     </div>
-                                    <div class="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="relative z-10 pl-6">
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                         <div class="min-w-0">
-                                            <div class="font-medium leading-tight text-slate-900">{{ item.title }}</div>
-                                            <div class="text-xs text-slate-500">{{ item.type }} • {{ item.venue || '-' }}</div>
+                                            <div class="font-semibold leading-tight text-slate-900">{{ item.title }}</div>
+                                            <div class="mt-1 text-xs text-slate-500">{{ item.type }} • {{ item.venue || '-' }}</div>
                                         </div>
                                         <div class="flex flex-wrap items-center gap-2">
                                             <span class="rounded px-2 py-0.5 text-[10px]" :class="statusClass(item)">
@@ -399,14 +412,23 @@ function cardMotion(order: number) {
                                         </div>
                                     </div>
 
-                                    <div class="relative z-10 mt-2 flex flex-wrap gap-2 text-[11px]">
+                                    <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
                                         <span class="rounded-full border px-2 py-0.5" :class="timingClass(item)">{{ timingLabel(item) }}</span>
                                     </div>
 
-                                    <div class="relative z-10 mt-2 text-xs text-slate-600">{{ formatPHT(item.start) }}</div>
-                                    <div class="relative z-10 text-xs text-slate-600">{{ formatPHT(item.end) }}</div>
-                                    <div v-if="item.notes" class="relative z-10 mt-2 text-xs text-slate-500">{{ item.notes }}</div>
-                                    <div v-if="item.attendance_notes" class="relative z-10 mt-2 text-xs text-amber-600">Coach note: {{ item.attendance_notes }}</div>
+                                    <div class="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                                        <div class="rounded-2xl border border-[#034485]/12 bg-[#f8fbff] px-3 py-2">
+                                            <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Start</p>
+                                            <p class="mt-1">{{ formatPHT(item.start) }}</p>
+                                        </div>
+                                        <div class="rounded-2xl border border-[#034485]/12 bg-[#f8fbff] px-3 py-2">
+                                            <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">End</p>
+                                            <p class="mt-1">{{ formatPHT(item.end) }}</p>
+                                        </div>
+                                    </div>
+                                    <div v-if="item.notes" class="mt-3 text-xs text-slate-500">{{ item.notes }}</div>
+                                    <div v-if="item.attendance_notes" class="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">Coach note: {{ item.attendance_notes }}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

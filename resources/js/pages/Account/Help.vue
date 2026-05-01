@@ -190,13 +190,13 @@ const helpContent = computed<HelpContent>(() => {
       },
       {
         question: 'When should I upload academic documents?',
-        answer: 'Submit them as soon as an academic period is opened or when your school requirements are updated. Delays can affect eligibility evaluation and may trigger academic hold restrictions.',
+        answer: 'Submit them as soon as an academic period is opened or when your school requirements are updated. Delays can affect eligibility evaluation and may temporarily limit varsity access until an eligible result is confirmed.',
       },
     ],
     supportNotes: [
       'Include your full name, student number, and team when asking for help.',
       'If the issue is about login or approval, mention whether you recently registered or were already approved.',
-      'For file upload issues, specify whether the problem happened during wellness, clearance, or academics.',
+      'For file upload issues, specify whether the problem happened during wellness or academics.',
     ],
   }
 })
@@ -215,7 +215,7 @@ function cardMotion(order: number) {
 
   <AccountShell active="help">
     <div class="space-y-6">
-      <section class="account-card support-hero overflow-hidden rounded-3xl border border-[#034485]/25 bg-white px-6 py-6 shadow-[0_24px_60px_-36px_rgba(3,68,133,0.45)]" :style="cardMotion(1)">
+      <section class="account-card support-hero overflow-hidden rounded-3xl border border-[#034485]/25 bg-[#034485] px-6 py-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.45)]" :style="cardMotion(1)">
         <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div class="max-w-2xl space-y-3">
             <div class="flex flex-wrap items-center gap-3">
@@ -224,16 +224,16 @@ function cardMotion(order: number) {
             </div>
             <div>
               <h2 class="section-title text-2xl sm:text-[1.95rem]">Help and Support</h2>
-              <p class="settings-muted mt-2 max-w-xl text-sm leading-6 text-slate-600">
+              <p class="settings-muted mt-2 max-w-xl text-sm leading-6 text-white/85">
                 {{ helpContent.roleSummary }}
               </p>
             </div>
           </div>
 
-          <div class="support-aside w-full rounded-2xl border border-[#034485]/15 bg-[#f4f8fc] p-4 lg:max-w-sm">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Need Assistance?</p>
-            <p class="mt-2 text-sm font-semibold text-slate-900">Varsity support desk</p>
-            <p class="mt-1 text-sm text-slate-600">Please provide a screenshot and a brief description of the concern when requesting assistance.</p>
+          <div class="support-aside w-full rounded-2xl border border-white/20 bg-white/10 p-4 lg:max-w-sm">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Need Assistance?</p>
+            <p class="mt-2 text-sm font-semibold text-white">Varsity support desk</p>
+            <p class="mt-1 text-sm text-white/80">Please provide a screenshot and a brief description of the concern when requesting assistance.</p>
             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <a href="mailto:varsity.support@asiancollege.edu.ph" class="support-btn support-btn-fill">Send Email</a>
               <a href="tel:+63281234567" class="support-btn support-btn-ghost">Call Office</a>

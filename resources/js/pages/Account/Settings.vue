@@ -42,10 +42,10 @@ const quickLinks = computed(() => {
 
   <AccountShell active="settings">
     <div class="space-y-6">
-      <section class="rounded-3xl border border-[#034485]/18 bg-white p-6 shadow-[0_24px_50px_-38px_rgba(15,23,42,0.45)]">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Settings overview</p>
-        <h2 class="mt-2 text-2xl font-bold text-slate-900">Account center</h2>
-        <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+      <section class="rounded-3xl border border-[#034485]/30 bg-[#034485] p-6 text-white shadow-[0_24px_50px_-38px_rgba(3,68,133,0.38)]">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Settings overview</p>
+        <h2 class="mt-2 text-2xl font-bold text-white">Account center</h2>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-white/85">
           Use the left sidebar to move through profile details, account access, notifications, preferences, and help without bouncing across oversized buttons.
         </p>
       </section>

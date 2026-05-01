@@ -66,15 +66,17 @@ function cardMotion(order: number) {
     <Head title="Wellness Monitoring" />
 
     <div class="space-y-6">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
         <div class="flex flex-col gap-2">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Coach evaluation workflow</p>
-            <h1 class="text-2xl font-bold text-slate-900">Wellness Monitoring</h1>
-            <p class="max-w-3xl text-sm leading-6 text-slate-500">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Coach evaluation workflow</p>
+            <h1 class="text-2xl font-bold text-white">Wellness Monitoring</h1>
+            <p class="max-w-3xl text-sm leading-6 text-white/80">
                 Choose a completed practice or game, then open a dedicated player review page for wellness evaluation.
             </p>
         </div>
+        </section>
 
-        <div v-if="!team" class="page-card rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500" :style="cardMotion(1)">
+        <div v-if="!team" class="page-card rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500" :style="cardMotion(2)">
             You are not assigned to a team yet.
         </div>
 

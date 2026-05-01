@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
-import { computed, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 
+import BackLinkButton from '@/components/ui/BackLinkButton.vue'
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
@@ -62,9 +63,6 @@ const rosterLoading = ref<Record<number, boolean>>({})
 const restoreDialogOpen = ref(false)
 const pendingRestoreTeam = ref<TeamRow | null>(null)
 
-const archivedCount = computed(() => props.teams.meta.total)
-const totalPlayers = computed(() => props.teams.data.reduce((sum, team) => sum + Number(team.players_count || 0), 0))
-
 function buildQuery(extra: Record<string, any> = {}) {
     return {
         search: filters.search || undefined,
@@ -92,10 +90,6 @@ function clearFilters() {
     filters.direction = 'desc'
     showFilters.value = false
     reload()
-}
-
-function goBackToActiveTeams() {
-    router.get('/teams')
 }
 
 function fullName(person: any): string {
@@ -202,7 +196,7 @@ function confirmRestore() {
 
 <template>
     <div class="space-y-6">
-        <section class="rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
+        <section class="page-card rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
             <div class="space-y-3">
                 <div>
                     <h1 class="text-3xl font-bold">Archived Team Records</h1>
@@ -213,19 +207,13 @@ function confirmRestore() {
             </div>
         </section>
 
-        <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-white p-5">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-slate-900">Search Archived Teams</h2>
                     <p class="text-sm text-slate-500">Filter by sport, year, or coach to locate older team records quickly.</p>
                 </div>
-                <button
-                    type="button"
-                    class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    @click="goBackToActiveTeams"
-                >
-                    Back to Active Teams
-                </button>
+                <BackLinkButton href="/teams" label="Back to Active Teams" />
             </div>
 
             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -274,14 +262,14 @@ function confirmRestore() {
         </section>
 
         <section class="space-y-4">
-            <div v-if="teams.data.length === 0" class="rounded-3xl border border-dashed border-[#034485]/25 bg-white px-5 py-12 text-center text-sm text-slate-500">
+            <div v-if="teams.data.length === 0" class="page-card rounded-3xl border border-dashed border-[#034485]/25 bg-white px-5 py-12 text-center text-sm text-slate-500">
                 No archived teams found for the selected filters.
             </div>
 
             <article
                 v-for="team in teams.data"
                 :key="team.id"
-                class="rounded-3xl border border-[#034485]/35 bg-white p-5"
+                class="page-card rounded-3xl border border-[#034485]/35 bg-white p-5"
             >
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div class="flex min-w-0 items-start gap-4">
@@ -370,7 +358,7 @@ function confirmRestore() {
 
                 <div
                     v-if="expandedTeamIds.includes(team.id)"
-                    class="mt-5 rounded-3xl border border-slate-200 bg-slate-50/70 p-4"
+                    class="page-card mt-5 rounded-3xl border border-slate-200 bg-slate-50/70 p-4"
                 >
                     <div class="flex items-center justify-between gap-3">
                         <div>
@@ -388,7 +376,7 @@ function confirmRestore() {
                         <article
                             v-for="player in rosterCache[team.id]"
                             :key="player.id"
-                            class="rounded-2xl border border-slate-200 bg-white p-4"
+                            class="page-card rounded-2xl border border-slate-200 bg-white p-4"
                         >
                             <div class="flex flex-wrap items-center gap-2">
                                 <p class="text-sm font-semibold text-slate-900">

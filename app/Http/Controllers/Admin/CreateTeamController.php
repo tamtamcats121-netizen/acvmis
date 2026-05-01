@@ -1559,7 +1559,7 @@ class CreateTeamController extends Controller
         if ($playersCount > $maxPlayers) {
             return [
                 'key' => 'over_limit',
-                'label' => 'Over Limit',
+                'label' => 'Over Capacity',
                 'tone' => 'danger',
                 'max_players' => $maxPlayers,
             ];
@@ -1568,7 +1568,7 @@ class CreateTeamController extends Controller
         if ($playersCount < $maxPlayers) {
             return [
                 'key' => 'needs_players',
-                'label' => 'Needs Players',
+                'label' => 'Below Capacity',
                 'tone' => 'warning',
                 'max_players' => $maxPlayers,
             ];
@@ -1576,7 +1576,7 @@ class CreateTeamController extends Controller
 
         return [
             'key' => 'complete',
-            'label' => 'Complete',
+            'label' => 'Within Capacity',
             'tone' => 'success',
             'max_players' => $maxPlayers,
         ];

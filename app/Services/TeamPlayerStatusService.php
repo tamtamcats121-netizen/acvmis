@@ -85,33 +85,47 @@ class TeamPlayerStatusService
 
     private function isAcademicallySuspended(int $studentId): bool
     {
-        $openPeriodIds = AcademicPeriod::query()
+        $openPeriods = AcademicPeriod::query()
             ->open()
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+            ->orderByDesc('starts_on')
+            ->orderByDesc('id')
+            ->get(['id']);
 
-        if (empty($openPeriodIds)) {
+        if ($openPeriods->isEmpty()) {
             return false;
         }
 
-        $submittedPeriodIds = AcademicDocument::query()
+        $openPeriodIds = $openPeriods->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $submissions = AcademicDocument::query()
             ->periodSubmission()
             ->where('student_id', $studentId)
             ->whereIn('academic_period_id', $openPeriodIds)
-            ->pluck('academic_period_id')
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->all();
+            ->orderByDesc('uploaded_at')
+            ->get(['academic_period_id'])
+            ->groupBy('academic_period_id');
 
-        if (count(array_diff($openPeriodIds, $submittedPeriodIds)) > 0) {
-            return true;
-        }
-
-        return AcademicEligibilityEvaluation::query()
+        $evaluations = AcademicEligibilityEvaluation::query()
             ->where('student_id', $studentId)
             ->whereIn('academic_period_id', $openPeriodIds)
-            ->where('final_status', 'ineligible')
-            ->exists();
+            ->orderByDesc('evaluated_at')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('academic_period_id');
+
+        foreach ($openPeriodIds as $periodId) {
+            if (!$submissions->has($periodId)) {
+                return true;
+            }
+
+            $latestEvaluation = $evaluations->get($periodId)?->first();
+            if (($latestEvaluation?->status ?? null) !== 'eligible') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

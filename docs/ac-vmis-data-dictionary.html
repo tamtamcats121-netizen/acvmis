@@ -812,103 +812,6 @@
     </tr>
   </tbody>
 </table>
-<h2><code>athlete_health_clearances</code></h2>
-<table>
-  <thead>
-    <tr>
-      <th>Field Name</th>
-      <th>Data Type</th>
-      <th>Constraints</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>id</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Primary key; auto-increment; not null</td>
-      <td>Unique identifier of the athlete health clearance record.</td>
-    </tr>
-    <tr>
-      <td><code>student_id</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>students.id</code>; not null</td>
-      <td>Identifies the student to whom the clearance applies.</td>
-    </tr>
-    <tr>
-      <td><code>clearance_date</code></td>
-      <td><code>date</code></td>
-      <td>Not null</td>
-      <td>Stores the date on which the medical clearance was issued.</td>
-    </tr>
-    <tr>
-      <td><code>valid_until</code></td>
-      <td><code>date</code></td>
-      <td>Nullable</td>
-      <td>Stores the date until which the clearance remains valid.</td>
-    </tr>
-    <tr>
-      <td><code>physician_name</code></td>
-      <td><code>varchar(255)</code></td>
-      <td>Not null</td>
-      <td>Stores the name of the physician who issued the clearance.</td>
-    </tr>
-    <tr>
-      <td><code>conditions</code></td>
-      <td><code>text</code></td>
-      <td>Nullable</td>
-      <td>Stores declared medical conditions relevant to sports participation.</td>
-    </tr>
-    <tr>
-      <td><code>allergies</code></td>
-      <td><code>text</code></td>
-      <td>Nullable</td>
-      <td>Stores declared allergy information for the student.</td>
-    </tr>
-    <tr>
-      <td><code>restrictions</code></td>
-      <td><code>text</code></td>
-      <td>Nullable</td>
-      <td>Stores medical restrictions or limitations imposed on the student.</td>
-    </tr>
-    <tr>
-      <td><code>certificate_path</code></td>
-      <td><code>varchar(255)</code></td>
-      <td>Nullable</td>
-      <td>Stores the file location of the supporting medical certificate.</td>
-    </tr>
-    <tr>
-      <td><code>reviewed_by</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>users.id</code>; nullable</td>
-      <td>Identifies the user who reviewed the clearance record.</td>
-    </tr>
-    <tr>
-      <td><code>reviewed_at</code></td>
-      <td><code>timestamp</code></td>
-      <td>Nullable</td>
-      <td>Records the date and time when the clearance was reviewed.</td>
-    </tr>
-    <tr>
-      <td><code>notes</code></td>
-      <td><code>text</code></td>
-      <td>Nullable</td>
-      <td>Stores additional remarks concerning the clearance.</td>
-    </tr>
-    <tr>
-      <td><code>created_at</code></td>
-      <td><code>timestamp</code></td>
-      <td>Nullable</td>
-      <td>Timestamp indicating when the record was created.</td>
-    </tr>
-    <tr>
-      <td><code>updated_at</code></td>
-      <td><code>timestamp</code></td>
-      <td>Nullable</td>
-      <td>Timestamp indicating when the record was last updated.</td>
-    </tr>
-  </tbody>
-</table>
 <h2><code>cache</code></h2>
 <table>
   <thead>
@@ -2071,18 +1974,6 @@
       <td><code>tinyint(3) unsigned</code></td>
       <td>Not null; default <code>3</code></td>
       <td>Stores the threshold level used for wellness injury alerts.</td>
-    </tr>
-    <tr>
-      <td><code>theme_preference</code></td>
-      <td><code>varchar(20)</code></td>
-      <td>Not null; default <code>&amp;#039;system&amp;#039;</code></td>
-      <td>Stores the user&#039;s preferred application theme.</td>
-    </tr>
-    <tr>
-      <td><code>timezone</code></td>
-      <td><code>varchar(60)</code></td>
-      <td>Not null; default <code>&amp;#039;Asia/Manila&amp;#039;</code></td>
-      <td>Stores the user&#039;s preferred time zone.</td>
     </tr>
     <tr>
       <td><code>created_at</code></td>

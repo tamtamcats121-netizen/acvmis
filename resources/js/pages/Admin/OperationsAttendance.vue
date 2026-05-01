@@ -218,7 +218,7 @@ function statusBarWidth(value: number) {
             <p class="text-sm text-gray-400">Admin analytics across teams, schedules, and student-athletes.</p>
         </div>
 
-        <section class="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+        <section class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 <select v-model="form.sport_id" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
                     <option value="">All Sports</option>
@@ -266,37 +266,37 @@ function statusBarWidth(value: number) {
         </section>
 
         <section v-if="isApplyingFilters" class="grid grid-cols-2 xl:grid-cols-5 gap-3">
-            <div v-for="index in 5" :key="`kpi-skeleton-${index}`" class="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
+            <div v-for="index in 5" :key="`kpi-skeleton-${index}`" class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
                 <Skeleton class="h-3 w-2/3 bg-gray-700/80" />
                 <Skeleton class="h-8 w-1/2 bg-gray-700/80" />
             </div>
         </section>
 
         <section v-else class="grid grid-cols-2 xl:grid-cols-5 gap-3">
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <div class="text-xs text-gray-400">Total Records</div>
                 <div class="text-2xl text-white font-bold">{{ kpis.total_records }}</div>
             </div>
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <div class="text-xs text-gray-400">Schedules</div>
                 <div class="text-2xl text-white font-bold">{{ kpis.total_schedules }}</div>
             </div>
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <div class="text-xs text-gray-400">Teams</div>
                 <div class="text-2xl text-white font-bold">{{ kpis.total_teams }}</div>
             </div>
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <div class="text-xs text-gray-400">Attendance Rate</div>
                 <div class="text-2xl text-green-300 font-bold">{{ kpis.attendance_rate_percent }}%</div>
             </div>
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <div class="text-xs text-gray-400">Response Rate</div>
                 <div class="text-2xl text-slate-300 font-bold">{{ kpis.response_rate_percent }}%</div>
             </div>
         </section>
 
         <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <h2 class="text-white font-semibold mb-3">Status Distribution</h2>
                 <div class="space-y-3">
                     <div v-for="item in charts.status_distribution" :key="item.status">
@@ -311,7 +311,7 @@ function statusBarWidth(value: number) {
                 </div>
             </div>
 
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
                 <h2 class="text-white font-semibold mb-3">Attendance Trend</h2>
                 <table class="w-full text-sm text-left">
                     <thead class="text-gray-300 bg-gray-800">
@@ -340,7 +340,7 @@ function statusBarWidth(value: number) {
             </div>
         </section>
 
-        <section class="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
+        <section class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
             <h2 class="text-white font-semibold mb-3">Team Comparison</h2>
             <table class="w-full text-sm text-left">
                 <thead class="text-gray-300 bg-gray-800">
@@ -371,7 +371,7 @@ function statusBarWidth(value: number) {
         </section>
 
         <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
                 <h2 class="text-white font-semibold mb-3">Schedules</h2>
                 <table class="w-full text-sm text-left">
                     <thead class="text-gray-300 bg-gray-800">
@@ -393,7 +393,7 @@ function statusBarWidth(value: number) {
                 </table>
             </div>
 
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
+            <div class="page-card bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
                 <h2 class="text-white font-semibold mb-3">At-Risk Athletes</h2>
                 <table class="w-full text-sm text-left">
                     <thead class="text-gray-300 bg-gray-800">

@@ -2,6 +2,8 @@
 import { router } from '@inertiajs/vue3'
 import { computed, reactive, ref } from 'vue'
 
+import EmptyResultsState from '@/components/ui/EmptyResultsState.vue'
+import SearchFilterPanel from '@/components/ui/SearchFilterPanel.vue'
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
@@ -70,6 +72,7 @@ const filters = reactive({
 
 const activeFilterCount = computed(() => {
     let count = 0
+    if (filters.search.trim()) count++
     if (filters.sport_id) count++
     if (filters.year) count++
     if (filters.coach_status !== 'all') count++
@@ -94,22 +97,16 @@ const seasonSnapshots = computed(() => {
 
     return Object.entries(buckets)
         .map(([year, teams]) => {
-            const complete = teams.filter((t) => t.roster_health?.key === 'complete').length
-            const needsPlayers = teams.filter((t) => t.roster_health?.key === 'needs_players').length
-            const overLimit = teams.filter((t) => t.roster_health?.key === 'over_limit').length
-            const conflictTeams = teams.filter((t) => (t.issue_count ?? 0) > 0).length
-            const missingAssistant = teams.filter((t) => !t.is_archived && !t.assistantCoach?.id).length
+            const rosterReview = teams.filter((t) => t.roster_health?.key !== 'complete').length
+            const staffingReview = teams.filter((t) => !t.is_archived && (!t.coach?.id || !t.assistantCoach?.id)).length
 
             return {
                 year,
                 teams,
                 kpis: {
                     total: teams.length,
-                    complete,
-                    needsPlayers,
-                    overLimit,
-                    conflictTeams,
-                    missingAssistant,
+                    rosterReview,
+                    staffingReview,
                 },
             }
         })
@@ -131,12 +128,6 @@ function rosterToneClass(tone: string) {
     if (tone === 'success') return 'bg-emerald-100 text-emerald-700'
     if (tone === 'danger') return 'bg-red-100 text-red-700'
     return 'bg-amber-100 text-amber-700'
-}
-
-function issueToneClass(count: number) {
-    if (count > 2) return 'bg-red-100 text-red-700'
-    if (count > 0) return 'bg-amber-100 text-amber-700'
-    return 'bg-emerald-100 text-emerald-700'
 }
 
 function buildQuery(extra: Record<string, any> = {}) {
@@ -312,12 +303,12 @@ function formatTimestamp(value: string | null) {
 
 <template>
     <div class="space-y-5">
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <button
                         type="button"
-                        class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#334155]"
+                        class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f]"
                         @click="goToCreateTeam"
                     >
                         Create Team
@@ -325,71 +316,66 @@ function formatTimestamp(value: string | null) {
                 </div>
                 <button
                     type="button"
-                    class="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100 md:ml-auto"
+                    class="rounded-md border border-[#034485]/30 bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff] md:ml-auto"
                     @click="goToArchivedTeams"
                 >
                     Archived Teams
                 </button>
             </div>
 
-            <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
+            <div class="mt-4">
+                <SearchFilterPanel
                     v-model="filters.search"
-                    type="text"
-                    placeholder="Search team, sport, year, coach"
-                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm sm:flex-1"
-                    @keyup.enter="reload()"
-                />
-                <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="reload()">
-                    Search
-                </button>
-                <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="showFilters = !showFilters">
-                    Filters <span v-if="activeFilterCount" class="ml-1 rounded-full bg-slate-200 px-1.5 py-0.5 text-xs">{{ activeFilterCount }}</span>
-                </button>
-            </div>
-
-            <div v-if="showFilters" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 md:grid-cols-2 lg:grid-cols-4">
-                <select v-model="filters.sport_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">All Sports</option>
-                    <option v-for="sport in options.sports" :key="sport.id" :value="String(sport.id)">{{ sport.name }}</option>
-                </select>
-                <select v-model="filters.year" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">All Years</option>
-                    <option v-for="y in options.years" :key="String(y)" :value="String(y)">{{ y }}</option>
-                </select>
-                <select v-model="filters.coach_status" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="all">Coach Status: All</option>
-                    <option value="complete_staff">Coach Status: Complete Staff</option>
-                    <option value="missing_assistant">Coach Status: Missing Assistant</option>
-                </select>
-                <select v-model="filters.roster_status" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="all">Roster: All</option>
-                    <option value="complete">Roster: Complete</option>
-                    <option value="needs_players">Roster: Needs Players</option>
-                    <option value="over_limit">Roster: Over Limit</option>
-                </select>
-                <div class="grid grid-cols-2 gap-2">
-                    <select v-model="filters.sort" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                        <option value="updated_at">Sort: Updated</option>
-                        <option value="team_name">Sort: Team Name</option>
-                        <option value="year">Sort: Year</option>
-                        <option value="sport">Sort: Sport</option>
-                        <option value="players">Sort: Players</option>
-                    </select>
-                    <select v-model="filters.direction" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                        <option value="desc">Desc</option>
-                        <option value="asc">Asc</option>
-                    </select>
-                </div>
-                <div class="flex gap-2">
-                    <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="reload()">Apply</button>
-                    <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="clearFilters">Reset</button>
-                </div>
+                    placeholder="Search by team, sport, year, or coach"
+                    :filter-count="activeFilterCount"
+                    :show-filters="showFilters"
+                    :show-clear="activeFilterCount > 0"
+                    @submit="reload()"
+                    @toggle-filters="showFilters = !showFilters"
+                    @clear="clearFilters"
+                >
+                    <template #filters>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+                            <select v-model="filters.sport_id" class="rounded-xl border border-[#034485]/20 px-3 py-2 text-sm">
+                                <option value="">All Sports</option>
+                                <option v-for="sport in options.sports" :key="sport.id" :value="String(sport.id)">{{ sport.name }}</option>
+                            </select>
+                            <select v-model="filters.year" class="rounded-xl border border-[#034485]/20 px-3 py-2 text-sm">
+                                <option value="">All Years</option>
+                                <option v-for="y in options.years" :key="String(y)" :value="String(y)">{{ y }}</option>
+                            </select>
+                            <select v-model="filters.coach_status" class="rounded-xl border border-[#034485]/20 px-3 py-2 text-sm">
+                                <option value="all">All Staffing</option>
+                                <option value="complete_staff">Fully Staffed</option>
+                                <option value="missing_assistant">Needs Staff Support</option>
+                            </select>
+                            <select v-model="filters.roster_status" class="rounded-xl border border-[#034485]/20 px-3 py-2 text-sm">
+                                <option value="all">All Roster Sizes</option>
+                                <option value="complete">Within Capacity</option>
+                                <option value="needs_players">Below Capacity</option>
+                                <option value="over_limit">Over Capacity</option>
+                            </select>
+                            <div class="grid grid-cols-2 gap-2 md:col-span-2">
+                                <select v-model="filters.sort" class="rounded-xl border border-[#034485]/20 px-3 py-2 text-sm">
+                                    <option value="updated_at">Sort: Updated</option>
+                                    <option value="team_name">Sort: Team Name</option>
+                                    <option value="year">Sort: Year</option>
+                                    <option value="sport">Sort: Sport</option>
+                                    <option value="players">Sort: Players</option>
+                                </select>
+                                <select v-model="filters.direction" class="rounded-xl border border-[#034485]/20 px-3 py-2 text-sm">
+                                    <option value="desc">Newest First</option>
+                                    <option value="asc">Oldest First</option>
+                                </select>
+                            </div>
+                        </div>
+                    </template>
+                </SearchFilterPanel>
             </div>
         </section>
 
         <section class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+            <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 class="text-lg font-semibold text-slate-900">Team Change Requests</h2>
@@ -408,7 +394,7 @@ function formatTimestamp(value: string | null) {
                     <article
                         v-for="req in teamChangeRequests"
                         :key="req.id"
-                        class="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                        class="page-card rounded-xl border border-slate-200 bg-slate-50 p-4"
                     >
                         <div class="flex items-start justify-between gap-2">
                             <div>
@@ -474,7 +460,7 @@ function formatTimestamp(value: string | null) {
                 </div>
             </section>
 
-            <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <h3 class="text-base font-semibold text-slate-900">Coach Time Conflicts</h3>
                 <p class="text-xs text-slate-500">Same coach assigned to overlapping team schedule windows.</p>
                 <ul v-if="conflicts.coach?.length" class="mt-3 space-y-2 text-sm">
@@ -488,16 +474,19 @@ function formatTimestamp(value: string | null) {
             </section>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white">
-            <div v-if="seasonSnapshots.length === 0" class="p-6 text-sm text-slate-500">
-                No teams found for the selected filters.
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white">
+            <div v-if="seasonSnapshots.length === 0" class="p-6">
+                <EmptyResultsState
+                    title="No teams matched your filters"
+                    description="Try adjusting the team, sport, year, or staffing filters to broaden the results."
+                />
             </div>
 
             <div v-else class="space-y-5 p-4">
                 <article
                     v-for="season in seasonSnapshots"
                     :key="season.year"
-                    class="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                    class="page-card rounded-lg border border-slate-200 bg-slate-50 p-3"
                 >
                     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
@@ -506,11 +495,8 @@ function formatTimestamp(value: string | null) {
                         </div>
                         <div class="flex flex-wrap gap-1.5 text-xs">
                             <span class="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700">Teams: {{ season.kpis.total }}</span>
-                            <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">Complete: {{ season.kpis.complete }}</span>
-                            <span class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">Needs Players: {{ season.kpis.needsPlayers }}</span>
-                            <span class="rounded-full bg-red-100 px-2 py-0.5 text-red-700">Over Limit: {{ season.kpis.overLimit }}</span>
-                            <span class="rounded-full bg-orange-100 px-2 py-0.5 text-orange-700">Conflicts: {{ season.kpis.conflictTeams }}</span>
-                            <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-indigo-700">Missing Assistant: {{ season.kpis.missingAssistant }}</span>
+                            <span class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">Roster Review: {{ season.kpis.rosterReview }}</span>
+                            <span class="rounded-full bg-[#dcecff] px-2 py-0.5 text-[#034485]">Staffing Review: {{ season.kpis.staffingReview }}</span>
                         </div>
                     </div>
 
@@ -518,7 +504,7 @@ function formatTimestamp(value: string | null) {
                         <article
                             v-for="team in season.teams"
                             :key="team.id"
-                            class="rounded-3xl bg-[#034485] p-5 text-white shadow-[0_24px_60px_-34px_rgba(3,68,133,0.5)]"
+                            class="page-card rounded-3xl bg-[#034485] p-5 text-white"
                         >
                             <div class="mb-3 flex items-start justify-between gap-3">
                                 <span
@@ -544,14 +530,12 @@ function formatTimestamp(value: string | null) {
                                 <span class="rounded-full px-2 py-0.5" :class="rosterToneClass(team.roster_health?.tone)">
                                     {{ team.roster_health?.label }}
                                 </span>
-                                <span class="rounded-full px-2 py-0.5" :class="issueToneClass(team.issue_count || 0)">
-                                    Conflicts: {{ team.issue_count || 0 }}
-                                </span>
                                 <span
+                                    v-if="!team.coach?.id || !team.assistantCoach?.id"
                                     class="rounded-full px-2 py-0.5"
-                                    :class="!team.assistantCoach?.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-700'"
+                                    :class="'bg-[#dcecff] text-[#034485]'"
                                 >
-                                    {{ !team.assistantCoach?.id ? 'Missing Assistant' : 'Assistant Ready' }}
+                                    Needs Staff Support
                                 </span>
                             </div>
 

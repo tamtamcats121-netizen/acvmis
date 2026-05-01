@@ -11,7 +11,7 @@ use App\Models\AcademicPeriod;
 use App\Models\Student;
 use App\Models\Team;
 use App\Models\User;
-use App\Services\AcademicHoldService;
+use App\Services\AcademicEligibilityAccessService;
 use App\Services\SystemNotificationService;
 use App\Services\SecureUploadService;
 use App\Services\TeamPlayerStatusService;
@@ -27,7 +27,7 @@ class AcademicSubmissionController extends Controller
     public function __construct(
         private SystemNotificationService $notifications,
         private SecureUploadService $secureUpload,
-        private AcademicHoldService $holdService,
+        private AcademicEligibilityAccessService $academicAccess,
         private TeamPlayerStatusService $teamPlayerStatuses,
     )
     {
@@ -68,13 +68,9 @@ class AcademicSubmissionController extends Controller
             ->orderByDesc('starts_on');
 
         $openPeriodsQuery->open();
-        if ($this->academicPeriodMessagesReady()) {
-            $openPeriodsQuery->with('latestMessage');
-        }
 
         $openPeriods = $openPeriodsQuery->get();
-        $holdState = $this->holdService->syncStudentStatus($student);
-        $submissionHoldStatus = $holdState['status'];
+        $academicAccess = $this->academicAccess->evaluate($student);
 
         $submissionQuery = AcademicDocument::query()
             ->periodSubmission()
@@ -109,11 +105,9 @@ class AcademicSubmissionController extends Controller
                 'current_grade_level' => $student->current_grade_level,
                 'academic_level_label' => $student->academic_level_label,
             ],
-            'submissionHoldStatus' => $submissionHoldStatus,
-            'hasActiveWindow' => $holdState['hasActiveWindow'],
-            'hasTeam' => $holdState['hasTeam'],
-            'hasSubmittedAll' => $holdState['hasSubmittedAll'],
-            'hasEligibleAll' => $holdState['hasEligibleAll'] ?? false,
+            'hasActiveWindow' => (bool) ($academicAccess['has_active_period'] ?? false),
+            'hasSubmittedAll' => (bool) ($academicAccess['has_submitted_for_active_period'] ?? false),
+            'hasEligibleForActivePeriod' => (bool) ($academicAccess['has_eligible_evaluation_for_active_period'] ?? false),
             'selectedPeriodId' => (int) request()->query('period_id', 0),
             'resultSubmissionId' => (int) request()->query('result_submission_id', 0),
             'openPeriods' => $openPeriods->map(function ($p) use ($evalByPeriod) {
@@ -127,7 +121,6 @@ class AcademicSubmissionController extends Controller
                     'term' => $p->term,
                     'starts_on' => optional($p->starts_on)->toDateString(),
                     'ends_on' => optional($p->ends_on)->toDateString(),
-                    'announcement' => $this->periodAnnouncement($p),
                     'eligibility_status' => $status,
                     'is_eligible' => $isEligible,
                     'can_submit' => !$isEligible,
@@ -422,19 +415,5 @@ class AcademicSubmissionController extends Controller
     private function academicParsedSummariesReady(): bool
     {
         return Schema::hasTable('academic_document_parsed_summaries');
-    }
-
-    private function academicPeriodMessagesReady(): bool
-    {
-        return Schema::hasTable('academic_period_messages');
-    }
-
-    private function periodAnnouncement(AcademicPeriod $period): ?string
-    {
-        if (!$this->academicPeriodMessagesReady()) {
-            return null;
-        }
-
-        return $period->announcement;
     }
 }

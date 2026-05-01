@@ -30,7 +30,6 @@ const reportTabs = [
     { label: 'Attendance', href: '/reports/attendance' },
     { label: 'Roster', href: '/reports/roster' },
     { label: 'Academics', href: '/reports/academics' },
-    { label: 'Health', href: '/reports/health' },
 ]
 
 const props = defineProps<{
@@ -106,7 +105,7 @@ function resetFilters() {
     <Head title="Roster Report" />
 
     <div class="space-y-5">
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold text-slate-900">Team Roster Report</h1>
@@ -127,7 +126,7 @@ function resetFilters() {
             </div>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Sport</label>
@@ -184,29 +183,29 @@ function resetFilters() {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Total Players</p>
                     <p class="mt-1 text-2xl font-bold text-[#034485]">{{ props.rosterReport.summary.total_players }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Active</p>
                     <p class="mt-1 text-2xl font-bold text-emerald-700">{{ props.rosterReport.summary.active }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Injured</p>
                     <p class="mt-1 text-2xl font-bold text-amber-700">{{ props.rosterReport.summary.injured }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Suspended</p>
                     <p class="mt-1 text-2xl font-bold text-rose-700">{{ props.rosterReport.summary.suspended }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Jersey Pending</p>
                     <p class="mt-1 text-2xl font-bold text-slate-900">{{ props.rosterReport.summary.jersey_pending }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Position Pending</p>
                     <p class="mt-1 text-2xl font-bold text-slate-900">{{ props.rosterReport.summary.position_pending }}</p>
                 </article>

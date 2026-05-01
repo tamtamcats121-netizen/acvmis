@@ -12,8 +12,6 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained()->cascadeOnDelete()->unique();
             $table->boolean('notification_email_enabled')->default(true);
             $table->boolean('notification_in_app_enabled')->default(true);
-            $table->string('theme_preference', 20)->default('system');
-            $table->string('timezone', 60)->default('Asia/Manila');
             $table->string('language', 12)->default('en');
             $table->timestamps();
         });

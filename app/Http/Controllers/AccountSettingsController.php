@@ -29,11 +29,6 @@ class AccountSettingsController extends Controller
         'Other',
     ];
 
-    private function normalizeThemePreference(?string $value): string
-    {
-        return in_array($value, ['light', 'dark', 'blue'], true) ? $value : 'light';
-    }
-
     public function __construct(private SecureUploadService $secureUpload)
     {
     }
@@ -51,7 +46,7 @@ class AccountSettingsController extends Controller
                         'People approvals and account lifecycle',
                         'Team creation and roster management',
                         'Operations attendance overrides and exports',
-                        'Health clearance and wellness monitoring',
+                        'Wellness monitoring and athlete follow-up',
                         'Academic period controls and evaluations',
                     ],
                 ] : null,
@@ -213,7 +208,6 @@ class AccountSettingsController extends Controller
             'notify_attendance_exceptions' => ['nullable', 'boolean'],
             'notify_wellness_injury_threshold' => ['nullable', 'boolean'],
             'wellness_injury_threshold_level' => ['required', 'integer', 'between:1,5'],
-            'theme_preference' => ['required', 'in:light,dark,blue'],
         ]);
 
         UserSetting::updateOrCreate(
@@ -228,7 +222,6 @@ class AccountSettingsController extends Controller
                 'notify_attendance_exceptions' => (bool) ($validated['notify_attendance_exceptions'] ?? false),
                 'notify_wellness_injury_threshold' => (bool) ($validated['notify_wellness_injury_threshold'] ?? false),
                 'wellness_injury_threshold_level' => (int) $validated['wellness_injury_threshold_level'],
-                'theme_preference' => $validated['theme_preference'],
             ]
         );
 
@@ -299,12 +292,6 @@ class AccountSettingsController extends Controller
                 ->whereHas('student', fn ($query) => $query->where('approval_status', 'pending'))
                 ->count();
 
-            $today = now()->toDateString();
-            $expiredClearances = (int) (DB::table('athlete_health_clearances')
-                ->selectRaw('COUNT(*) as total')
-                ->whereRaw(\App\Models\AthleteHealthClearance::statusCaseSql() . " = 'expired'", [$today])
-                ->value('total') ?? 0);
-
             $latestPeriodId = AcademicPeriod::query()->orderByDesc('starts_on')->value('id');
             $atRiskAcademic = $latestPeriodId
                 ? AcademicEligibilityEvaluation::query()
@@ -317,7 +304,6 @@ class AccountSettingsController extends Controller
             return [
                 'admin' => [
                     'pending_approvals' => (int) $pendingApprovals,
-                    'expired_clearances' => (int) $expiredClearances,
                     'academic_at_risk' => (int) $atRiskAcademic,
                 ],
                 'student' => null,
@@ -327,7 +313,6 @@ class AccountSettingsController extends Controller
 
         if (in_array($user->role, ['student', 'student-athlete'], true) && $user->student) {
             $studentId = $user->student->id;
-            $latestClearance = $user->student->healthClearances()->latest('clearance_date')->first();
             $latestEval = AcademicEligibilityEvaluation::query()
                 ->with('academicPeriod')
                 ->where('student_id', $studentId)
@@ -346,8 +331,6 @@ class AccountSettingsController extends Controller
             return [
                 'admin' => null,
                 'student' => [
-                    'health_clearance_status' => $latestClearance?->clearance_status,
-                    'health_clearance_expires_on' => optional($latestClearance?->valid_until)->toDateString(),
                     'academic_status' => $latestEval?->status,
                     'academic_period' => $latestEval?->academicPeriod
                         ? ($latestEval->academicPeriod->school_year . ' ' . $latestEval->academicPeriod->term)
@@ -470,7 +453,6 @@ class AccountSettingsController extends Controller
                 'notify_attendance_exceptions' => true,
                 'notify_wellness_injury_threshold' => true,
                 'wellness_injury_threshold_level' => 3,
-                'theme_preference' => 'light',
             ]
         );
 
@@ -485,7 +467,6 @@ class AccountSettingsController extends Controller
                 'notify_attendance_exceptions' => (bool) $settings->notify_attendance_exceptions,
                 'notify_wellness_injury_threshold' => (bool) $settings->notify_wellness_injury_threshold,
                 'wellness_injury_threshold_level' => (int) $settings->wellness_injury_threshold_level,
-                'theme_preference' => $this->normalizeThemePreference($settings->theme_preference),
             ],
             'scope' => $this->settingsScopeForRole((string) $user->role),
             'compliance' => $this->buildCompliance($user),

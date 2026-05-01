@@ -7,7 +7,6 @@ use App\Mail\AccountPendingApprovalMail;
 use App\Models\Announcement;
 use App\Models\AcademicDocument;
 use App\Models\AcademicDocumentType;
-use App\Models\AthleteHealthClearance;
 use App\Models\Coach;
 use App\Models\Student;
 use App\Models\User;
@@ -55,13 +54,6 @@ class RegisterController extends Controller
             'emergency_contact_relationship' => 'nullable|in:' . implode(',', self::EMERGENCY_RELATIONSHIPS),
             'emergency_contact_phone' => 'nullable|string|max:30',
             'avatar' => 'nullable|image|max:2048',
-            'clearance_date' => 'required|date',
-            'valid_until' => 'nullable|date|after_or_equal:clearance_date',
-            'physician_name' => 'required|string|max:255',
-            'conditions' => 'nullable|string',
-            'allergies' => 'nullable|string',
-            'restrictions' => 'nullable|string',
-            'medical_certificate' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'academic_document_type' => 'required|in:tor,supporting_document',
             'academic_document_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'academic_document_notes' => 'nullable|string',
@@ -77,9 +69,6 @@ class RegisterController extends Controller
 
                 // --- Create Student ---
                 $student = $this->createStudent($request, $user);
-
-                // --- Create initial health clearance record ---
-                $this->createInitialHealthClearance($request, $student);
 
                 // --- Create initial academic document ---
                 $this->createInitialAcademicDocument($request, $student, $user);
@@ -99,29 +88,6 @@ class RegisterController extends Controller
             return back()->withErrors(['error' => 'The registration could not be completed: ' . $e->getMessage()])
                 ->withInput();
         }
-    }
-
-    private function createInitialHealthClearance(Request $request, Student $student): AthleteHealthClearance
-    {
-        $certificatePath = null;
-        if ($request->hasFile('medical_certificate')) {
-            $certificatePath = $this->secureUpload->storePublic(
-                $request->file('medical_certificate'),
-                'medical_certificates',
-                'medical_certificate'
-            );
-        }
-
-        return AthleteHealthClearance::create([
-            'student_id' => $student->id,
-            'clearance_date' => $request->clearance_date,
-            'valid_until' => $request->valid_until ?: null,
-            'physician_name' => $request->physician_name,
-            'conditions' => $request->conditions,
-            'allergies' => $request->allergies,
-            'restrictions' => $request->restrictions,
-            'certificate_path' => $certificatePath,
-        ]);
     }
 
     private function createInitialAcademicDocument(Request $request, Student $student, User $user): AcademicDocument

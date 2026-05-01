@@ -177,4 +177,42 @@ function goTo(href: string) {
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
 }
+
+:global(html.theme-dark) .account-nav {
+  border-color: rgba(3, 68, 133, 0.28) !important;
+  background: #171717 !important;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.22) !important;
+}
+
+:global(html.theme-dark) .account-nav__title {
+  color: #f8fafc !important;
+}
+
+:global(html.theme-dark) .nav-link {
+  border-color: #30363f !important;
+  background: #1b1b1b !important;
+  color: #e2e8f0 !important;
+}
+
+:global(html.theme-dark) .nav-link:hover {
+  border-color: rgba(3, 68, 133, 0.34) !important;
+  background: #202020 !important;
+}
+
+:global(html.theme-dark) .nav-link__icon {
+  background: rgba(3, 68, 133, 0.16) !important;
+  color: #93c5fd !important;
+}
+
+:global(html.theme-dark) .nav-link--active {
+  border-color: rgba(3, 68, 133, 0.42) !important;
+  background: linear-gradient(135deg, #034485 0%, #0a5fb1 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 30px -24px rgba(3, 68, 133, 0.45) !important;
+}
+
+:global(html.theme-dark) .nav-link--active .nav-link__icon {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
 </style>

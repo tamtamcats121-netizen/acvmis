@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
+import BackLinkButton from '@/components/ui/BackLinkButton.vue'
+import EmptyResultsState from '@/components/ui/EmptyResultsState.vue'
+import SearchFilterPanel from '@/components/ui/SearchFilterPanel.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
@@ -177,13 +180,11 @@ function removePlayer(player: TeamPlayerRow) {
 
     <div class="space-y-6">
         <div class="space-y-1">
-            <Link :href="`/teams/${team.id}/view-roster`" class="text-sm font-medium text-[#034485] hover:text-[#033a70]">
-                ← Back to View Roster
-            </Link>
+            <BackLinkButton :href="`/teams/${team.id}/view-roster`" label="Back to View Roster" />
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Player assignment manager</p>
         </div>
 
-        <section class="rounded-3xl bg-[#034485] p-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
+        <section class="page-card rounded-3xl bg-[#034485] p-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
             <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
                     <div class="h-20 w-20 overflow-hidden rounded-2xl border border-white/20 bg-white/10">
@@ -226,7 +227,7 @@ function removePlayer(player: TeamPlayerRow) {
         </section>
 
         <section class="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="page-card rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
                 <div>
                     <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Current Players</p>
                     <h2 class="mt-2 text-xl font-semibold text-slate-900">Assigned Student-Athletes</h2>
@@ -237,7 +238,7 @@ function removePlayer(player: TeamPlayerRow) {
                     <article
                         v-for="player in team.players"
                         :key="player.id"
-                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                        class="page-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div class="flex min-w-0 items-start gap-3">
@@ -270,31 +271,34 @@ function removePlayer(player: TeamPlayerRow) {
                         </div>
                     </article>
 
-                    <div v-if="team.players.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                    <div v-if="team.players.length === 0" class="page-card rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
                         No student-athletes are assigned to this team yet.
                     </div>
                 </div>
             </section>
 
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="page-card rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Available Student-Athletes</p>
                         <h2 class="mt-2 text-xl font-semibold text-slate-900">Select Players</h2>
                         <p class="mt-1 text-sm text-slate-500">Search and filter the student pool, then add eligible players directly to this team.</p>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <input
+                    <div class="w-full lg:w-[32rem]">
+                        <SearchFilterPanel
                             v-model="search"
-                            type="text"
-                            placeholder="Search by name, ID, course"
-                            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm sm:w-64"
-                        />
-                        <select v-model="availabilityFilter" class="rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                            <option value="all">All Students</option>
-                            <option value="available">Available</option>
-                            <option value="assigned">Assigned Elsewhere</option>
-                        </select>
+                            placeholder="Search by name, ID, email, course, or team"
+                            :show-submit="false"
+                            :show-filters-toggle="false"
+                        >
+                            <template #actions>
+                                <select v-model="availabilityFilter" class="rounded-xl border border-[#034485]/20 px-3 py-2 text-sm">
+                                    <option value="all">All Students</option>
+                                    <option value="available">Available</option>
+                                    <option value="assigned">Assigned Elsewhere</option>
+                                </select>
+                            </template>
+                        </SearchFilterPanel>
                     </div>
                 </div>
 
@@ -302,7 +306,7 @@ function removePlayer(player: TeamPlayerRow) {
                     <article
                         v-for="player in filteredPlayers"
                         :key="player.id"
-                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                        class="page-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div class="flex min-w-0 items-start gap-3">
@@ -349,8 +353,11 @@ function removePlayer(player: TeamPlayerRow) {
                         </div>
                     </article>
 
-                    <div v-if="filteredPlayers.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                        No student-athletes matched the current search or filter.
+                    <div v-if="filteredPlayers.length === 0">
+                        <EmptyResultsState
+                            title="No student-athletes matched your search"
+                            description="Try another name, student ID, team assignment, or course filter."
+                        />
                     </div>
                 </div>
             </section>

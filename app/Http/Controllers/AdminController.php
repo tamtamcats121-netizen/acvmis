@@ -54,12 +54,12 @@ class AdminController extends Controller
 
                 $attendanceSummary = $this->attendanceSummary($start, $end);
                 $attendanceTrend = $this->attendanceTrend($start, $end);
-                $healthDistribution = $this->healthDistribution();
+                $attendanceByTeam = $this->attendanceByTeam($start, $end);
+                $wellnessSnapshot = $this->wellnessSnapshot($start, $end);
                 $academicByTeam = $this->academicByTeam();
-                $heatmap = $this->attendanceHeatmap($start, $end);
-                $todaySchedules = $this->todaySchedules();
-                $needsAttentionQueue = $this->needsAttentionQueue();
-                $activityLog = $this->recentActivityLog();
+                $pendingItems = $this->pendingItemsSummary($start, $end);
+                $recentActivity = $this->dashboardRecentActivity();
+                $activeTeamsCount = Team::query()->whereNull('archived_at')->count();
 
                 return [
                     'dashboard' => [
@@ -71,23 +71,19 @@ class AdminController extends Controller
                     'kpis' => [
                         'attendance_rate' => $attendanceSummary['attendance_rate'],
                         'no_response' => $attendanceSummary['no_response'],
-                        'expired_clearances' => $healthDistribution['expired'],
-                        'academic_at_risk' => $academicByTeam['totals']['pending_review'] + $academicByTeam['totals']['ineligible'],
                         'pending_approvals' => $this->pendingStudentApprovalUsers()->count(),
+                        'active_teams' => $activeTeamsCount,
+                        'pending_academic_review' => $academicByTeam['totals']['pending_review'],
                     ],
+                    'pending_items' => $pendingItems,
+                    'academic_status' => $academicByTeam['totals'],
                     'trends' => [
                         'labels' => $attendanceTrend['labels'],
                         'attendance' => $attendanceTrend['series'],
-                        'health_distribution' => $healthDistribution,
-                        'academic_by_team' => $academicByTeam['rows'],
-                        'heatmap' => $heatmap,
+                        'attendance_by_team' => $attendanceByTeam,
+                        'wellness_snapshot' => $wellnessSnapshot,
                     ],
-                        'queues' => [
-                            'today_schedules' => $todaySchedules,
-                            'needs_attention' => $needsAttentionQueue,
-                        ],
-                        'activity_log' => $activityLog,
-                        'action_center' => $this->buildActionCenter($needsAttentionQueue, $activityLog, $todaySchedules),
+                    'recent_activity' => $recentActivity,
                     ],
                 ];
             });
@@ -184,18 +180,8 @@ class AdminController extends Controller
             ]);
         }
 
-        $clearance = null;
-
         if (in_array($user->role, ['student-athlete', 'student'], true)) {
-            $student = $user->student;
-            $clearance = $student?->latestHealthClearance;
-            $academicDocument = $student?->latestAcademicDocument;
-
-            if (!$clearance) {
-                return back()->withErrors([
-                    'approval' => 'Cannot approve this student-athlete without health clearance data.',
-                ]);
-            }
+            $academicDocument = $user->student?->latestAcademicDocument;
             if (!$academicDocument) {
                 return back()->withErrors([
                     'approval' => 'Cannot approve this student-athlete without academic document data.',
@@ -203,14 +189,7 @@ class AdminController extends Controller
             }
         }
 
-        DB::transaction(function () use ($user, $clearance) {
-            if ($clearance) {
-                $clearance->update([
-                    'reviewed_by' => Auth::id(),
-                    'reviewed_at' => now(),
-                ]);
-            }
-
+        DB::transaction(function () use ($user) {
             $user->student->update([
                 'approval_status' => 'approved',
             ]);
@@ -454,7 +433,6 @@ class AdminController extends Controller
             if ($state === 'ready') {
                 $query->where(function ($q) {
                     $q->whereIn('role', ['student-athlete', 'student'])
-                        ->whereHas('student.latestHealthClearance')
                         ->whereHas('student.latestAcademicDocument');
                 });
             }
@@ -462,8 +440,7 @@ class AdminController extends Controller
             if ($state === 'incomplete') {
                 $query->whereIn('role', ['student-athlete', 'student'])
                     ->where(function ($q) {
-                        $q->whereDoesntHave('student.latestHealthClearance')
-                            ->orWhereDoesntHave('student.latestAcademicDocument');
+                        $q->whereDoesntHave('student.latestAcademicDocument');
                     });
             }
         };
@@ -476,18 +453,6 @@ class AdminController extends Controller
             ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'account_state', 'avatar', 'created_at'])
             ->with([
                 'student:id,user_id,student_id_number,home_address,course_or_strand,current_grade_level,approval_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
-                'student.latestHealthClearance' => function ($query) {
-                    $query->select(
-                        'athlete_health_clearances.id',
-                        'athlete_health_clearances.student_id',
-                        'athlete_health_clearances.clearance_date',
-                        'athlete_health_clearances.valid_until',
-                        'athlete_health_clearances.physician_name',
-                        'athlete_health_clearances.conditions',
-                        'athlete_health_clearances.allergies',
-                        'athlete_health_clearances.restrictions'
-                    );
-                },
                 'student.latestAcademicDocument' => function ($query) {
                     $query->select(
                         'academic_documents.id',
@@ -539,16 +504,6 @@ class AdminController extends Controller
                         'emergency_contact_name' => $user->student->emergency_contact_name,
                         'emergency_contact_relationship' => $user->student->emergency_contact_relationship,
                         'emergency_contact_phone' => $user->student->emergency_contact_phone,
-                        'latest_health_clearance' => $user->student->latestHealthClearance ? [
-                            'id' => $user->student->latestHealthClearance->id,
-                            'clearance_date' => optional($user->student->latestHealthClearance->clearance_date)->toDateString(),
-                            'clearance_status' => $user->student->latestHealthClearance->clearance_status,
-                            'valid_until' => optional($user->student->latestHealthClearance->valid_until)->toDateString(),
-                            'physician_name' => $user->student->latestHealthClearance->physician_name,
-                            'conditions' => $user->student->latestHealthClearance->conditions,
-                            'allergies' => $user->student->latestHealthClearance->allergies,
-                            'restrictions' => $user->student->latestHealthClearance->restrictions,
-                        ] : null,
                         'latest_academic_document' => $user->student->latestAcademicDocument ? [
                             'id' => $user->student->latestAcademicDocument->id,
                             'document_type' => $user->student->latestAcademicDocument->document_type,
@@ -1159,27 +1114,62 @@ class AdminController extends Controller
         ];
     }
 
-    private function healthDistribution(): array
+    private function attendanceByTeam(CarbonInterface $start, CarbonInterface $end): array
     {
-        $today = now()->toDateString();
-        $statusCaseSql = \App\Models\AthleteHealthClearance::statusCaseSql('ahc');
-
-        $rows = DB::table('athlete_health_clearances as ahc')
-            ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
-            ->selectRaw(
-                "{$statusCaseSql} as status_key",
-                [$today]
-            )
-            ->selectRaw('COUNT(*) as total_count')
-            ->groupBy('status_key')
-            ->get()
-            ->keyBy('status_key');
+        $rows = DB::table('team_schedules as ts')
+            ->join('teams as t', 't.id', '=', 'ts.team_id')
+            ->join('team_players as tp', 'tp.team_id', '=', 'ts.team_id')
+            ->leftJoin('schedule_attendances as sa', function ($join) {
+                $join->on('sa.schedule_id', '=', 'ts.id')
+                    ->on('sa.student_id', '=', 'tp.student_id');
+            })
+            ->whereBetween('ts.start_time', [$start->toDateTimeString(), $end->toDateTimeString()])
+            ->whereNull('t.archived_at')
+            ->selectRaw('t.team_name as team_name')
+            ->selectRaw('COUNT(*) as total_rows')
+            ->selectRaw("SUM(CASE WHEN sa.status = 'present' THEN 1 ELSE 0 END) as present_count")
+            ->groupBy('t.team_name')
+            ->havingRaw('COUNT(*) > 0')
+            ->orderByRaw("(SUM(CASE WHEN sa.status = 'present' THEN 1 ELSE 0 END) / COUNT(*)) DESC")
+            ->orderBy('t.team_name')
+            ->limit(8)
+            ->get();
 
         return [
-            'fit' => (int) ($rows['fit']->total_count ?? 0),
-            'fit_with_restrictions' => (int) ($rows['fit_with_restrictions']->total_count ?? 0),
-            'not_fit' => (int) ($rows['not_fit']->total_count ?? 0),
-            'expired' => (int) ($rows['expired']->total_count ?? 0),
+            'labels' => $rows->pluck('team_name')->values()->all(),
+            'rates' => $rows->map(fn ($row) => round((((int) $row->present_count) / max(1, (int) $row->total_rows)) * 100, 2))->values()->all(),
+        ];
+    }
+
+    private function wellnessSnapshot(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $rows = DB::table('wellness_logs as wl')
+            ->whereBetween('wl.log_date', [$start->toDateString(), $end->toDateString()])
+            ->selectRaw('DATE(wl.log_date) as log_day')
+            ->selectRaw('SUM(CASE WHEN wl.injury_observed = 1 THEN 1 ELSE 0 END) as injury_count')
+            ->selectRaw('AVG(wl.fatigue_level) as avg_fatigue')
+            ->groupByRaw('DATE(wl.log_date)')
+            ->orderByRaw('DATE(wl.log_date)')
+            ->get()
+            ->keyBy('log_day');
+
+        $labels = [];
+        $injuryObserved = [];
+        $avgFatigue = [];
+
+        $cursor = $start->copy()->startOfDay();
+        while ($cursor->lte($end)) {
+            $key = $cursor->toDateString();
+            $labels[] = $cursor->format('M j');
+            $injuryObserved[] = (int) ($rows[$key]->injury_count ?? 0);
+            $avgFatigue[] = round((float) ($rows[$key]->avg_fatigue ?? 0), 2);
+            $cursor = $cursor->addDay();
+        }
+
+        return [
+            'labels' => $labels,
+            'injury_observed' => $injuryObserved,
+            'avg_fatigue' => $avgFatigue,
         ];
     }
 
@@ -1224,6 +1214,183 @@ class AdminController extends Controller
                 'ineligible' => (int) $rows->sum('ineligible_count'),
             ],
         ];
+    }
+
+    private function pendingItemsSummary(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $pendingStudentApprovals = $this->pendingStudentApprovalUsers()->count();
+
+        $pendingAcademicReviews = DB::table('academic_eligibility_evaluations')
+            ->where('final_status', 'pending_review')
+            ->count();
+
+        $teamsWithoutRecentAttendance = DB::table('teams as t')
+            ->whereNull('t.archived_at')
+            ->whereExists(function ($query) use ($start, $end) {
+                $query->selectRaw('1')
+                    ->from('team_schedules as ts')
+                    ->whereColumn('ts.team_id', 't.id')
+                    ->whereBetween('ts.start_time', [$start->toDateTimeString(), $end->toDateTimeString()]);
+            })
+            ->whereNotExists(function ($query) use ($start, $end) {
+                $query->selectRaw('1')
+                    ->from('team_schedules as ts')
+                    ->join('schedule_attendances as sa', 'sa.schedule_id', '=', 'ts.id')
+                    ->whereColumn('ts.team_id', 't.id')
+                    ->whereBetween('ts.start_time', [$start->toDateTimeString(), $end->toDateTimeString()]);
+            })
+            ->count();
+
+        return [
+            'pending_student_approvals' => $pendingStudentApprovals,
+            'pending_academic_reviews' => $pendingAcademicReviews,
+            'teams_without_recent_attendance' => $teamsWithoutRecentAttendance,
+        ];
+    }
+
+    private function dashboardRecentActivity(): array
+    {
+        $approvalItems = StudentApprovalHistory::query()
+            ->with([
+                'student.user:id,first_name,last_name',
+                'admin:id,first_name,last_name',
+            ])
+            ->latest()
+            ->limit(12)
+            ->get()
+            ->map(function (StudentApprovalHistory $history) {
+                $studentName = $history->student?->user?->name ?? 'Unknown student';
+                $actorName = $history->admin?->name ?? 'System';
+                $decision = ucfirst((string) $history->decision);
+
+                return [
+                    'id' => 'approval-' . $history->id,
+                    'type' => 'approval',
+                    'title' => $decision . ' account approval',
+                    'description' => $actorName . ' marked ' . $studentName . ' as ' . strtolower($decision) . '.',
+                    'happened_at' => optional($history->created_at)?->toIso8601String(),
+                ];
+            });
+
+        $academicItems = AcademicEligibilityEvaluation::query()
+            ->with([
+                'student.user:id,first_name,last_name',
+                'evaluator:id,first_name,last_name',
+            ])
+            ->whereNotNull('evaluated_at')
+            ->latest('evaluated_at')
+            ->limit(12)
+            ->get()
+            ->map(function (AcademicEligibilityEvaluation $evaluation) {
+                $studentName = $evaluation->student?->user?->name ?? 'Unknown student';
+                $actorName = $evaluation->evaluator?->name ?? 'System';
+                $status = str_replace('_', ' ', (string) ($evaluation->final_status ?? $evaluation->status ?? 'pending_review'));
+
+                return [
+                    'id' => 'academic-' . $evaluation->id,
+                    'type' => 'academic',
+                    'title' => 'Academic evaluation updated',
+                    'description' => $actorName . ' marked ' . $studentName . ' as ' . ucfirst($status) . '.',
+                    'happened_at' => optional($evaluation->evaluated_at)?->toIso8601String(),
+                ];
+            });
+
+        $playerRosterItems = DB::table('team_players as tp')
+            ->join('students as s', 's.id', '=', 'tp.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
+            ->join('teams as t', 't.id', '=', 'tp.team_id')
+            ->whereNotNull('tp.created_at')
+            ->orderByDesc('tp.created_at')
+            ->limit(12)
+            ->get([
+                'tp.id',
+                'tp.created_at',
+                't.team_name',
+                'su.first_name',
+                'su.last_name',
+            ])
+            ->map(function ($row) {
+                $studentName = trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? ''));
+
+                return [
+                    'id' => 'roster-player-' . $row->id,
+                    'type' => 'roster',
+                    'title' => 'Player added to roster',
+                    'description' => $studentName . ' was added to ' . $row->team_name . '.',
+                    'happened_at' => $row->created_at ? Carbon::parse($row->created_at)->toIso8601String() : null,
+                ];
+            });
+
+        $coachRosterItems = DB::table('team_staff_assignments as tsa')
+            ->join('coaches as c', 'c.id', '=', 'tsa.coach_id')
+            ->join('users as cu', 'cu.id', '=', 'c.user_id')
+            ->join('teams as t', 't.id', '=', 'tsa.team_id')
+            ->whereNotNull('tsa.created_at')
+            ->orderByDesc('tsa.created_at')
+            ->limit(12)
+            ->get([
+                'tsa.id',
+                'tsa.created_at',
+                'tsa.role',
+                't.team_name',
+                'cu.first_name',
+                'cu.last_name',
+            ])
+            ->map(function ($row) {
+                $coachName = trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? ''));
+                $role = ucfirst(str_replace('_', ' ', (string) $row->role));
+
+                return [
+                    'id' => 'roster-coach-' . $row->id,
+                    'type' => 'roster',
+                    'title' => 'Coach assignment updated',
+                    'description' => $coachName . ' was assigned as ' . $role . ' for ' . $row->team_name . '.',
+                    'happened_at' => $row->created_at ? Carbon::parse($row->created_at)->toIso8601String() : null,
+                ];
+            });
+
+        $attendanceItems = DB::table('schedule_attendances as sa')
+            ->join('users as actor', 'actor.id', '=', 'sa.recorded_by')
+            ->leftJoin('students as s', 's.id', '=', 'sa.student_id')
+            ->leftJoin('users as su', 'su.id', '=', 's.user_id')
+            ->leftJoin('team_schedules as ts', 'ts.id', '=', 'sa.schedule_id')
+            ->whereNotNull('sa.recorded_by')
+            ->orderByDesc(DB::raw('COALESCE(sa.recorded_at, sa.updated_at, sa.created_at)'))
+            ->limit(12)
+            ->get([
+                'sa.id',
+                'sa.status',
+                'ts.title',
+                'su.first_name',
+                'su.last_name',
+                'actor.first_name as actor_first_name',
+                'actor.last_name as actor_last_name',
+                DB::raw('COALESCE(sa.recorded_at, sa.updated_at, sa.created_at) as happened_at'),
+            ])
+            ->map(function ($row) {
+                $studentName = trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? ''));
+                $actorName = trim(($row->actor_first_name ?? '') . ' ' . ($row->actor_last_name ?? ''));
+                $status = ucfirst((string) $row->status);
+
+                return [
+                    'id' => 'attendance-' . $row->id,
+                    'type' => 'attendance',
+                    'title' => 'Attendance posted',
+                    'description' => $actorName . ' recorded ' . $status . ' for ' . $studentName . ($row->title ? ' in ' . $row->title . '.' : '.'),
+                    'happened_at' => $row->happened_at ? Carbon::parse($row->happened_at)->toIso8601String() : null,
+                ];
+            });
+
+        return $approvalItems
+            ->concat($academicItems)
+            ->concat($playerRosterItems)
+            ->concat($coachRosterItems)
+            ->concat($attendanceItems)
+            ->filter(fn ($item) => !empty($item['happened_at']))
+            ->sortByDesc('happened_at')
+            ->take(8)
+            ->values()
+            ->all();
     }
 
     private function attendanceHeatmap(CarbonInterface $start, CarbonInterface $end): array
@@ -1312,29 +1479,6 @@ class AdminController extends Controller
 
     private function needsAttentionQueue(): array
     {
-        $today = now()->toDateString();
-        $statusCaseSql = \App\Models\AthleteHealthClearance::statusCaseSql('ahc');
-        $expired = DB::table('athlete_health_clearances as ahc')
-            ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
-            ->join('students as s', 's.id', '=', 'ahc.student_id')
-            ->join('users as su', 'su.id', '=', 's.user_id')
-            ->whereRaw("{$statusCaseSql} = 'expired'", [$today])
-            ->select([
-                's.id as student_id',
-                'su.first_name',
-                'su.last_name',
-            ])
-            ->limit(4)
-            ->get()
-            ->map(fn ($row) => [
-                'type' => 'health',
-                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
-                'subtitle' => 'Expired health clearance',
-                'action_label' => 'Review',
-                'action_url' => '/health?tab=clearance',
-                'priority' => 100,
-            ]);
-
         $academic = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
@@ -1373,8 +1517,7 @@ class AdminController extends Controller
                 'priority' => 75,
             ]);
 
-        return $expired
-            ->concat($academic)
+        return $academic
             ->concat($pendingApprovals)
             ->sortByDesc('priority')
             ->take(10)
@@ -1479,7 +1622,6 @@ class AdminController extends Controller
     private function buildActionCenter(array $needsAttentionQueue, array $activityLog, array $todaySchedules): array
     {
         $today = now()->toDateString();
-        $statusCaseSql = \App\Models\AthleteHealthClearance::statusCaseSql('ahc');
         $pendingApprovals = $this->pendingStudentApprovalUsers()
             ->latest('created_at')
             ->limit(3)
@@ -1568,29 +1710,6 @@ class AdminController extends Controller
             ->take(4)
             ->values();
 
-        $healthAlerts = DB::table('athlete_health_clearances as ahc')
-            ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
-            ->join('students as s', 's.id', '=', 'ahc.student_id')
-            ->join('users as su', 'su.id', '=', 's.user_id')
-            ->whereRaw("{$statusCaseSql} = 'expired'", [$today])
-            ->select([
-                's.id as student_id',
-                'su.first_name',
-                'su.last_name',
-                'ahc.valid_until',
-            ])
-            ->limit(2)
-            ->get()
-            ->map(fn ($row) => [
-                'id' => 'health-expired-' . $row->student_id,
-                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
-                'subtitle' => 'Expired health clearance',
-                'meta' => $row->valid_until ? 'Valid until ' . Carbon::parse($row->valid_until)->toFormattedDateString() : null,
-                'urgency' => 'critical',
-                'action_label' => 'Open Health',
-                'action_url' => '/health?tab=clearance',
-            ]);
-
         $wellnessAlerts = DB::table('wellness_logs as wl')
             ->join('students as s', 's.id', '=', 'wl.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
@@ -1616,11 +1735,10 @@ class AdminController extends Controller
                 'meta' => Carbon::parse($row->log_date)->toFormattedDateString(),
                 'urgency' => 'high',
                 'action_label' => 'Review Record',
-                'action_url' => '/health?tab=wellness',
+                'action_url' => '/health',
             ]);
 
-        $healthAlerts = $healthAlerts
-            ->concat($wellnessAlerts)
+        $healthAlerts = $wellnessAlerts
             ->take(4)
             ->values();
 
@@ -1755,18 +1873,18 @@ class AdminController extends Controller
             ],
             [
                 'key' => 'health_alerts',
-                'title' => 'Health Alerts',
-                'description' => 'Expired clearances and wellness concerns needing follow-up.',
+                'title' => 'Wellness Alerts',
+                'description' => 'Wellness concerns needing review and athlete follow-up.',
                 'count' => $healthAlerts->count(),
-                'action_label' => 'Open Health',
+                'action_label' => 'Open Wellness',
                 'action_url' => '/health',
                 'tone' => 'rose',
                 'items' => $healthAlerts->all(),
             ],
             [
                 'key' => 'attendance_exceptions',
-                'title' => 'Attendance Exceptions',
-                'description' => 'Late, absent, and no-response issues from active schedules.',
+                'title' => 'Attendance Follow-Up',
+                'description' => 'Late, absent, no-response, and unresolved attendance issues from active schedules.',
                 'count' => $attendanceAlerts->count(),
                 'action_label' => 'Open Attendance',
                 'action_url' => '/operations?tab=attendance',

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 
+import BackLinkButton from '@/components/ui/BackLinkButton.vue'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
@@ -34,27 +35,21 @@ function termLabel(termCode: string) {
     <Head title="Past Periods" />
 
     <div class="space-y-5">
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-[#034485] p-5 text-white">
             <div class="flex flex-wrap items-center gap-3">
-                <button
-                    type="button"
-                    class="rounded-full border border-slate-300 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    @click="router.get('/academics')"
-                >
-                    Back to Academics
-                </button>
+                <BackLinkButton href="/academics" label="Back to Academics" />
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Past Periods</h1>
-                    <p class="text-sm text-slate-600">Archived academic periods for reference.</p>
+                    <h1 class="text-2xl font-bold text-white">Past Periods</h1>
+                    <p class="text-sm text-white/80">Archived academic periods for reference.</p>
                 </div>
             </div>
 
-            <div v-if="activePeriod" class="mt-3 text-xs text-slate-500">
+            <div v-if="activePeriod" class="mt-3 text-xs text-white/75">
                 Active period: {{ activePeriod.school_year }} - {{ termLabel(activePeriod.term) }}
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
+        <section class="page-card overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-[#034485] text-white">

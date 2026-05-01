@@ -5,7 +5,6 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use App\Mail\AccountPendingApprovalMail;
 use App\Models\AcademicDocument;
-use App\Models\AthleteHealthClearance;
 use App\Models\User;
 use App\Models\Team;
 use App\Services\SystemNotificationService;
@@ -42,7 +41,6 @@ Artisan::command('storage:cleanup-orphans {--execute : Actually delete orphan fi
     $referenced = collect()
         ->merge(User::query()->whereNotNull('avatar')->pluck('avatar'))
         ->merge(Team::query()->whereNotNull('team_avatar')->pluck('team_avatar'))
-        ->merge(AthleteHealthClearance::query()->whereNotNull('certificate_path')->pluck('certificate_path'))
         ->merge(AcademicDocument::query()->whereNotNull('file_path')->pluck('file_path'))
         ->filter()
         ->map(fn ($p) => trim((string) $p))

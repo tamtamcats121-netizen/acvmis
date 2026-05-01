@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
+import type { ApexOptions } from 'apexcharts';
 import { computed, onMounted, onUnmounted, ref, useSlots, watch } from 'vue';
+import VueApexCharts from 'vue3-apexcharts';
 
 import RoleFooter from '@/components/ui/RoleFooter.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
@@ -22,9 +24,19 @@ type DashboardPayload = {
     kpis: {
         attendance_rate: number;
         no_response: number;
-        expired_clearances: number;
-        academic_at_risk: number;
         pending_approvals: number;
+        active_teams: number;
+        pending_academic_review: number;
+    };
+    pending_items: {
+        pending_student_approvals: number;
+        pending_academic_reviews: number;
+        teams_without_recent_attendance: number;
+    };
+    academic_status: {
+        eligible: number;
+        pending_review: number;
+        ineligible: number;
     };
     trends: {
         labels: string[];
@@ -34,103 +46,23 @@ type DashboardPayload = {
             absent: number[];
             no_response: number[];
         };
-        health_distribution: {
-            fit: number;
-            fit_with_restrictions: number;
-            not_fit: number;
-            expired: number;
+        attendance_by_team: {
+            labels: string[];
+            rates: number[];
         };
-        academic_by_team: Array<{
-            team_name: string;
-            eligible: number;
-            pending_review: number;
-            ineligible: number;
-            total: number;
-        }>;
-        heatmap: {
-            days: string[];
-            hours: number[];
-            cells: Array<{ day: string; hour: number; late: number; no_response: number; value: number }>;
+        wellness_snapshot: {
+            labels: string[];
+            injury_observed: number[];
+            avg_fatigue: number[];
         };
     };
-    queues: {
-        today_schedules: Array<{
-            id: number;
-            title: string;
-            team_name: string;
-            start_time: string;
-            roster_total: number;
-            late: number;
-            absent: number;
-            no_response: number;
-        }>;
-        needs_attention: Array<{
-            type: string;
-            title: string;
-            subtitle: string;
-            action_label: string;
-            action_url: string;
-            priority: number;
-        }>;
-    };
-    activity_log: {
-        items: Array<{
-            id: string;
-            actor_id: number;
-            actor_name: string;
-            actor_role: string;
-            action_type: string;
-            description: string;
-            happened_at: string;
-        }>;
-        summary: {
-            total: number;
-            students: number;
-            coaches: number;
-        };
-    };
-    action_center: {
-        summary: {
-            open_issues: number;
-            critical: number;
-            due_today: number;
-            pending_review: number;
-        };
-        groups: Array<{
-            key: string;
-            title: string;
-            description: string;
-            count: number;
-            action_label: string;
-            action_url: string;
-            tone: 'slate' | 'blue' | 'amber' | 'rose' | 'emerald';
-            items: Array<{
-                id: string;
-                title: string;
-                subtitle: string;
-                meta?: string | null;
-                urgency: 'critical' | 'high' | 'medium';
-                action_label: string;
-                action_url: string;
-            }>;
-        }>;
-        recent_activity: {
-            items: Array<{
-                id: string;
-                actor_name: string;
-                actor_role: string;
-                description: string;
-                happened_at: string;
-            }>;
-            summary: {
-                total: number;
-                students: number;
-                coaches: number;
-            };
-        };
-        high_priority_count: number;
-        source_count: number;
-    };
+    recent_activity: Array<{
+        id: string;
+        type: 'approval' | 'academic' | 'roster' | 'attendance';
+        title: string;
+        description: string;
+        happened_at: string | null;
+    }>;
 };
 
 const hasDefaultSlot = computed(() => Boolean(slots.default));
@@ -218,7 +150,7 @@ const pages: NavEntry[] = [
         ],
     },
     { name: 'Operations', route: '/operations', iconPaths: ['M3 3v18h18', 'M7 13l3-3 3 2 5-6'] },
-    { name: 'Health & Clearance', route: '/health', iconPaths: ['M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z', 'M9 12l2 2 4-4'] },
+    { name: 'Wellness', route: '/health', iconPaths: ['M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z', 'M9 12l2 2 4-4'] },
     {
         name: 'Academics',
         route: '/academics',
@@ -236,7 +168,6 @@ const pages: NavEntry[] = [
             { name: 'Attendance', route: '/reports/attendance' },
             { name: 'Roster', route: '/reports/roster' },
             { name: 'Academics', route: '/reports/academics' },
-            { name: 'Health', route: '/reports/health' },
         ],
     },
 ];
@@ -246,7 +177,7 @@ const footerLinks = [
     { label: 'People', href: '/people' },
     { label: 'Teams', href: '/teams' },
     { label: 'Operations', href: '/operations' },
-    { label: 'Health', href: '/health' },
+    { label: 'Wellness', href: '/health' },
     { label: 'Academics', href: '/academics' },
     { label: 'Audit Trail', href: '/audit-trail' },
     { label: 'Reports', href: '/reports/attendance' },
@@ -262,8 +193,8 @@ const currentPageName = computed(() => {
     if (currentPath.value === '/operations/attendance' || currentPath.value.startsWith('/operations/attendance/')) {
         return 'Operations';
     }
-    if (currentPath.value === '/health/wellness' || currentPath.value.startsWith('/health/wellness/')) {
-        return 'Health & Clearance';
+    if (currentPath.value === '/health' || currentPath.value.startsWith('/health/')) {
+        return 'Wellness';
     }
     if (currentPath.value === '/account/profile' || currentPath.value.startsWith('/account/profile/')) {
         return 'Profile';
@@ -320,47 +251,346 @@ const isHelpRoute = computed(() => {
 });
 
 const selectedPeriod = computed(() => dashboard.value?.filters.period ?? 'week');
-const actionCenter = computed(() => dashboard.value?.action_center ?? null);
 const reportsExpanded = ref(false);
 const reportsHoverOpen = ref(false);
+const attendanceChartMode = ref<'stacked' | 'line'>('stacked');
 
-const attendanceMax = computed(() => {
-    const values = dashboard.value
-        ? [
-              ...dashboard.value.trends.attendance.present,
-              ...dashboard.value.trends.attendance.late,
-              ...dashboard.value.trends.attendance.absent,
-              ...dashboard.value.trends.attendance.no_response,
-          ]
-        : [0];
-
-    return Math.max(1, ...values);
+const attendanceTrendSeries = computed(() => {
+    const attendance = dashboard.value?.trends.attendance;
+    return [
+        { name: 'Present', data: attendance?.present ?? [] },
+        { name: 'Late', data: attendance?.late ?? [] },
+        { name: 'Absent', data: attendance?.absent ?? [] },
+        { name: 'No Response', data: attendance?.no_response ?? [] },
+    ];
 });
 
-const weeklySummary = computed(() => {
-    if (!dashboard.value) return [];
+const attendanceChartOptions = computed<ApexOptions>(() => ({
+    chart: {
+        type: attendanceChartMode.value === 'stacked' ? 'bar' : 'line',
+        stacked: attendanceChartMode.value === 'stacked',
+        toolbar: { show: false },
+        fontFamily: 'inherit',
+        foreColor: '#475569',
+        background: 'transparent',
+    },
+    colors: ['#034485', '#3b82f6', '#60a5fa', '#93c5fd'],
+    stroke: {
+        width: attendanceChartMode.value === 'stacked' ? 0 : [3, 3, 3, 3],
+        curve: 'smooth',
+    },
+    dataLabels: { enabled: false },
+    fill: {
+        opacity: attendanceChartMode.value === 'stacked' ? 0.95 : 0.2,
+        type: attendanceChartMode.value === 'stacked' ? 'solid' : 'gradient',
+        gradient: {
+            shadeIntensity: 0.2,
+            opacityFrom: 0.35,
+            opacityTo: 0.05,
+            stops: [0, 90, 100],
+        },
+    },
+    legend: {
+        position: 'top',
+        horizontalAlign: 'left',
+        labels: { colors: '#475569' },
+    },
+    plotOptions: {
+        bar: {
+            borderRadius: 6,
+            columnWidth: '48%',
+        },
+    },
+    xaxis: {
+        categories: dashboard.value?.trends.labels ?? [],
+        axisBorder: { color: 'rgba(148, 163, 184, 0.32)' },
+        axisTicks: { color: 'rgba(148, 163, 184, 0.32)' },
+        labels: {
+            style: {
+                colors: Array((dashboard.value?.trends.labels ?? []).length).fill('#64748b'),
+                fontSize: '11px',
+            },
+        },
+    },
+    yaxis: {
+        min: 0,
+        forceNiceScale: true,
+        labels: {
+            style: {
+                colors: ['#64748b'],
+                fontSize: '11px',
+            },
+        },
+    },
+    grid: {
+        borderColor: 'rgba(148, 163, 184, 0.18)',
+        strokeDashArray: 4,
+    },
+    tooltip: {
+        theme: 'light',
+    },
+    responsive: [
+        {
+            breakpoint: 768,
+            options: {
+                plotOptions: {
+                    bar: {
+                        columnWidth: '64%',
+                    },
+                },
+                legend: {
+                    position: 'bottom',
+                },
+            },
+        },
+    ],
+}));
 
-    const labels = dashboard.value.trends.labels ?? [];
-    return labels.map((label, index) => {
-        const onTime = dashboard.value?.trends.attendance.present[index] ?? 0;
-        const late = dashboard.value?.trends.attendance.late[index] ?? 0;
-        const noResponse = dashboard.value?.trends.attendance.no_response[index] ?? 0;
-        const total = onTime + late + noResponse;
+const attendanceByTeamSeries = computed(() => [
+    {
+        name: 'Attendance Rate',
+        data: dashboard.value?.trends.attendance_by_team.rates ?? [],
+    },
+]);
 
-        return {
-            label,
-            onTime,
-            late,
-            noResponse,
-            total,
-        };
+const attendanceByTeamOptions = computed<ApexOptions>(() => ({
+    chart: {
+        type: 'bar',
+        toolbar: { show: false },
+        fontFamily: 'inherit',
+        foreColor: '#475569',
+    },
+    colors: ['#034485'],
+    plotOptions: {
+        bar: {
+            horizontal: true,
+            borderRadius: 6,
+            barHeight: '52%',
+        },
+    },
+    dataLabels: {
+        enabled: true,
+        formatter: (value) => `${Number(value).toFixed(0)}%`,
+        style: {
+            colors: ['#ffffff'],
+            fontWeight: 600,
+        },
+    },
+    xaxis: {
+        categories: dashboard.value?.trends.attendance_by_team.labels ?? [],
+        max: 100,
+        labels: {
+            formatter: (value) => `${value}%`,
+            style: { colors: ['#64748b'], fontSize: '11px' },
+        },
+    },
+    yaxis: {
+        labels: {
+            style: { colors: ['#475569'], fontSize: '11px' },
+        },
+    },
+    grid: {
+        borderColor: 'rgba(148, 163, 184, 0.18)',
+        strokeDashArray: 4,
+    },
+    tooltip: {
+        theme: 'light',
+        y: {
+            formatter: (value) => `${Number(value).toFixed(2)}%`,
+        },
+    },
+}));
+
+const wellnessSnapshotSeries = computed(() => [
+    {
+        name: 'Injury Observed',
+        type: 'column',
+        data: dashboard.value?.trends.wellness_snapshot.injury_observed ?? [],
+    },
+    {
+        name: 'Average Fatigue',
+        type: 'line',
+        data: dashboard.value?.trends.wellness_snapshot.avg_fatigue ?? [],
+    },
+]);
+
+const wellnessSnapshotOptions = computed<ApexOptions>(() => ({
+    chart: {
+        type: 'line',
+        stacked: false,
+        toolbar: { show: false },
+        fontFamily: 'inherit',
+        foreColor: '#475569',
+    },
+    colors: ['#3b82f6', '#034485'],
+    stroke: {
+        width: [0, 3],
+        curve: 'smooth',
+    },
+    plotOptions: {
+        bar: {
+            borderRadius: 6,
+            columnWidth: '42%',
+        },
+    },
+    dataLabels: { enabled: false },
+    fill: {
+        opacity: [0.9, 1],
+    },
+    xaxis: {
+        categories: dashboard.value?.trends.wellness_snapshot.labels ?? [],
+        labels: {
+            style: {
+                colors: Array((dashboard.value?.trends.wellness_snapshot.labels ?? []).length).fill('#64748b'),
+                fontSize: '11px',
+            },
+        },
+    },
+    yaxis: [
+        {
+            min: 0,
+            title: { text: 'Injuries', style: { color: '#64748b' } },
+            labels: { style: { colors: ['#64748b'], fontSize: '11px' } },
+        },
+        {
+            opposite: true,
+            min: 0,
+            max: 5,
+            tickAmount: 5,
+            title: { text: 'Fatigue', style: { color: '#64748b' } },
+            labels: { style: { colors: ['#64748b'], fontSize: '11px' } },
+        },
+    ],
+    grid: {
+        borderColor: 'rgba(148, 163, 184, 0.18)',
+        strokeDashArray: 4,
+    },
+    legend: {
+        position: 'top',
+        horizontalAlign: 'left',
+        labels: { colors: '#475569' },
+    },
+    tooltip: {
+        theme: 'light',
+        shared: true,
+        intersect: false,
+    },
+}));
+
+const academicStatusSeries = computed(() => [
+    dashboard.value?.academic_status.eligible ?? 0,
+    dashboard.value?.academic_status.pending_review ?? 0,
+    dashboard.value?.academic_status.ineligible ?? 0,
+]);
+
+const academicStatusOptions = computed<ApexOptions>(() => ({
+    chart: {
+        type: 'donut',
+        toolbar: { show: false },
+        fontFamily: 'inherit',
+        foreColor: '#475569',
+    },
+    labels: ['Eligible', 'Pending Review', 'Ineligible'],
+    colors: ['#034485', '#3b82f6', '#93c5fd'],
+    stroke: {
+        colors: ['#ffffff'],
+    },
+    dataLabels: {
+        enabled: true,
+        formatter: (value) => `${Number(value).toFixed(0)}%`,
+    },
+    legend: {
+        position: 'bottom',
+        fontSize: '12px',
+        labels: {
+            colors: '#475569',
+        },
+    },
+    plotOptions: {
+        pie: {
+            donut: {
+                size: '66%',
+                labels: {
+                    show: true,
+                    total: {
+                        show: true,
+                        label: 'Total',
+                        color: '#64748b',
+                        formatter: () => String(academicStatusSeries.value.reduce((sum, value) => sum + Number(value || 0), 0)),
+                    },
+                    value: {
+                        color: '#0f172a',
+                        fontSize: '22px',
+                        fontWeight: 700,
+                    },
+                },
+            },
+        },
+    },
+    tooltip: {
+        theme: 'light',
+        y: {
+            formatter: (value) => `${Number(value)} record(s)`,
+        },
+    },
+    responsive: [
+        {
+            breakpoint: 768,
+            options: {
+                chart: {
+                    height: 300,
+                },
+            },
+        },
+    ],
+}));
+
+function formatDashboardActivityTime(value: string | null) {
+    if (!value) return 'Just now';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Recently';
+    }
+
+    return date.toLocaleString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
     });
-});
+}
 
-const weeklyMax = computed(() => {
-    const values = weeklySummary.value.map((item) => item.total);
-    return Math.max(1, ...values);
-});
+function activityTypeClasses(type: DashboardPayload['recent_activity'][number]['type']) {
+    switch (type) {
+        case 'approval':
+            return 'border-[#034485]/25 bg-[#034485]/10 text-[#034485]';
+        case 'academic':
+            return 'border-sky-200 bg-sky-50 text-sky-700';
+        case 'roster':
+            return 'border-blue-200 bg-blue-50 text-blue-700';
+        case 'attendance':
+            return 'border-indigo-200 bg-indigo-50 text-indigo-700';
+        default:
+            return 'border-slate-200 bg-slate-50 text-slate-700';
+    }
+}
+
+function activityTypeLabel(type: DashboardPayload['recent_activity'][number]['type']) {
+    switch (type) {
+        case 'approval':
+            return 'Approval';
+        case 'academic':
+            return 'Academic';
+        case 'roster':
+            return 'Roster';
+        case 'attendance':
+            return 'Attendance';
+        default:
+            return 'Activity';
+    }
+}
 
 function goTo(route: string) {
     mobileNavOpen.value = false;
@@ -544,77 +774,6 @@ function setDashboardPeriod(period: 'today' | 'week' | 'month') {
     );
 }
 
-function buildPolyline(values: number[]) {
-    if (values.length === 0) return '';
-
-    const width = 620;
-    const height = 210;
-    const pad = 16;
-    const innerWidth = width - pad * 2;
-    const innerHeight = height - pad * 2;
-    const step = values.length > 1 ? innerWidth / (values.length - 1) : 0;
-
-    return values
-        .map((value, index) => {
-            const x = pad + index * step;
-            const y = pad + (innerHeight - (value / attendanceMax.value) * innerHeight);
-            return `${x},${y}`;
-        })
-        .join(' ');
-}
-
-function healthPercent(value: number, total: number) {
-    if (total <= 0) return 0;
-    return Math.round((value / total) * 100);
-}
-
-function academicSegment(value: number, total: number) {
-    if (total <= 0) return 0;
-    return Math.max(4, Math.round((value / total) * 100));
-}
-
-function weeklyBarHeight(value: number) {
-    if (value <= 0 || weeklyMax.value <= 0) return 0;
-    return Math.round((value / weeklyMax.value) * 160);
-}
-
-function formatActivityTime(value: string) {
-    return new Date(value).toLocaleString('en-PH', {
-        timeZone: 'Asia/Manila',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-    });
-}
-
-function roleTone(role: string) {
-    if (role === 'coach') return 'bg-slate-100 text-slate-700';
-    return 'bg-emerald-100 text-emerald-700';
-}
-
-function actionGroupTone(tone: 'slate' | 'blue' | 'amber' | 'rose' | 'emerald') {
-    if (tone === 'blue') return 'bg-[#034485]/10 text-[#034485] border border-[#034485]/15';
-    if (tone === 'amber') return 'bg-amber-50 text-amber-700 border border-amber-200';
-    if (tone === 'rose') return 'bg-rose-50 text-rose-700 border border-rose-200';
-    if (tone === 'emerald') return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-    return 'bg-slate-100 text-slate-700 border border-slate-200';
-}
-
-function actionSummaryTone(key: 'open' | 'critical' | 'today' | 'review') {
-    if (key === 'open') return 'text-[#034485]';
-    if (key === 'critical') return 'text-rose-700';
-    if (key === 'today') return 'text-amber-700';
-    return 'text-slate-900';
-}
-
-function urgencyTone(level: 'critical' | 'high' | 'medium') {
-    if (level === 'critical') return 'bg-rose-50 text-rose-700 border border-rose-200';
-    if (level === 'high') return 'bg-amber-50 text-amber-700 border border-amber-200';
-    return 'bg-slate-100 text-slate-700 border border-slate-200';
-}
-
 onMounted(() => {
     sidebarCollapsed.value = localStorage.getItem(SIDEBAR_PREF_KEY) === '1';
     reportsExpanded.value = currentPath.value.startsWith('/reports');
@@ -648,12 +807,12 @@ watch(
 
 <template>
     <div class="admin-shell min-h-screen bg-[#f5f7fb] text-slate-900">
-        <div class="bg-[radial-gradient(circle_at_top_right,rgba(3,68,133,0.10),transparent_42%)] pointer-events-none fixed inset-0 -z-10" />
+        <div class="bg-[radial-gradient(circle_at_top_right,rgba(3,68,133,0.10),transparent_36%)] pointer-events-none fixed inset-0 -z-10" />
 
-        <div v-if="mobileNavOpen" class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" @click="closeMobileNav" />
+        <div v-if="mobileNavOpen" class="admin-shell__mobile-overlay fixed inset-0 z-30 bg-slate-900/30 lg:hidden" @click="closeMobileNav" />
 
         <aside
-            class="fixed left-0 z-30 border-r border-[#bfd4eb]/90 bg-[#eaf3ff]/95 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
+            class="admin-shell__sidebar fixed left-0 z-30 border-r border-[#bfd4eb]/90 bg-[#eaf3ff]/95 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
             :class="[
                 mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
                 'top-18 h-[calc(100vh-72px)]',
@@ -676,11 +835,11 @@ watch(
                             type="button"
                             :ref="entry.children ? setReportsTriggerRef : undefined"
                             @click="entry.children ? handleReportsEntryClick() : goTo(entry.route!)"
-                            class="group flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color,transform] duration-200 ease-out"
+                            class="admin-shell__nav-item group flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color,transform] duration-200 ease-out"
                             :class="[
                                 isEntryActive(entry)
-                                    ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                    : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
+                                    ? 'admin-shell__nav-item--active border-[#034485]/18 bg-white text-[#034485] shadow-[0_18px_36px_-28px_rgba(3,68,133,0.55)]'
+                                    : 'admin-shell__nav-item--inactive border-transparent text-slate-700 hover:border-[#034485]/18 hover:bg-white/70 hover:text-[#034485]',
                                 sidebarCollapsed && !mobileNavOpen ? 'justify-center px-2' : '',
                             ]"
                             :title="sidebarCollapsed ? entry.name : ''"
@@ -738,11 +897,11 @@ watch(
                                 :key="`${entry.name}-${child.name}`"
                                 type="button"
                                 @click="goToNavTarget(child.route)"
-                                class="flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color] duration-200"
+                                class="admin-shell__subnav-item flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color] duration-200"
                                 :class="[
                                     isChildActive(child.route)
-                                        ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-600 hover:border-[#bfd4eb] hover:bg-white/75 hover:text-slate-900',
+                                        ? 'admin-shell__subnav-item--active border-[#034485]/18 bg-white text-[#034485]'
+                                        : 'admin-shell__subnav-item--inactive border-transparent text-slate-600 hover:border-[#034485]/18 hover:bg-white hover:text-[#034485]',
                                 ]"
                             >
                                 <span class="truncate">{{ child.name }}</span>
@@ -752,7 +911,7 @@ watch(
                         <div
                             v-if="entry.children && reportsHoverOpen && sidebarCollapsed && !mobileNavOpen"
                             :style="reportsHoverStyle"
-                            class="z-[60] w-56 overflow-hidden rounded-xl border border-[#bfd4eb] bg-[#f7fbff] shadow-[0_24px_60px_-24px_rgba(15,23,42,0.45)]"
+                            class="admin-shell__submenu z-[60] w-56 overflow-hidden rounded-xl border border-[#bfd4eb] bg-[#f7fbff] shadow-[0_24px_60px_-24px_rgba(15,23,42,0.45)]"
                             @mouseenter="openReportsHoverMenu"
                             @mouseleave="scheduleReportsHoverClose"
                         >
@@ -766,11 +925,11 @@ watch(
                                     type="button"
                                     @click="goToNavTarget(child.route)"
                                     role="menuitem"
-                                    class="flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color] duration-200"
+                                    class="admin-shell__subnav-item flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color] duration-200"
                                     :class="[
                                         isChildActive(child.route)
-                                            ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                            : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/80',
+                                            ? 'admin-shell__subnav-item--active border-[#034485]/18 bg-white text-[#034485]'
+                                            : 'admin-shell__subnav-item--inactive border-transparent text-slate-700 hover:border-[#034485]/18 hover:bg-white hover:text-[#034485]',
                                     ]"
                                 >
                                     <span class="truncate">{{ child.name }}</span>
@@ -780,14 +939,14 @@ watch(
                     </div>
                 </nav>
 
-                <div class="border-t border-[#d6e4f4] px-3 py-3">
+                <div class="admin-shell__sidebar-footer border-t border-[#d6e4f4] px-3 py-3">
                     <button
                         type="button"
-                        class="group mb-2 flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200"
+                        class="admin-shell__utility-item group mb-2 flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200"
                         :class="[
                             isSettingsRoute
-                                ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
+                                ? 'admin-shell__utility-item--active border-[#034485]/18 bg-white text-[#034485] shadow-[0_18px_36px_-28px_rgba(3,68,133,0.55)]'
+                                : 'admin-shell__utility-item--inactive border-transparent text-slate-700 hover:border-[#034485]/18 hover:bg-white hover:text-[#034485]',
                             sidebarCollapsed && !mobileNavOpen ? 'justify-center' : '',
                         ]"
                         @click="goTo('/account/settings')"
@@ -811,11 +970,11 @@ watch(
                     </button>
                     <button
                         type="button"
-                        class="group mb-2 flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200"
+                        class="admin-shell__utility-item group mb-2 flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200"
                         :class="[
                             isHelpRoute
-                                ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
+                                ? 'admin-shell__utility-item--active border-[#034485]/18 bg-white text-[#034485] shadow-[0_18px_36px_-28px_rgba(3,68,133,0.55)]'
+                                : 'admin-shell__utility-item--inactive border-transparent text-slate-700 hover:border-[#034485]/18 hover:bg-white hover:text-[#034485]',
                             sidebarCollapsed && !mobileNavOpen ? 'justify-center' : '',
                         ]"
                         @click="goTo('/account/help')"
@@ -838,7 +997,7 @@ watch(
                     </button>
                     <button
                         type="button"
-                        class="group flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium text-rose-600 transition-all duration-200 hover:border-rose-200 hover:bg-rose-50"
+                        class="admin-shell__logout-item group flex w-full items-center rounded-lg border border-transparent px-3 py-2 text-left text-sm font-medium text-rose-600 transition-all duration-200 hover:border-rose-200 hover:bg-rose-50"
                         :class="sidebarCollapsed && !mobileNavOpen ? 'justify-center' : ''"
                         @click="logout"
                     >
@@ -879,8 +1038,8 @@ watch(
                     </button>
 
                     <div class="min-w-0 flex items-center gap-2">
-                        <div class="inline-flex max-w-full flex-col rounded-2xl bg-[#034485] px-3 py-2 shadow-[0_14px_28px_-20px_rgba(3,68,133,0.55)]">
-                            <p class="admin-shell__kicker truncate text-[11px] font-semibold tracking-[0.18em] text-white uppercase">AC VMIS Admin</p>
+                        <div class="admin-shell__brand-chip inline-flex max-w-full flex-col px-1 py-1">
+                            <p class="admin-shell__kicker truncate text-[11px] font-semibold tracking-[0.18em] text-white/80 uppercase">AC VMIS Admin</p>
                             <div class="flex min-w-0 items-center gap-2">
                                 <h2 class="admin-shell__title truncate text-sm font-semibold text-white sm:text-base">{{ currentPageName }}</h2>
                             </div>
@@ -923,7 +1082,7 @@ watch(
                     >
                         <button
                             type="button"
-                            class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                            class="announcement-bell relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-[#034485]/30 hover:text-[#034485]"
                             aria-label="Open announcements"
                         >
                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -940,13 +1099,13 @@ watch(
 
                         <div
                             v-if="notificationsOpen"
-                            class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                            class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-[#034485]/15 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.18)]"
                         >
                             <div
                                 class="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase"
                             >
                                 Announcements
-                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{ bellUnreadCount }}</span>
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">{{ bellUnreadCount }}</span>
                             </div>
                             <div class="max-h-72 overflow-y-auto">
                                 <button
@@ -956,27 +1115,27 @@ watch(
                                     class="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition"
                                     :class="
                                         item.is_read
-                                            ? 'border-b border-slate-100 text-slate-700 hover:bg-slate-50'
-                                            : 'border-b border-white/10 bg-[#034485] text-white hover:bg-[#033a70]'
+                                            ? 'border-b border-slate-200 text-slate-700 hover:bg-slate-50'
+                                            : 'border-b border-[#034485]/15 bg-[#034485] text-white hover:bg-[#033a70]'
                                     "
                                     @click="
                                         markBellRead(item);
                                         goTo('/announcements');
                                     "
                                 >
-                                    <span class="mt-1 inline-flex h-2 w-2 shrink-0 rounded-full" :class="item.is_read ? 'bg-[#034485]' : 'bg-white'" />
+                                    <span class="mt-1 inline-flex h-2 w-2 shrink-0 rounded-full" :class="item.is_read ? 'bg-[#60a5fa]' : 'bg-white'" />
                                     <span class="flex-1">
-                                        <span class="block font-semibold" :class="item.is_read ? 'text-slate-800' : 'text-white'">{{ item.title }}</span>
+                                        <span class="block font-semibold" :class="item.is_read ? 'text-slate-700' : 'text-white'">{{ item.title }}</span>
                                         <span class="block text-xs" :class="item.is_read ? 'text-slate-500' : 'text-white/80'">{{ item.message }}</span>
                                     </span>
-                                    <span class="ml-auto text-[10px] font-semibold" :class="item.is_read ? 'text-slate-400' : 'text-white/70'">{{ item.published_at ?? '' }}</span>
+                                    <span class="ml-auto text-[10px] font-semibold" :class="item.is_read ? 'text-slate-500' : 'text-white/70'">{{ item.published_at ?? '' }}</span>
                                 </button>
                                 <div v-if="adminNotifications.length === 0" class="px-3 py-4 text-xs text-slate-500">No announcements right now.</div>
                             </div>
                             <div class="border-t border-slate-200 px-3 py-2">
                                 <button
                                     type="button"
-                                    class="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                                    class="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-[#034485]/30 hover:bg-slate-50"
                                     @click="goTo('/announcements')"
                                 >
                                     View all
@@ -984,7 +1143,7 @@ watch(
                             </div>
                         </div>
                     </div>
-                    <UserAccountMenu :dark="false" menu-placement="bottom" compact />
+                    <UserAccountMenu :inverse="false" menu-placement="bottom" compact />
                 </div>
             </div>
         </header>
@@ -994,379 +1153,324 @@ watch(
                 <slot v-if="hasDefaultSlot" />
 
                 <div v-else-if="dashboard" class="space-y-5">
-                    <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
-                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div>
-                                <h3 class="text-xl font-bold text-[#034485]">Overview</h3>
-                            </div>
-                            <div class="flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    class="rounded-full px-3 py-1 text-xs font-medium"
-                                    :class="selectedPeriod === 'today' ? 'bg-[#1f2937] text-white' : 'bg-slate-100 text-slate-700'"
-                                    @click="setDashboardPeriod('today')"
-                                >
-                                    Today
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-full px-3 py-1 text-xs font-medium"
-                                    :class="selectedPeriod === 'week' ? 'bg-[#1f2937] text-white' : 'bg-slate-100 text-slate-700'"
-                                    @click="setDashboardPeriod('week')"
-                                >
-                                    This Week
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-full px-3 py-1 text-xs font-medium"
-                                    :class="selectedPeriod === 'month' ? 'bg-[#1f2937] text-white' : 'bg-slate-100 text-slate-700'"
-                                    @click="setDashboardPeriod('month')"
-                                >
-                                    This Month
-                                </button>
-                            </div>
+                    <section class="admin-dashboard-title-card page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-6 text-white">
+                        <div class="space-y-2">
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Asian College</p>
+                            <h3 class="text-2xl font-bold">Administrative Dashboard</h3>
+                            <p class="max-w-3xl text-sm text-white/85">Centralized oversight for varsity operations, student-athlete compliance, and team activity monitoring.</p>
                         </div>
                     </section>
 
-                    <section class="grid grid-cols-1 gap-3 md:grid-cols-6">
-                        <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                            <p class="text-xs text-slate-500">Attendance Rate</p>
-                            <p class="mt-1 text-2xl font-bold text-emerald-700">{{ dashboard.kpis.attendance_rate }}%</p>
+                    <section class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                class="rounded-full px-3 py-1 text-xs font-medium"
+                                :class="selectedPeriod === 'today' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700'"
+                                @click="setDashboardPeriod('today')"
+                            >
+                                Today
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full px-3 py-1 text-xs font-medium"
+                                :class="selectedPeriod === 'week' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700'"
+                                @click="setDashboardPeriod('week')"
+                            >
+                                This Week
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full px-3 py-1 text-xs font-medium"
+                                :class="selectedPeriod === 'month' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700'"
+                                @click="setDashboardPeriod('month')"
+                            >
+                                This Month
+                            </button>
+                        </div>
+                    </section>
+
+                    <section class="grid grid-cols-1 gap-3 md:grid-cols-5">
+                        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Attendance Rate</p>
+                            <p class="mt-2 text-2xl font-bold text-[#034485]">{{ dashboard.kpis.attendance_rate }}%</p>
                         </article>
-                        <article class="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                            <p class="text-xs text-amber-700">No Response</p>
-                            <p class="mt-1 text-2xl font-bold text-amber-900">{{ dashboard.kpis.no_response }}</p>
+                        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">No Response</p>
+                            <p class="mt-2 text-2xl font-bold text-[#034485]">{{ dashboard.kpis.no_response }}</p>
                         </article>
-                        <article class="rounded-xl border border-rose-200 bg-rose-50 p-4">
-                            <p class="text-xs text-rose-700">Expired Clearances</p>
-                            <p class="mt-1 text-2xl font-bold text-rose-900">{{ dashboard.kpis.expired_clearances }}</p>
+                        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Pending Approvals</p>
+                            <p class="mt-2 text-2xl font-bold text-[#034485]">{{ dashboard.kpis.pending_approvals }}</p>
                         </article>
-                        <article class="rounded-xl border border-orange-200 bg-orange-50 p-4">
-                            <p class="text-xs text-orange-700">Academic At Risk</p>
-                            <p class="mt-1 text-2xl font-bold text-orange-900">{{ dashboard.kpis.academic_at_risk }}</p>
+                        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Active Teams</p>
+                            <p class="mt-2 text-2xl font-bold text-[#034485]">{{ dashboard.kpis.active_teams }}</p>
                         </article>
-                        <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <p class="text-xs text-slate-700">Pending Approvals</p>
-                            <p class="mt-1 text-2xl font-bold text-slate-900">{{ dashboard.kpis.pending_approvals }}</p>
+                        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Pending Academic Review</p>
+                            <p class="mt-2 text-2xl font-bold text-[#034485]">{{ dashboard.kpis.pending_academic_review }}</p>
                         </article>
                     </section>
 
-                    <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-                        <article class="rounded-xl border border-[#034485]/45 bg-white p-4 xl:col-span-2">
-                            <div class="mb-3 flex items-center justify-between">
-                                <h4 class="text-sm font-semibold text-slate-800">Attendance Trend</h4>
-                                <div class="flex gap-2 text-xs">
-                                    <span class="inline-flex items-center gap-1 text-emerald-700"
-                                        ><span class="h-2 w-2 rounded-full bg-emerald-500" />Present</span
-                                    >
-                                    <span class="inline-flex items-center gap-1 text-amber-700"
-                                        ><span class="h-2 w-2 rounded-full bg-amber-500" />Late</span
-                                    >
-                                    <span class="inline-flex items-center gap-1 text-red-700"
-                                        ><span class="h-2 w-2 rounded-full bg-red-500" />Absent</span
-                                    >
-                                    <span class="inline-flex items-center gap-1 text-slate-700"
-                                        ><span class="h-2 w-2 rounded-full bg-slate-500" />No Response</span
-                                    >
-                                </div>
+                    <section class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Quick Actions</p>
+                                <h4 class="mt-1 text-base font-semibold text-slate-900">Open Key Admin Workspaces</h4>
                             </div>
-                            <div class="overflow-x-auto">
-                                <svg viewBox="0 0 620 210" class="h-55 w-full min-w-155 rounded-lg bg-slate-50">
-                                    <polyline
-                                        :points="buildPolyline(dashboard.trends.attendance.present)"
-                                        fill="none"
-                                        stroke="#10b981"
-                                        stroke-width="2.5"
-                                        stroke-linecap="round"
-                                    />
-                                    <polyline
-                                        :points="buildPolyline(dashboard.trends.attendance.late)"
-                                        fill="none"
-                                        stroke="#f59e0b"
-                                        stroke-width="2.5"
-                                        stroke-linecap="round"
-                                    />
-                                    <polyline
-                                        :points="buildPolyline(dashboard.trends.attendance.absent)"
-                                        fill="none"
-                                        stroke="#ef4444"
-                                        stroke-width="2.5"
-                                        stroke-linecap="round"
-                                    />
-                                    <polyline
-                                        :points="buildPolyline(dashboard.trends.attendance.no_response)"
-                                        fill="none"
-                                        stroke="#64748b"
-                                        stroke-width="2.5"
-                                        stroke-linecap="round"
-                                    />
-                                </svg>
-                            </div>
-                            <div class="mt-2 grid grid-cols-4 gap-1 text-[10px] text-slate-500 sm:grid-cols-8">
-                                <span v-for="label in dashboard.trends.labels" :key="label" class="truncate">{{ label }}</span>
-                            </div>
-                        </article>
+                        </div>
 
+                        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <button
+                                type="button"
+                                class="rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-4 text-left transition hover:bg-[#034485]/10"
+                                @click="goTo('/people/queue')"
+                            >
+                                <p class="text-sm font-semibold text-[#034485]">Approval Queue</p>
+                                <p class="mt-1 text-xs text-slate-600">Review pending student-athlete registrations.</p>
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-4 text-left transition hover:bg-[#034485]/10"
+                                @click="goTo('/teams')"
+                            >
+                                <p class="text-sm font-semibold text-[#034485]">Teams</p>
+                                <p class="mt-1 text-xs text-slate-600">Manage active team records and rosters.</p>
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-4 text-left transition hover:bg-[#034485]/10"
+                                @click="goTo('/academics')"
+                            >
+                                <p class="text-sm font-semibold text-[#034485]">Academics</p>
+                                <p class="mt-1 text-xs text-slate-600">Open period management and evaluation review.</p>
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-4 text-left transition hover:bg-[#034485]/10"
+                                @click="goTo('/operations')"
+                            >
+                                <p class="text-sm font-semibold text-[#034485]">Operations</p>
+                                <p class="mt-1 text-xs text-slate-600">Monitor schedules and attendance activity.</p>
+                            </button>
+                        </div>
                     </section>
 
-                    <section class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                            <h4 class="mb-3 text-sm font-semibold text-slate-800">Academic Status by Team</h4>
-                            <div v-if="dashboard.trends.academic_by_team.length === 0" class="text-sm text-slate-500">
-                                No evaluations found for current period.
+                    <section class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Attendance Trend</p>
+                                <h4 class="mt-1 text-base font-semibold text-slate-900">Attendance Response Overview</h4>
+                                <p class="mt-1 text-xs text-slate-600">View attendance behavior as a stacked comparison or a trend line across the selected dashboard period.</p>
                             </div>
-                            <div v-else class="space-y-2">
-                                <div
-                                    v-for="team in dashboard.trends.academic_by_team"
-                                    :key="team.team_name"
-                                    class="rounded-lg border border-slate-100 p-2"
+                            <div class="flex gap-2">
+                                <button
+                                    type="button"
+                                    class="rounded-full px-3 py-1 text-xs font-medium"
+                                    :class="attendanceChartMode === 'stacked' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700'"
+                                    @click="attendanceChartMode = 'stacked'"
                                 >
-                                    <div class="mb-1 flex items-center justify-between text-xs">
-                                        <span class="font-medium text-slate-700">{{ team.team_name }}</span>
-                                        <span class="text-slate-500">{{ team.total }} athletes</span>
-                                    </div>
-                                    <div class="flex h-2 overflow-hidden rounded-full bg-slate-100">
-                                        <span class="bg-emerald-500" :style="{ width: `${academicSegment(team.eligible, team.total)}%` }" />
-                                        <span class="bg-amber-500" :style="{ width: `${academicSegment(team.pending_review, team.total)}%` }" />
-                                        <span class="bg-red-500" :style="{ width: `${academicSegment(team.ineligible, team.total)}%` }" />
-                                    </div>
-                                </div>
+                                    Stacked Bar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-full px-3 py-1 text-xs font-medium"
+                                    :class="attendanceChartMode === 'line' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700'"
+                                    @click="attendanceChartMode = 'line'"
+                                >
+                                    Trend Line
+                                </button>
                             </div>
-                        </article>
+                        </div>
 
-                        <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                            <div class="mb-3 flex items-center justify-between">
-                                <h4 class="text-sm font-semibold text-slate-800">Weekly Response Summary</h4>
-                                <div class="flex gap-2 text-xs">
-                                    <span class="inline-flex items-center gap-1 text-emerald-700"
-                                        ><span class="h-2 w-2 rounded-full bg-emerald-500" />On-time</span
-                                    >
-                                    <span class="inline-flex items-center gap-1 text-amber-700"
-                                        ><span class="h-2 w-2 rounded-full bg-amber-500" />Late</span
-                                    >
-                                    <span class="inline-flex items-center gap-1 text-slate-700"
-                                        ><span class="h-2 w-2 rounded-full bg-slate-500" />No Response</span
-                                    >
-                                </div>
-                            </div>
-                            <div v-if="weeklySummary.length === 0" class="text-sm text-slate-500">
-                                No attendance response data found for this period.
-                            </div>
-                            <div v-else class="overflow-x-auto">
-                                <div class="min-w-140">
-                                    <div class="flex h-44 items-end gap-3">
-                                        <div v-for="item in weeklySummary" :key="item.label" class="flex min-w-9 flex-1 flex-col items-stretch">
-                                            <div
-                                                class="flex h-40 flex-col-reverse overflow-hidden rounded-md bg-slate-100"
-                                                :title="`On-time ${item.onTime} • Late ${item.late} • No Response ${item.noResponse}`"
-                                            >
-                                                <div class="bg-emerald-500" :style="{ height: `${weeklyBarHeight(item.onTime)}px` }" />
-                                                <div class="bg-amber-500" :style="{ height: `${weeklyBarHeight(item.late)}px` }" />
-                                                <div class="bg-slate-500" :style="{ height: `${weeklyBarHeight(item.noResponse)}px` }" />
-                                            </div>
-                                            <span class="mt-2 text-center text-[10px] text-slate-500">{{ item.label }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </article>
+                        <div v-if="dashboard.trends.labels.length === 0" class="mt-4 rounded-2xl border border-dashed border-[#034485]/25 bg-[#034485]/5 px-4 py-10 text-center text-sm text-slate-500">
+                            No attendance trend data is available for this period.
+                        </div>
+
+                        <VueApexCharts
+                            v-else
+                            class="mt-4"
+                            height="360"
+                            :type="attendanceChartMode === 'stacked' ? 'bar' : 'line'"
+                            :options="attendanceChartOptions"
+                            :series="attendanceTrendSeries"
+                        />
                     </section>
 
                     <section class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                            <h4 class="mb-3 text-sm font-semibold text-slate-800">Today's Schedules</h4>
-                            <div v-if="dashboard.queues.today_schedules.length === 0" class="text-sm text-slate-500">No schedules for today.</div>
-                            <div v-else class="space-y-2">
-                                <div v-for="item in dashboard.queues.today_schedules" :key="item.id" class="rounded-lg border border-slate-200 p-3">
-                                    <div class="flex items-start justify-between gap-2">
+                        <article class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Attendance by Team</p>
+                                <h4 class="mt-1 text-base font-semibold text-slate-900">Team Attendance Comparison</h4>
+                                <p class="mt-1 text-xs text-slate-600">Compare which teams are performing best and worst in attendance for the selected period.</p>
+                            </div>
+
+                            <div
+                                v-if="dashboard.trends.attendance_by_team.labels.length === 0"
+                                class="mt-4 rounded-2xl border border-dashed border-[#034485]/25 bg-[#034485]/5 px-4 py-10 text-center text-sm text-slate-500"
+                            >
+                                No team attendance data is available for this period.
+                            </div>
+
+                            <VueApexCharts
+                                v-else
+                                class="mt-4"
+                                height="320"
+                                type="bar"
+                                :options="attendanceByTeamOptions"
+                                :series="attendanceByTeamSeries"
+                            />
+                        </article>
+
+                        <article class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Wellness Snapshot</p>
+                                <h4 class="mt-1 text-base font-semibold text-slate-900">Injury And Fatigue Overview</h4>
+                                <p class="mt-1 text-xs text-slate-600">Track wellness monitoring activity through observed injuries and average fatigue over the selected period.</p>
+                            </div>
+
+                            <div
+                                v-if="dashboard.trends.wellness_snapshot.labels.length === 0"
+                                class="mt-4 rounded-2xl border border-dashed border-[#034485]/25 bg-[#034485]/5 px-4 py-10 text-center text-sm text-slate-500"
+                            >
+                                No wellness monitoring data is available for this period.
+                            </div>
+
+                            <VueApexCharts
+                                v-else
+                                class="mt-4"
+                                height="320"
+                                type="line"
+                                :options="wellnessSnapshotOptions"
+                                :series="wellnessSnapshotSeries"
+                            />
+                        </article>
+                    </section>
+
+                    <section class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)]">
+                        <div class="space-y-4">
+                            <article class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Pending Items</p>
+                                    <h4 class="mt-1 text-base font-semibold text-slate-900">Immediate Review Counts</h4>
+                                    <p class="mt-1 text-xs text-slate-600">Keep track of approvals, academic reviews, and teams that still need recent attendance posting.</p>
+                                </div>
+
+                                <div class="mt-4 space-y-3">
+                                    <div class="flex items-center justify-between rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-3">
                                         <div>
-                                            <p class="text-sm font-semibold text-slate-900">{{ item.title }}</p>
-                                            <p class="text-xs text-slate-500">{{ item.team_name }} • {{ item.start_time }}</p>
+                                            <p class="text-sm font-semibold text-slate-900">Pending Student Approvals</p>
+                                            <p class="mt-1 text-xs text-slate-600">Accounts waiting for administrative approval.</p>
                                         </div>
-                                        <button
-                                            type="button"
-                                            class="rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100"
-                                            @click="goTo('/operations?tab=calendar')"
-                                        >
-                                            Open
-                                        </button>
+                                        <span class="rounded-full bg-[#034485] px-3 py-1 text-xs font-semibold text-white">
+                                            {{ dashboard.pending_items.pending_student_approvals }}
+                                        </span>
                                     </div>
-                                    <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
-                                        <p class="rounded bg-amber-50 px-2 py-1 text-amber-700">Late: {{ item.late }}</p>
-                                        <p class="rounded bg-rose-50 px-2 py-1 text-rose-700">Absent: {{ item.absent }}</p>
-                                        <p class="rounded bg-slate-100 px-2 py-1 text-slate-700">No Response: {{ item.no_response }}</p>
+
+                                    <div class="flex items-center justify-between rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-slate-900">Pending Academic Reviews</p>
+                                            <p class="mt-1 text-xs text-slate-600">Evaluations still awaiting final review handling.</p>
+                                        </div>
+                                        <span class="rounded-full bg-[#034485] px-3 py-1 text-xs font-semibold text-white">
+                                            {{ dashboard.pending_items.pending_academic_reviews }}
+                                        </span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-slate-900">Teams Without Recent Attendance</p>
+                                            <p class="mt-1 text-xs text-slate-600">Active teams with schedules in range but no attendance posting yet.</p>
+                                        </div>
+                                        <span class="rounded-full bg-[#034485] px-3 py-1 text-xs font-semibold text-white">
+                                            {{ dashboard.pending_items.teams_without_recent_attendance }}
+                                        </span>
                                     </div>
                                 </div>
-                            </div>
-                        </article>
+                            </article>
 
-                        <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                            <h4 class="mb-3 text-sm font-semibold text-slate-800">Needs Attention Queue</h4>
-                            <div v-if="dashboard.queues.needs_attention.length === 0" class="text-sm text-slate-500">
-                                No priority items right now.
-                            </div>
-                            <div v-else class="space-y-2">
+                            <article class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Academic Status</p>
+                                    <h4 class="mt-1 text-base font-semibold text-slate-900">Eligibility Distribution</h4>
+                                    <p class="mt-1 text-xs text-slate-600">View the current mix of eligible, pending review, and ineligible student-athlete evaluations.</p>
+                                </div>
+
                                 <div
-                                    v-for="(item, idx) in dashboard.queues.needs_attention"
-                                    :key="`${item.type}-${idx}`"
-                                    class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2"
+                                    v-if="academicStatusSeries.every((value) => Number(value) === 0)"
+                                    class="mt-4 rounded-2xl border border-dashed border-[#034485]/25 bg-[#034485]/5 px-4 py-10 text-center text-sm text-slate-500"
                                 >
-                                    <div>
-                                        <p class="text-sm font-medium text-slate-900">{{ item.title }}</p>
-                                        <p class="text-xs text-slate-500">{{ item.subtitle }}</p>
+                                    No academic evaluation status data is available right now.
+                                </div>
+
+                                <template v-else>
+                                    <VueApexCharts class="mt-4" height="320" type="donut" :options="academicStatusOptions" :series="academicStatusSeries" />
+
+                                    <div class="mt-3 grid grid-cols-3 gap-2">
+                                        <div class="rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-3 py-3 text-center">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#034485]/80">Eligible</p>
+                                            <p class="mt-1 text-lg font-bold text-[#034485]">{{ dashboard.academic_status.eligible }}</p>
+                                        </div>
+                                        <div class="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3 text-center">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">Pending</p>
+                                            <p class="mt-1 text-lg font-bold text-sky-700">{{ dashboard.academic_status.pending_review }}</p>
+                                        </div>
+                                        <div class="rounded-2xl border border-blue-200 bg-blue-50 px-3 py-3 text-center">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-700">Ineligible</p>
+                                            <p class="mt-1 text-lg font-bold text-blue-700">{{ dashboard.academic_status.ineligible }}</p>
+                                        </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        class="rounded-md bg-[#1f2937] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#334155]"
-                                        @click="goTo(item.action_url)"
-                                    >
-                                        {{ item.action_label }}
-                                    </button>
+                                </template>
+                            </article>
+                        </div>
+
+                        <article class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Recent Activity</p>
+                                    <h4 class="mt-1 text-base font-semibold text-slate-900">Latest Operational Updates</h4>
+                                    <p class="mt-1 text-xs text-slate-600">Follow recent approvals, academic reviews, roster updates, and attendance postings from the latest system activity.</p>
                                 </div>
                             </div>
-                        </article>
-                    </section>
 
-                    <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                            <div>
-                                <h4 class="text-sm font-semibold text-slate-800">Action Needed</h4>
-                                <p class="text-xs text-slate-500">Priority issues that require admin follow-up across varsity operations.</p>
+                            <div v-if="dashboard.recent_activity.length === 0" class="mt-4 rounded-2xl border border-dashed border-[#034485]/25 bg-[#034485]/5 px-4 py-10 text-center text-sm text-slate-500">
+                                No recent activity is available right now.
                             </div>
-                            <div class="flex flex-wrap gap-2">
-                                <span class="rounded-full border border-[#034485]/20 bg-[#034485]/5 px-3 py-1 text-[11px] font-semibold text-[#034485]">
-                                    {{ actionCenter?.summary.open_issues ?? 0 }} open
-                                </span>
-                                <span class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-700">
-                                    {{ actionCenter?.high_priority_count ?? 0 }} high priority
-                                </span>
-                            </div>
-                        </div>
 
-                        <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                            <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Open Issues</p>
-                                <p class="mt-2 text-2xl font-bold" :class="actionSummaryTone('open')">{{ actionCenter?.summary.open_issues ?? 0 }}</p>
-                            </article>
-                            <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Critical</p>
-                                <p class="mt-2 text-2xl font-bold" :class="actionSummaryTone('critical')">{{ actionCenter?.summary.critical ?? 0 }}</p>
-                            </article>
-                            <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Due Today</p>
-                                <p class="mt-2 text-2xl font-bold" :class="actionSummaryTone('today')">{{ actionCenter?.summary.due_today ?? 0 }}</p>
-                            </article>
-                            <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Pending Review</p>
-                                <p class="mt-2 text-2xl font-bold" :class="actionSummaryTone('review')">{{ actionCenter?.summary.pending_review ?? 0 }}</p>
-                            </article>
-                        </div>
-
-                        <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.5fr_0.95fr]">
-                            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <div v-else class="mt-4 space-y-3">
                                 <article
-                                    v-for="group in actionCenter?.groups ?? []"
-                                    :key="group.key"
-                                    class="rounded-xl border border-slate-200 bg-white p-4"
+                                    v-for="item in dashboard.recent_activity"
+                                    :key="item.id"
+                                    class="page-card rounded-2xl border border-[#034485]/18 bg-[#034485]/[0.03] px-4 py-3"
                                 >
-                                    <div class="mb-3 flex items-start justify-between gap-3">
-                                        <div class="min-w-0">
-                                            <div class="flex items-center gap-2">
-                                                <h5 class="text-sm font-semibold text-slate-900">{{ group.title }}</h5>
-                                                <span class="rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="actionGroupTone(group.tone)">
-                                                    {{ group.count }}
-                                                </span>
-                                            </div>
-                                            <p class="mt-1 text-xs leading-5 text-slate-500">{{ group.description }}</p>
-                                        </div>
-                                    </div>
-
-                                    <div v-if="group.items.length === 0" class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
-                                        No items in this queue right now.
-                                    </div>
-
-                                    <div v-else class="space-y-3">
-                                        <div
-                                            v-for="item in group.items"
-                                            :key="item.id"
-                                            class="rounded-lg border border-slate-200 p-3 transition hover:border-slate-300 hover:bg-slate-50"
-                                        >
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div class="min-w-0">
-                                                    <div class="flex flex-wrap items-center gap-2">
-                                                        <p class="text-sm font-medium text-slate-900">{{ item.title }}</p>
-                                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]" :class="urgencyTone(item.urgency)">
-                                                            {{ item.urgency }}
-                                                        </span>
-                                                    </div>
-                                                    <p class="mt-1 text-xs leading-5 text-slate-500">{{ item.subtitle }}</p>
-                                                    <p v-if="item.meta" class="mt-1 text-[11px] font-medium text-slate-400">{{ item.meta }}</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    class="shrink-0 rounded-md bg-[#1f2937] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#334155]"
-                                                    @click="goTo(item.action_url)"
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span
+                                                    class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                                                    :class="activityTypeClasses(item.type)"
                                                 >
-                                                    {{ item.action_label }}
-                                                </button>
+                                                    {{ activityTypeLabel(item.type) }}
+                                                </span>
+                                                <p class="text-sm font-semibold text-slate-900">{{ item.title }}</p>
                                             </div>
+                                            <p class="mt-2 text-sm leading-6 text-slate-600">{{ item.description }}</p>
                                         </div>
-                                    </div>
-
-                                    <div class="mt-3 flex justify-end">
-                                        <button
-                                            type="button"
-                                            class="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                                            @click="goTo(group.action_url)"
-                                        >
-                                            {{ group.action_label }}
-                                        </button>
+                                        <p class="shrink-0 text-xs font-medium text-slate-500">
+                                            {{ formatDashboardActivityTime(item.happened_at) }}
+                                        </p>
                                     </div>
                                 </article>
                             </div>
-
-                            <aside class="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                                <div class="mb-3">
-                                    <h5 class="text-sm font-semibold text-slate-800">Recent Activity</h5>
-                                    <p class="text-xs text-slate-500">
-                                        {{ actionCenter?.recent_activity.summary.total ?? 0 }} recent actions • Students
-                                        {{ actionCenter?.recent_activity.summary.students ?? 0 }} • Coaches
-                                        {{ actionCenter?.recent_activity.summary.coaches ?? 0 }}
-                                    </p>
-                                </div>
-
-                                <div v-if="(actionCenter?.recent_activity.items ?? []).length === 0" class="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
-                                    No recent student or coach activity found.
-                                </div>
-
-                                <div v-else class="space-y-1">
-                                    <div
-                                        v-for="item in actionCenter?.recent_activity.items ?? []"
-                                        :key="item.id"
-                                        class="border-b border-slate-200/80 py-3 last:border-b-0"
-                                    >
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div class="min-w-0">
-                                                <div class="flex flex-wrap items-center gap-2">
-                                                    <p class="text-sm font-medium text-slate-900">{{ item.actor_name }}</p>
-                                                    <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize" :class="roleTone(item.actor_role)">
-                                                        {{ item.actor_role.replace('-', ' ') }}
-                                                    </span>
-                                                </div>
-                                                <p class="mt-1 text-xs leading-5 text-slate-500">{{ item.description }}</p>
-                                            </div>
-                                            <span class="shrink-0 text-[11px] font-medium text-slate-400">{{ formatActivityTime(item.happened_at) }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </aside>
-                        </div>
+                        </article>
                     </section>
+
                 </div>
 
                 <div v-else class="space-y-5">
-                    <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
-                        <h3 class="text-xl font-bold text-[#1f2937]">Dashboard</h3>
+                    <section class="page-card rounded-xl border border-[#034485]/22 bg-white p-5">
+                        <h3 class="text-xl font-bold text-slate-900">Dashboard</h3>
                         <p class="mt-1 text-sm text-slate-600">No dashboard data available.</p>
                     </section>
                 </div>
@@ -1380,3 +1484,39 @@ watch(
         </div>
     </div>
 </template>
+
+<style scoped>
+:deep(.page-card) {
+    animation: adminCardRise 0.5s ease-out both;
+}
+
+:deep(.page-card:nth-child(2)) {
+    animation-delay: 0.05s;
+}
+
+:deep(.page-card:nth-child(3)) {
+    animation-delay: 0.1s;
+}
+
+:deep(.page-card:nth-child(4)) {
+    animation-delay: 0.15s;
+}
+
+@keyframes adminCardRise {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :deep(.page-card) {
+        animation: none !important;
+    }
+}
+</style>

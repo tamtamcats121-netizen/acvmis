@@ -5,11 +5,11 @@ import { computed, ref } from 'vue'
 import { resolveUserAvatarUrl } from '@/utils/media'
 
 const props = withDefaults(defineProps<{
-  dark?: boolean
+  inverse?: boolean
   menuPlacement?: 'bottom' | 'top' | 'right'
   compact?: boolean
 }>(), {
-  dark: false,
+  inverse: false,
   menuPlacement: 'bottom',
   compact: false,
 })
@@ -90,7 +90,7 @@ function scheduleClose() {
       type="button"
       class="account-card"
       :class="[
-        dark ? 'account-card-dark' : 'account-card-light',
+        inverse ? 'account-card-inverse' : 'account-card-light',
         compact ? 'account-card-compact' : '',
       ]"
       @click="menuOpen = !menuOpen"
@@ -141,7 +141,7 @@ function scheduleClose() {
   box-shadow: none !important;
 }
 
-.account-card-dark {
+.account-card-inverse {
   border: 1px solid #475569;
   background: #1e293b;
   color: #e2e8f0;
@@ -166,7 +166,7 @@ function scheduleClose() {
   color: rgb(100 116 139);
 }
 
-.account-card-dark .account-meta {
+.account-card-inverse .account-meta {
   color: rgb(148 163 184);
 }
 

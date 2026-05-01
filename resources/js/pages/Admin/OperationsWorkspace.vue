@@ -489,28 +489,28 @@ function printCalendarSchedules() {
 
 <template>
     <div class="space-y-5">
-        <section class="rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
+        <section class="page-card rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Operations Workspace</p>
             <h1 class="mt-2 text-2xl font-bold">Attendance And Schedule Monitoring</h1>
             <p class="mt-2 max-w-3xl text-sm text-white/85">
-                Review team schedules, monitor attendance activity, inspect exception cases, and open schedule drilldowns from one shared operations workspace.
+                Review team schedules, monitor attendance activity, follow up on unresolved records, and open schedule drilldowns from one shared operations workspace.
             </p>
         </section>
 
-        <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-white p-5">
             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                     v-model="filterForm.search"
                     type="text"
-                    placeholder="Search schedule, team, sport, or student"
-                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm sm:flex-1"
+                    placeholder="Search by schedule, team, sport, student, or status"
+                    class="w-full rounded-md border border-[#034485]/20 px-3 py-2 text-sm sm:flex-1"
                     @keyup.enter="applyFilters"
                 />
-                <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="applyFilters">
+                <button type="button" class="rounded-md bg-[#034485] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f]" @click="applyFilters">
                     Search
                 </button>
-                <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="showFilters = !showFilters">
-                    Filters <span v-if="activeFilterCount" class="ml-1 rounded-full bg-slate-200 px-1.5 py-0.5 text-xs">{{ activeFilterCount }}</span>
+                <button type="button" class="rounded-md border border-[#034485]/30 px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]" @click="showFilters = !showFilters">
+                    Filters <span v-if="activeFilterCount" class="ml-1 rounded-full bg-[#dcecff] px-1.5 py-0.5 text-xs text-[#034485]">{{ activeFilterCount }}</span>
                 </button>
             </div>
 
@@ -580,12 +580,12 @@ function printCalendarSchedules() {
             </div>
         </section>
 
-        <section class="rounded-3xl border border-[#034485]/35 bg-white p-4">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4">
             <div class="mb-4 flex flex-wrap gap-2">
                 <button
                     type="button"
                     class="rounded-md px-3 py-2 text-sm font-medium"
-                    :class="activeTab === 'calendar' ? 'bg-[#1f2937] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                    :class="activeTab === 'calendar' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
                     @click="setTab('calendar')"
                 >
                     Calendar
@@ -593,7 +593,7 @@ function printCalendarSchedules() {
                 <button
                     type="button"
                     class="rounded-md px-3 py-2 text-sm font-medium"
-                    :class="activeTab === 'attendance' ? 'bg-[#1f2937] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                    :class="activeTab === 'attendance' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
                     @click="setTab('attendance')"
                 >
                     Attendance
@@ -601,15 +601,22 @@ function printCalendarSchedules() {
                 <button
                     type="button"
                     class="rounded-md px-3 py-2 text-sm font-medium"
-                    :class="activeTab === 'exceptions' ? 'bg-[#1f2937] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                    :class="activeTab === 'exceptions' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
                     @click="setTab('exceptions')"
                 >
-                    Exceptions
+                    Needs Attention
                 </button>
             </div>
 
+            <div v-if="activeTab === 'exceptions'" class="mb-4 rounded-2xl border border-[#034485]/20 bg-[#f8fbff] px-4 py-3">
+                <p class="text-sm font-semibold text-[#034485]">Attendance Follow-Up Queue</p>
+                <p class="mt-1 text-sm text-slate-600">
+                    Review late, absent, no-response, or manually adjusted attendance records that still need admin follow-up.
+                </p>
+            </div>
+
             <div v-if="activeTab === 'calendar'" class="grid grid-cols-1 gap-4 xl:grid-cols-4">
-                <section class="xl:col-span-3 overflow-hidden rounded-2xl border border-[#034485]/25 bg-white p-3">
+                <section class="page-card xl:col-span-3 overflow-hidden rounded-2xl border border-[#034485]/25 bg-white p-3">
                     <div class="mb-3 flex flex-wrap items-center gap-2" aria-label="Sport legend">
                         <button
                             type="button"
@@ -710,7 +717,9 @@ function printCalendarSchedules() {
                         </thead>
                         <transition-group name="table-fade" tag="tbody">
                             <tr v-if="visibleTable.data.length === 0" key="empty">
-                                <td colspan="6" class="px-3 py-4 text-center text-slate-500">No records found.</td>
+                                <td colspan="6" class="px-3 py-4 text-center text-slate-500">
+                                    {{ activeTab === 'exceptions' ? 'No follow-up attendance records were found.' : 'No attendance records were found.' }}
+                                </td>
                             </tr>
                             <tr v-for="row in visibleTable.data" :key="`${row.schedule_id}-${row.student_id}`" class="border-t border-slate-200">
                                 <td class="px-3 py-2">
@@ -735,7 +744,7 @@ function printCalendarSchedules() {
                                         :disabled="isSavingOverride"
                                         @click="markExcused(row.schedule_id, row.student_id, row.status)"
                                     >
-                                        Mark Excused
+                                        Resolve as Excused
                                     </button>
                                 </td>
                             </tr>

@@ -13,42 +13,17 @@ import { Transition, createApp, h } from 'vue';
 import SessionExpiredToast from '@/components/ui/SessionExpiredToast.vue';
 import { showAppToast } from '@/composables/useAppToast';
 import { useSessionExpired } from '@/composables/useSessionExpired';
-import { initTheme, setStoredTheme } from '@/composables/useTheme';
+import { initTheme } from '@/composables/useTheme';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ACVMIS';
 
-function applyThemeFromProps(pageProps: any) {
-    const storedTheme = typeof window !== 'undefined' ? window.localStorage.getItem('ac-vmis-theme-mode') : null;
-    if (storedTheme === 'light' || storedTheme === 'dark') {
-        setStoredTheme(storedTheme);
-        return true;
-    }
-    if (storedTheme === 'blue') {
-        setStoredTheme('dark');
-        return true;
-    }
-    const theme = pageProps?.auth?.settings?.theme_preference;
-    if (theme === 'light' || theme === 'dark') {
-        setStoredTheme(theme);
-        return true;
-    }
-    if (theme === 'blue') {
-        setStoredTheme('dark');
-        return true;
-    }
-    return false;
-}
+initTheme();
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob<DefineComponent>('./pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
-        if (!applyThemeFromProps(props.initialPage?.props)) {
-            initTheme();
-        }
         router.on('success', (event) => {
-            applyThemeFromProps(event.detail.page.props);
-
             const flash = (event.detail.page.props as any)?.flash ?? {};
             showAppToast(String(flash.login_success ?? ''), 'success');
             showAppToast(String(flash.success ?? ''), 'success');

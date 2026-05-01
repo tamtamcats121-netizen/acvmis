@@ -188,60 +188,66 @@ function formatRelative(value: string | null) {
 <template>
   <Head title="Announcements" />
   <div class="space-y-4">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex flex-col gap-4">
       <div>
         <Link href="/CoachDashboard" class="mb-2 inline-flex items-center rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-[#034485] transition hover:bg-[#034485]/10">
           Return to Dashboard
         </Link>
-        <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
-        <p class="text-sm text-slate-500">Broadcast updates from admin and system events.</p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
+
+      <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Coach communication</p>
+        <h1 class="mt-2 text-2xl font-bold text-white">Announcements</h1>
+        <p class="mt-2 text-sm text-white/85">Broadcast updates from admin and system events.</p>
+      </section>
+
+      <div class="flex flex-wrap items-center gap-2 sm:justify-between">
+        <div class="text-sm text-slate-500">
+          {{ pageSummary }}
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
+            <button
+              type="button"
+              class="rounded-full px-3 py-1 transition"
+              :class="activeFilter === 'all' ? 'bg-[#1f2937] text-white' : 'text-slate-600 hover:bg-slate-100'"
+              @click="setFilter('all')"
+            >
+              All
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-3 py-1 transition"
+              :class="activeFilter === 'unread' ? 'bg-[#1f2937] text-white' : 'text-slate-600 hover:bg-slate-100'"
+              @click="setFilter('unread')"
+            >
+              Unread
+            </button>
+          </div>
           <button
             type="button"
-            class="rounded-full px-3 py-1 transition"
-            :class="activeFilter === 'all' ? 'bg-[#1f2937] text-white' : 'text-slate-600 hover:bg-slate-100'"
-            @click="setFilter('all')"
+            class="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="processingAll || unreadCount === 0"
+            @click="markAllRead"
           >
-            All
-          </button>
-          <button
-            type="button"
-            class="rounded-full px-3 py-1 transition"
-            :class="activeFilter === 'unread' ? 'bg-[#1f2937] text-white' : 'text-slate-600 hover:bg-slate-100'"
-            @click="setFilter('unread')"
-          >
-            Unread
+            {{ processingAll ? 'Marking...' : 'Mark All Read' }}
           </button>
         </div>
-        <button
-          type="button"
-          class="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="processingAll || unreadCount === 0"
-          @click="markAllRead"
-        >
-          {{ processingAll ? 'Marking...' : 'Mark All Read' }}
-        </button>
       </div>
-    </div>
-
-    <div class="text-sm text-slate-500">
-      {{ pageSummary }}
     </div>
 
     <p v-if="actionMessage" class="text-sm" :class="actionTone === 'error' ? 'text-rose-600' : 'text-emerald-600'">
       {{ actionMessage }}
     </p>
 
-    <div v-if="localAnnouncements.length === 0" class="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
+    <div v-if="localAnnouncements.length === 0" class="page-card rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
       No announcements yet.
     </div>
 
     <div
       v-for="item in localAnnouncements"
       :key="item.id"
-      class="rounded-xl border p-4 transition"
+      class="page-card rounded-xl border p-4 transition"
       :class="item.is_read
         ? 'border-[#034485]/40 bg-white text-slate-900'
         : 'cursor-pointer border-[#034485] bg-[#034485] text-white'"
@@ -299,3 +305,29 @@ function formatRelative(value: string | null) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.page-card {
+  opacity: 0;
+  animation: coach-announcement-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes coach-announcement-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-card {
+    animation: none;
+    opacity: 1;
+  }
+}
+</style>

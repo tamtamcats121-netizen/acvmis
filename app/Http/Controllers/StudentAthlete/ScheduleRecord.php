@@ -10,40 +10,16 @@ use App\Models\Team;
 use App\Models\Student;
 use App\Models\TeamSchedule;
 use App\Models\ScheduleAttendance;
-use App\Services\AcademicHoldService;
 use Carbon\Carbon;
 
 class ScheduleRecord extends Controller
 {
-    public function __construct(
-        private AcademicHoldService $holdService,
-    )
-    {
-    }
-
     public function mySchedules(Request $request)
     {
         $student = Student::where('user_id', Auth::id())->first();
 
         if (!$student) {
             return Inertia::render('StudentAthletes/MySchedules', [
-                'team' => null,
-                'teams' => [],
-                'selectedTeamId' => null,
-                'schedules' => [],
-            ]);
-        }
-
-        $holdState = $this->holdService->evaluate($student);
-        if ($holdState['status']) {
-            $teamName = Team::whereHas('players', fn ($q) => $q->where('student_id', $student->id))
-                ->orderBy('team_name')
-                ->value('team_name');
-            $teamText = $teamName ? "Your team ({$teamName}) is temporarily paused." : 'Your team access is temporarily paused.';
-            return Inertia::render('StudentAthletes/MySchedules', [
-                'accessLocked' => true,
-                'lockStatus' => $holdState['status'] ?? 'Suspended',
-                'lockMessage' => "Academic submission window is active. {$teamText}",
                 'team' => null,
                 'teams' => [],
                 'selectedTeamId' => null,

@@ -127,16 +127,6 @@ class Student extends Model
         return $this->hasMany(ScheduleAttendance::class, 'student_id');
     }
 
-    public function healthClearances()
-    {
-        return $this->hasMany(AthleteHealthClearance::class, 'student_id');
-    }
-
-    public function latestHealthClearance()
-    {
-        return $this->hasOne(AthleteHealthClearance::class, 'student_id')->latestOfMany();
-    }
-
     public function wellnessLogs()
     {
         return $this->hasMany(WellnessLog::class, 'student_id');
@@ -169,10 +159,5 @@ class Student extends Model
     public function academicEvaluations()
     {
         return $this->hasMany(AcademicEligibilityEvaluation::class, 'student_id');
-    }
-
-    public function academicHolds()
-    {
-        return $this->hasMany(AcademicHold::class, 'student_id');
     }
 }

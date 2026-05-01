@@ -59,6 +59,9 @@ function openDetails(player: any) {
 
 function closeDetails() {
     detailsOpen.value = false
+}
+
+function finishDetailsClose() {
     selectedPlayer.value = null
 }
 
@@ -160,7 +163,7 @@ function copyToClipboard(value: string | null | undefined, key: string) {
 
 function statusTone(status?: string | null) {
     if (status === 'inactive') return 'bg-slate-200 text-slate-700'
-    if (status === 'injured') return 'bg-amber-100 text-amber-700'
+    if (status === 'injured') return 'bg-rose-600 text-white'
     if (status === 'suspended') return 'bg-red-100 text-red-700'
     return 'bg-emerald-100 text-emerald-700'
 }
@@ -540,33 +543,33 @@ function cardMotion(order: number) {
             </section>
         </div>
 
-        <transition name="athlete-modal">
-            <div v-if="detailsOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 py-6" @click.self="closeDetails">
-                <div class="w-full max-w-2xl rounded-2xl border border-[#034485]/35 bg-white p-6 sm:p-8">
+        <transition name="athlete-modal" @after-leave="finishDetailsClose">
+            <div v-if="detailsOpen && selectedPlayer" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm" @click.self="closeDetails">
+                <div class="w-full max-w-2xl rounded-3xl border border-[#0f4f9f] bg-[#091120] p-6 text-slate-100 shadow-[0_28px_80px_-30px_rgba(2,12,27,0.9)] sm:p-8">
                     <div class="flex flex-wrap items-start justify-between gap-6">
                         <div class="min-w-[220px] flex-1 space-y-4">
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Team Member</p>
-                                <h3 class="text-2xl font-bold text-slate-900">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Team Member</p>
+                                <h3 class="text-2xl font-bold text-white">
                                     {{ selectedStudent?.first_name }} {{ selectedStudent?.last_name }}
                                 </h3>
-                                <p class="text-xs text-slate-500 mt-1">ID: {{ selectedStudent?.student_id_number || '-' }}</p>
+                                <p class="mt-1 text-xs text-slate-400">ID: {{ selectedStudent?.student_id_number || '-' }}</p>
                             </div>
 
-                            <div class="grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                                <p><span class="font-semibold text-slate-900">Position:</span> {{ selectedPlayer?.athlete_position || 'Unassigned' }}</p>
-                                <p><span class="font-semibold text-slate-900">Jersey:</span> {{ selectedPlayer?.jersey_number || '-' }}</p>
-                                <p><span class="font-semibold text-slate-900">Course/Strand:</span> {{ selectedStudent?.course_or_strand || '-' }}</p>
-                                <p><span class="font-semibold text-slate-900">Academic Level:</span> {{ selectedStudent?.academic_level_label || selectedStudent?.current_grade_level || '-' }}</p>
-                                <p><span class="font-semibold text-slate-900">Height:</span> {{ formatMeasure(selectedStudent?.height, 'cm') }}</p>
-                                <p><span class="font-semibold text-slate-900">Weight:</span> {{ formatMeasure(selectedStudent?.weight, 'kg') }}</p>
+                            <div class="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+                                <p><span class="font-semibold text-white">Position:</span> {{ selectedPlayer?.athlete_position || 'Unassigned' }}</p>
+                                <p><span class="font-semibold text-white">Jersey:</span> {{ selectedPlayer?.jersey_number || '-' }}</p>
+                                <p><span class="font-semibold text-white">Course/Strand:</span> {{ selectedStudent?.course_or_strand || '-' }}</p>
+                                <p><span class="font-semibold text-white">Academic Level:</span> {{ selectedStudent?.academic_level_label || selectedStudent?.current_grade_level || '-' }}</p>
+                                <p><span class="font-semibold text-white">Height:</span> {{ formatMeasure(selectedStudent?.height, 'cm') }}</p>
+                                <p><span class="font-semibold text-white">Weight:</span> {{ formatMeasure(selectedStudent?.weight, 'kg') }}</p>
                                 <p v-if="selectedStudent?.user?.email" class="sm:col-span-2">
-                                    <span class="font-semibold text-slate-900">Email:</span>
+                                    <span class="font-semibold text-white">Email:</span>
                                     <span class="ml-1 inline-flex items-center gap-2">
                                         {{ selectedStudent.user.email }}
                                         <button
                                             type="button"
-                                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#034485] hover:text-[#033a70]"
+                                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#6db1ff] hover:text-[#9cc9ff]"
                                             @click="copyToClipboard(selectedStudent.user.email, 'student-email')"
                                             title="Copy email"
                                             aria-label="Copy email"
@@ -579,12 +582,12 @@ function cardMotion(order: number) {
                                     </span>
                                 </p>
                                 <p v-if="selectedStudent?.phone_number" class="sm:col-span-2">
-                                    <span class="font-semibold text-slate-900">Phone:</span>
+                                    <span class="font-semibold text-white">Phone:</span>
                                     <span class="ml-1 inline-flex items-center gap-2">
                                         {{ selectedStudent.phone_number }}
                                         <button
                                             type="button"
-                                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#034485] hover:text-[#033a70]"
+                                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#6db1ff] hover:text-[#9cc9ff]"
                                             @click="copyToClipboard(selectedStudent.phone_number, 'student-phone')"
                                             title="Copy phone number"
                                             aria-label="Copy phone number"
@@ -598,14 +601,14 @@ function cardMotion(order: number) {
                                 </p>
                             </div>
                         </div>
-                        <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#034485]/25 bg-[#034485]/5">
+                        <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#0f4f9f] bg-[#0d1a32]">
                             <img
                                 v-if="selectedStudent?.user?.avatar"
                                 :src="userAvatarUrl(selectedStudent.user.avatar)"
                                 alt="Student avatar"
                                 class="h-full w-full object-cover"
                             />
-                            <span v-else class="text-lg font-semibold text-[#034485]">
+                            <span v-else class="text-lg font-semibold text-[#8bbcff]">
                                 {{ (selectedStudent?.first_name?.[0] || '') + (selectedStudent?.last_name?.[0] || '') }}
                             </span>
                         </div>
@@ -614,7 +617,7 @@ function cardMotion(order: number) {
                     <div class="mt-6 flex justify-end">
                         <button
                             type="button"
-                            class="rounded-full border border-[#034485] px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#034485]/10"
+                            class="rounded-full border border-[#0f4f9f] bg-[#0d1a32] px-4 py-2 text-sm font-semibold text-[#8bbcff] transition hover:bg-[#12305c]"
                             @click="closeDetails"
                         >
                             Close
@@ -647,11 +650,31 @@ function cardMotion(order: number) {
     }
 }
 
+.athlete-modal-enter-active,
+.athlete-modal-leave-active {
+    transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.athlete-modal-enter-from,
+.athlete-modal-leave-to {
+    opacity: 0;
+}
+
+.athlete-modal-enter-from > div,
+.athlete-modal-leave-to > div {
+    transform: translateY(16px) scale(0.98);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .team-page-view .page-card {
         animation: none;
         opacity: 1;
         transform: none;
+    }
+
+    .athlete-modal-enter-active,
+    .athlete-modal-leave-active {
+        transition: none;
     }
 }
 </style>

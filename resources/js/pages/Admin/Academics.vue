@@ -17,7 +17,6 @@ type Period = {
     starts_on: string
     ends_on: string
     status: 'draft' | 'open' | 'closed'
-    announcement: string | null
 }
 
 type EvaluationsRow = {
@@ -70,7 +69,6 @@ const schoolYear = ref('')
 const term = ref<'1st_sem' | '2nd_sem' | 'summer'>('1st_sem')
 const startsOn = ref('')
 const endsOn = ref('')
-const announcement = ref('')
 
 const filterForm = reactive({
     search: '',
@@ -257,7 +255,6 @@ function createPeriod() {
         term: term.value,
         starts_on: startsOn.value,
         ends_on: endsOn.value,
-        announcement: announcement.value,
     }, {
         preserveScroll: true,
         preserveState: true,
@@ -266,7 +263,6 @@ function createPeriod() {
             term.value = '1st_sem'
             startsOn.value = ''
             endsOn.value = ''
-            announcement.value = ''
             periodErrors.value = {}
             selectedPeriodId.value = props.periods?.[0]?.id ?? selectedPeriodId.value
             showAppToast('The new period is now available in the active period panel.', 'success', {
@@ -445,7 +441,7 @@ onMounted(() => {
     <Head title="Academics Workspace" />
 
     <div class="space-y-5">
-        <section class="rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
+        <section class="page-card rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Academic Oversight</p>
@@ -455,8 +451,8 @@ onMounted(() => {
             </div>
         </section>
 
-        <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
-            <section class="space-y-4">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-white p-5">
+            <section class="page-card space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h2 class="text-sm font-semibold text-slate-800">Period Management</h2>
                     <button
@@ -556,14 +552,12 @@ onMounted(() => {
                             {{ periodSaving ? 'Creating...' : 'Create' }}
                         </button>
                     </div>
-                    <textarea v-model="announcement" rows="2" placeholder="Announcement for students (optional)" class="mt-2 w-full rounded-md border border-slate-300 px-2 py-2 text-sm" />
-                    <p v-if="periodErrors.announcement" class="mt-1 text-xs text-rose-600">{{ periodErrors.announcement }}</p>
                 </div>
                 </div>
 
             </section>
 
-            <section class="mt-6 space-y-4">
+            <section class="page-card mt-6 space-y-4">
                 <div>
                     <h2 class="text-sm font-semibold text-slate-800">Evaluations</h2>
                     <p class="mt-1 text-sm text-slate-500">Search and review the evaluation records for the selected academic period.</p>
@@ -615,7 +609,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <section class="overflow-hidden rounded-2xl border border-[#034485]/35 bg-white">
+                <section class="page-card overflow-hidden rounded-2xl border border-[#034485]/35 bg-white">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead class="bg-[#034485] text-white">

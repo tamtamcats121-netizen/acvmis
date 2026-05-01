@@ -76,23 +76,25 @@ function cardMotion(order: number) {
 <template>
     <Head title="Wellness History" />
     <div class="wellness-page-view space-y-5">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">Wellness History</h1>
-                <p class="mt-1 text-sm text-slate-500">Review your coach-recorded post-training condition records.</p>
+                <h1 class="text-2xl font-bold text-white">Wellness History</h1>
+                <p class="mt-1 text-sm text-white/80">Review your coach-recorded post-training condition records.</p>
             </div>
             <div v-if="!accessLocked" class="flex flex-wrap gap-2">
                 <button
                     @click="showInjuryOnly = !showInjuryOnly"
-                    class="rounded-full border border-[#034485]/40 bg-white px-4 py-2 text-xs font-semibold"
-                    :class="showInjuryOnly ? 'border-[#034485] bg-[#034485] text-white' : 'text-[#034485] hover:bg-[#034485]/10'"
+                    class="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/15"
+                    :class="showInjuryOnly ? 'border-white/30 bg-white text-[#034485]' : 'text-white hover:bg-white/15'"
                 >
                     {{ showInjuryOnly ? 'Showing Injury Records Only' : 'Show Injury Records Only' }}
                 </button>
             </div>
         </div>
+        </section>
 
-        <div v-if="accessLocked" class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485]/5 p-6 text-slate-700" :style="cardMotion(1)">
+        <div v-if="accessLocked" class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485]/5 p-6 text-slate-700" :style="cardMotion(2)">
             <h2 class="text-sm font-semibold text-slate-800">Wellness Access Paused</h2>
             <p class="mt-1 text-sm text-slate-600">{{ lockMessage || 'Wellness access is paused during the academic submission window.' }}</p>
             <div class="mt-3 text-xs text-slate-600">

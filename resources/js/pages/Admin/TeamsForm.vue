@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
+import BackLinkButton from '@/components/ui/BackLinkButton.vue'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
@@ -144,13 +145,7 @@ onBeforeUnmount(() => {
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="space-y-1">
-                <button
-                    type="button"
-                    class="text-sm font-medium text-[#034485] hover:text-[#033a70]"
-                    @click="goBack"
-                >
-                    ← Back to Teams
-                </button>
+                <BackLinkButton href="/teams" label="Back to Teams" />
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">
                     {{ isEditMode ? 'Edit Team' : 'Create Team' }}
                 </p>
@@ -166,7 +161,7 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <section class="rounded-3xl bg-[#034485] p-6 text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
+        <section class="page-card rounded-3xl border border-[#034485]/45 bg-[#034485] p-6 text-white">
             <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
                     <div class="h-20 w-20 overflow-hidden rounded-2xl border border-white/20 bg-white/10">
@@ -218,7 +213,7 @@ onBeforeUnmount(() => {
         </section>
 
         <section class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-            <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+            <section class="page-card rounded-3xl border border-[#034485]/30 bg-white p-5">
                 <div>
                     <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Team Identity</p>
                     <h2 class="mt-2 text-xl font-semibold text-slate-900">Basic Team Information</h2>
@@ -232,7 +227,7 @@ onBeforeUnmount(() => {
                             v-model="teamName"
                             type="text"
                             placeholder="e.g., Falcons A-Team"
-                            class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                            class="w-full rounded-xl border border-[#034485]/20 px-3 py-2.5 text-sm outline-none transition focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/15"
                         />
                         <p v-if="errors.team_name" class="mt-1 text-xs text-red-600">{{ errors.team_name }}</p>
                     </div>
@@ -240,7 +235,7 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 md:grid-cols-2">
                         <div>
                             <label class="mb-1 block text-sm font-medium text-slate-700">Sport</label>
-                            <select v-model="sport" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+                            <select v-model="sport" class="w-full rounded-xl border border-[#034485]/20 px-3 py-2.5 text-sm outline-none transition focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/15">
                                 <option value="" disabled>Select sport</option>
                                 <option v-for="item in sports" :key="item.id" :value="String(item.id)">
                                     {{ item.name }} (Max {{ item.max_players }})
@@ -251,7 +246,7 @@ onBeforeUnmount(() => {
 
                         <div>
                             <label class="mb-1 block text-sm font-medium text-slate-700">Year</label>
-                            <select v-model="year" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+                            <select v-model="year" class="w-full rounded-xl border border-[#034485]/20 px-3 py-2.5 text-sm outline-none transition focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/15">
                                 <option value="" disabled>Select year</option>
                                 <option v-for="item in yearOptions" :key="item" :value="item">{{ item }}</option>
                             </select>
@@ -264,7 +259,7 @@ onBeforeUnmount(() => {
                         <textarea
                             v-model="description"
                             rows="4"
-                            class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                            class="w-full rounded-xl border border-[#034485]/20 px-3 py-2.5 text-sm outline-none transition focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/15"
                             placeholder="Add optional notes about the team."
                         />
                     </div>
@@ -272,7 +267,7 @@ onBeforeUnmount(() => {
             </section>
 
             <section class="space-y-6">
-                <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+                <section class="page-card rounded-3xl border border-[#034485]/30 bg-white p-5">
                     <div>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Avatar</p>
                         <h2 class="mt-2 text-xl font-semibold text-slate-900">Team Photo</h2>
@@ -280,7 +275,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="mt-5 space-y-4">
-                        <div class="flex h-52 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                        <div class="flex h-52 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-[#f8fbff]">
                             <img
                                 v-if="avatarPreview"
                                 :src="avatarPreview"
@@ -296,7 +291,7 @@ onBeforeUnmount(() => {
                     </div>
                 </section>
 
-                <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+                <section class="page-card rounded-3xl border border-[#034485]/30 bg-white p-5">
                     <div>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#034485]">Workflow</p>
                         <h2 class="mt-2 text-xl font-semibold text-slate-900">Next Step After Save</h2>
@@ -304,15 +299,15 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="mt-5 space-y-3">
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="rounded-2xl border border-[#034485]/16 bg-[#f8fbff] px-4 py-3">
                             <p class="text-[11px] uppercase tracking-wide text-slate-500">1. Save Team</p>
                             <p class="mt-1 text-sm font-semibold text-slate-900">{{ isEditMode ? 'Update the team identity details.' : 'Create the base team record.' }}</p>
                         </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="rounded-2xl border border-[#034485]/16 bg-[#f8fbff] px-4 py-3">
                             <p class="text-[11px] uppercase tracking-wide text-slate-500">2. Return To Teams</p>
                             <p class="mt-1 text-sm font-semibold text-slate-900">Review the new team from the teams workspace.</p>
                         </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="rounded-2xl border border-[#034485]/16 bg-[#f8fbff] px-4 py-3">
                             <p class="text-[11px] uppercase tracking-wide text-slate-500">3. Manage Assignments</p>
                             <p class="mt-1 text-sm font-semibold text-slate-900">Open roster management from the team list whenever you are ready to assign coaches and players.</p>
                         </div>
@@ -321,7 +316,7 @@ onBeforeUnmount(() => {
             </section>
         </section>
 
-        <section class="rounded-3xl border border-[#034485]/20 bg-white p-5 shadow-sm">
+        <section class="page-card rounded-3xl border border-[#034485]/30 bg-white p-5">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-slate-900">Save Team</h2>

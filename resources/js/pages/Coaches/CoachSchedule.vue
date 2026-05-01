@@ -750,6 +750,13 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="space-y-4">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Team scheduling</p>
+            <h1 class="mt-2 text-2xl font-bold text-white">Schedule</h1>
+            <p class="mt-2 max-w-3xl text-sm leading-6 text-white/85">
+                Plan sessions, review upcoming and completed fixtures, and connect attendance and wellness actions from one coaching calendar.
+            </p>
+        </section>
 
         <!-- Header -->
         <div class="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -809,13 +816,13 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div v-if="!props.teams.length" class="page-card rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500" :style="cardMotion(1)">
+        <div v-if="!props.teams.length" class="page-card rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500" :style="cardMotion(2)">
             You are not assigned to a team yet.
         </div>
 
         <transition name="view-slide" mode="out-in">
             <div v-if="layout === 'list' && props.teams.length" key="list" class="space-y-6">
-                <div v-if="ownerSchedules.length === 0" class="page-card rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500" :style="cardMotion(2)">
+                <div v-if="ownerSchedules.length === 0" class="page-card rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500" :style="cardMotion(3)">
                     No schedules have been created yet.
                 </div>
 
@@ -845,7 +852,7 @@ onBeforeUnmount(() => {
                             No {{ statusLabel(section.key).toLowerCase() }} schedules.
                         </div>
 
-                        <article v-for="(item, itemIndex) in section.items" :key="item.id" class="page-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4" :style="cardMotion(3 + sectionIndex * 6 + itemIndex)">
+                        <article v-for="(item, itemIndex) in section.items" :key="item.id" class="page-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4" :style="cardMotion(4 + sectionIndex * 6 + itemIndex)">
                             <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
                                 <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
                                 <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
@@ -913,15 +920,15 @@ onBeforeUnmount(() => {
                 </div>
             </div>
             <div v-else-if="layout === 'calendar' && props.teams.length" key="calendar">
-                <div class="page-card mb-3 flex flex-wrap gap-4 text-xs" :style="cardMotion(3)">
+                <div class="page-card mb-3 flex flex-wrap gap-4 text-xs" :style="cardMotion(4)">
                     <div v-for="sport in sportsLegend" :key="sport.key" class="flex items-center gap-1 text-slate-700">
                         <span class="w-3 h-3 rounded" :style="{ backgroundColor: sport.color }"></span> {{ sport.label }}
                     </div>
                 </div>
-                <p class="page-card mb-3 text-xs text-slate-500" :style="cardMotion(4)">
+                <p class="page-card mb-3 text-xs text-slate-500" :style="cardMotion(5)">
                     Select an open time slot on the calendar to create a schedule.
                 </p>
-                <div ref="calendarContainer" class="page-card flex justify-center rounded-xl border border-slate-200 bg-white p-4 sm:p-6" :style="cardMotion(5)">
+                <div ref="calendarContainer" class="page-card flex justify-center rounded-xl border border-slate-200 bg-white p-4 sm:p-6" :style="cardMotion(6)">
                     <VueCal sm style="height: 500px; width: 100%; max-width: 1150px;" :events="calendarEvents"
                         default-view="month" :time="true" :twelve-hour="true" time-format="h:mm {am}" events-on-month-view
                         :editable-events="canManage" :event-create-min-drag="15" @event-create="onCalendarCreate"

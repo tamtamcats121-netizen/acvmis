@@ -188,7 +188,7 @@ function formatRelative(value: string | null) {
 <template>
     <Head title="Announcements" />
     <div class="space-y-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-4">
             <div>
                 <Link
                     href="/StudentAthleteDashboard"
@@ -196,10 +196,17 @@ function formatRelative(value: string | null) {
                 >
                     Return to Dashboard
                 </Link>
-                <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
-                <p class="text-sm text-slate-500">Review official notices from administrators and the system.</p>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
+
+            <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Student notices</p>
+                <h1 class="mt-2 text-2xl font-bold text-white">Announcements</h1>
+                <p class="mt-2 text-sm text-white/85">Review official notices from administrators and the system.</p>
+            </section>
+
+            <div class="flex flex-wrap items-center gap-2 sm:justify-between">
+                <p class="text-sm text-slate-500">{{ pageSummary }}</p>
+                <div class="flex flex-wrap items-center gap-2">
                 <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
                     <button
                         type="button"
@@ -227,20 +234,21 @@ function formatRelative(value: string | null) {
                     {{ processingAll ? 'Updating...' : 'Mark All as Read' }}
                 </button>
             </div>
+            </div>
         </div>
 
         <p v-if="actionMessage" class="text-sm" :class="actionTone === 'error' ? 'text-rose-600' : 'text-emerald-600'">
             {{ actionMessage }}
         </p>
 
-        <div v-if="localAnnouncements.length === 0" class="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
+        <div v-if="localAnnouncements.length === 0" class="page-card rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
             No announcements are available at this time.
         </div>
 
         <div
             v-for="item in localAnnouncements"
             :key="item.id"
-            class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition"
+            class="page-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition"
             :class="!item.is_read ? 'border-l-4 border-[#1f2937]' : ''"
         >
             <div class="flex flex-wrap items-center justify-between gap-3">
@@ -294,3 +302,29 @@ function formatRelative(value: string | null) {
         </div>
     </div>
 </template>
+
+<style scoped>
+.page-card {
+    opacity: 0;
+    animation: student-announcement-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes student-announcement-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-card {
+        animation: none;
+        opacity: 1;
+    }
+}
+</style>

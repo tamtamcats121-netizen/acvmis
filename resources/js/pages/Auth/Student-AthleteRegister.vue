@@ -55,14 +55,6 @@ const form = reactive({
     height_in: '',
     weight_kg: '',
 
-    clearance_date: '',
-    valid_until: '',
-    physician_name: '',
-    conditions: '',
-    allergies: '',
-    restrictions: '',
-    medical_certificate: null as File | null,
-
     academic_document_type: 'tor' as AcademicDocumentType,
     academic_document_file: null as File | null,
     academic_document_notes: '',
@@ -103,7 +95,6 @@ const fullNamePreview = computed(() => {
 
 const selectedFileNames = computed(() => ({
     avatar: form.avatar?.name ?? 'No file selected',
-    medical: form.medical_certificate?.name ?? 'No file selected',
     academic: form.academic_document_file?.name ?? 'No file selected',
 }));
 const avatarPreviewUrl = ref<string | null>(null);
@@ -334,33 +325,6 @@ function validateField(field: string): boolean {
         return true;
     }
 
-    if (field === 'clearance_date') {
-        if (!form.clearance_date) {
-            setFieldError(field, 'Medical clearance date is required.');
-            return false;
-        }
-        clearFieldError(field);
-        return true;
-    }
-
-    if (field === 'physician_name') {
-        if (!form.physician_name.trim()) {
-            setFieldError(field, 'Physician name is required.');
-            return false;
-        }
-        clearFieldError(field);
-        return true;
-    }
-
-    if (field === 'medical_certificate') {
-        if (!form.medical_certificate) {
-            setFieldError(field, 'Medical certificate is required.');
-            return false;
-        }
-        clearFieldError(field);
-        return true;
-    }
-
     if (field === 'academic_document_file') {
         if (!form.academic_document_file) {
             setFieldError(field, 'Academic document is required.');
@@ -480,7 +444,7 @@ function validateStep(currentStep: Step): boolean {
     const checks: Record<Step, string[]> = {
         1: ['email', 'password', 'password_confirmation', 'student_id_number'],
         2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand', 'height', 'weight_kg'],
-        3: ['clearance_date', 'physician_name', 'medical_certificate', 'academic_document_file'],
+        3: ['academic_document_file'],
     };
 
     return checks[currentStep].every((field) => validateField(field));
@@ -642,7 +606,7 @@ async function applyCroppedAvatar() {
     closeCropModal();
 }
 
-function setFile(field: 'avatar' | 'medical_certificate' | 'academic_document_file', event: Event) {
+function setFile(field: 'avatar' | 'academic_document_file', event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
 
@@ -666,10 +630,6 @@ function setFile(field: 'avatar' | 'medical_certificate' | 'academic_document_fi
 
     form[field] = file;
 
-    if (field === 'medical_certificate') {
-        touchAndValidate('medical_certificate');
-    }
-
     if (field === 'academic_document_file') {
         touchAndValidate('academic_document_file');
     }
@@ -679,7 +639,6 @@ function saveDraft() {
     const payload = {
         ...form,
         avatar: null,
-        medical_certificate: null,
         academic_document_file: null,
     };
 
@@ -751,16 +710,6 @@ function submit() {
     formData.append('emergency_contact_name', form.emergency_contact_name);
     formData.append('emergency_contact_relationship', form.emergency_contact_relationship);
     formData.append('emergency_contact_phone', form.emergency_contact_phone);
-
-    formData.append('clearance_date', form.clearance_date);
-    formData.append('valid_until', form.valid_until);
-    formData.append('physician_name', form.physician_name);
-    formData.append('conditions', form.conditions);
-    formData.append('allergies', form.allergies);
-    formData.append('restrictions', form.restrictions);
-    if (form.medical_certificate) {
-        formData.append('medical_certificate', form.medical_certificate);
-    }
 
     formData.append('academic_document_type', form.academic_document_type);
     if (form.academic_document_file) {
@@ -838,8 +787,6 @@ onBeforeUnmount(() => {
     >
         <main class="register-main px-4 py-8 sm:px-6 lg:px-10" @keydown.enter="handleEnter">
             <div class="mx-auto w-full max-w-4xl public-card register-card">
-                <h1 class="register-title">Student-Athlete Registration</h1>
-                <p class="register-subtitle">Complete the three-step registration process by providing your account details, personal information, and required documents.</p>
                 <FormAlert class="mt-4" tone="error" :message="formAlert" />
 
                 <div class="mt-6 stepper">
@@ -1113,48 +1060,8 @@ onBeforeUnmount(() => {
                     </section>
 
                     <section v-else key="step-3" class="mt-7 grid gap-4">
-                    <h2 class="text-lg font-semibold text-[#1f2937]">Pre-Participation Health Clearance</h2>
+                    <h2 class="text-lg font-semibold text-[#1f2937]">Academic Standing Document</h2>
                     <p class="text-xs text-slate-500">{{ acceptedDocsText }}</p>
-
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="label">Medical Clearance Date</label>
-                            <input v-model="form.clearance_date" type="date" :class="['field', { 'is-error': shouldShowError('clearance_date') }]" @blur="touchAndValidate('clearance_date')" />
-                            <FieldError :message="shouldShowError('clearance_date') ? fieldErrors.clearance_date : ''" />
-                        </div>
-                        <div>
-                            <label class="label">Valid Until (Optional)</label>
-                            <input v-model="form.valid_until" type="date" class="field" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="label">Physician Name</label>
-                        <input v-model="form.physician_name" type="text" :class="['field', { 'is-error': shouldShowError('physician_name') }]" @blur="touchAndValidate('physician_name')" />
-                        <FieldError :message="shouldShowError('physician_name') ? fieldErrors.physician_name : ''" />
-                    </div>
-
-                    <div class="grid gap-4 sm:grid-cols-3">
-                        <textarea v-model="form.conditions" class="field min-h-21" placeholder="Conditions (Optional)"></textarea>
-                        <textarea v-model="form.allergies" class="field min-h-21" placeholder="Allergies (Optional)"></textarea>
-                        <textarea v-model="form.restrictions" class="field min-h-21" placeholder="Restrictions (Optional)"></textarea>
-                    </div>
-
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="label">Medical Certificate</label>
-                            <input
-                                type="file"
-                                :class="['field', 'file-field', { 'is-error': shouldShowError('medical_certificate') }]"
-                                accept=".pdf,image/*"
-                                @change="(event) => setFile('medical_certificate', event)"
-                            />
-                            <p class="mt-1 text-xs text-slate-500">Selected: {{ selectedFileNames.medical }}</p>
-                            <FieldError :message="shouldShowError('medical_certificate') ? fieldErrors.medical_certificate : ''" />
-                        </div>
-                    </div>
-
-                    <h2 class="mt-3 text-lg font-semibold text-[#1f2937]">Academic Standing Document</h2>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>

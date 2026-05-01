@@ -45,6 +45,13 @@ class AcademicEligibilityEvaluation extends Model
             if ($evaluation->academic_period_id === null) {
                 throw new \InvalidArgumentException('Academic eligibility evaluations must be linked to an academic period.');
             }
+
+            $resolvedStatus = $evaluation->final_status
+                ?: self::statusForGpa($evaluation->gpa !== null ? (float) $evaluation->gpa : null);
+
+            if ($resolvedStatus !== null) {
+                $evaluation->setAttribute('status', self::legacyStatusValue($resolvedStatus));
+            }
         });
     }
 
@@ -154,6 +161,16 @@ class AcademicEligibilityEvaluation extends Model
         }
 
         return self::SCALE_UNKNOWN;
+    }
+
+    public static function legacyStatusValue(?string $status): ?string
+    {
+        return match ($status) {
+            'eligible' => 'eligible',
+            'ineligible' => 'ineligible',
+            'pending_review' => 'probation',
+            default => $status,
+        };
     }
 
     public function getStatusAttribute(): ?string

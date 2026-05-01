@@ -331,7 +331,19 @@ onBeforeUnmount(() => {
 
   <AccountShell active="profile">
     <form @submit.prevent="submit" class="space-y-5">
-      <section class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(1)">
+      <section
+        v-if="role === 'student'"
+        class="account-card rounded-[24px] border border-[#034485]/35 bg-[#034485] p-5 text-white shadow-[0_24px_50px_-38px_rgba(3,68,133,0.38)]"
+        :style="cardMotion(1)"
+      >
+        <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">Student profile</p>
+        <h1 class="mt-2 text-2xl font-bold text-white">{{ user?.name || 'My Profile' }}</h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-white/85">
+          Keep your personal and emergency details accurate while your official student record remains available below for reference.
+        </p>
+      </section>
+
+      <section class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(2)">
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_260px] lg:items-center">
           <div class="min-w-0">
             <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#034485]">Profile</p>
@@ -365,7 +377,7 @@ onBeforeUnmount(() => {
       </section>
 
       <div class="space-y-5">
-          <section class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(2)">
+          <section class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(3)">
             <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#034485]">Editable Information</p>
@@ -429,14 +441,14 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <div class="flex flex-wrap items-center gap-3" :style="cardMotion(3)">
+          <div class="flex flex-wrap items-center gap-3" :style="cardMotion(4)">
             <button type="submit" class="rounded-full bg-[#1f2937] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#334155]" :disabled="form.processing">
               {{ form.processing ? 'Saving...' : 'Save Profile' }}
             </button>
           </div>
       </div>
 
-      <section v-if="role === 'student' && profile.student" class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(4)">
+      <section v-if="role === 'student' && profile.student" class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(5)">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#034485]">Read-Only Student Record</p>

@@ -135,7 +135,7 @@ function isCurrentCoach(coach?: { user_id?: number | null; user?: { id?: number 
 
 function statusTone(status: PlayerStatus) {
     if (status === 'inactive') return 'bg-slate-200 text-slate-700'
-    if (status === 'injured') return 'bg-amber-100 text-amber-700'
+    if (status === 'injured') return 'bg-rose-600 text-white'
     if (status === 'suspended') return 'bg-red-100 text-red-700'
     return 'bg-emerald-100 text-emerald-700'
 }
@@ -305,12 +305,12 @@ function clearInjury(player: PlayerRow) {
             </div>
         </div>
 
-        <div v-if="!props.team" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div v-if="!props.team" class="page-card rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <p class="text-slate-500">You are not assigned to any team yet.</p>
         </div>
 
         <div v-else class="space-y-5">
-            <section class="rounded-2xl border border-[#034485] bg-[#034485] p-5">
+            <section class="page-card rounded-2xl border border-[#034485] bg-[#034485] p-5">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
                     <img
                         :src="teamAvatarUrl(props.team.team_avatar)"
@@ -350,7 +350,7 @@ function clearInjury(player: PlayerRow) {
                 </div>
 
                 <div class="mt-5 grid gap-3 lg:grid-cols-2">
-                    <article class="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                    <article class="page-card rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
                         <div class="flex items-center justify-between gap-2">
                             <p class="text-[11px] font-semibold uppercase tracking-wide text-white/75">Head Coach</p>
                             <span
@@ -381,7 +381,7 @@ function clearInjury(player: PlayerRow) {
                         </div>
                     </article>
 
-                    <article class="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                    <article class="page-card rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
                         <div class="flex items-center justify-between gap-2">
                             <p class="text-[11px] font-semibold uppercase tracking-wide text-white/75">Assistant Coach</p>
                             <span
@@ -414,12 +414,12 @@ function clearInjury(player: PlayerRow) {
                 </div>
             </section>
 
-            <div v-if="filteredPlayers.length === 0" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+            <div v-if="filteredPlayers.length === 0" class="page-card rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
                 No players found for this team.
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <article v-for="player in filteredPlayers" :key="player.id" class="rounded-2xl border border-[#034485]/35 bg-white p-4">
+                <article v-for="player in filteredPlayers" :key="player.id" class="page-card rounded-2xl border border-[#034485]/35 bg-white p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex min-w-0 items-start gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-sm font-bold text-slate-700">
@@ -509,15 +509,15 @@ function clearInjury(player: PlayerRow) {
                             </div>
                             <div
                                 v-if="(player.player_status ?? 'active') === 'injured'"
-                                class="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3"
+                                class="mt-2 rounded-xl border border-rose-300 bg-rose-50 p-3"
                             >
-                                <p class="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Injury Notes</p>
-                                <p class="mt-1 text-xs leading-5 text-amber-900">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Injury Notes</p>
+                                <p class="mt-1 text-xs leading-5 text-rose-900">
                                     {{ formatSimple(player.latest_injury_notes) }}
                                 </p>
                                 <button
                                     type="button"
-                                    class="mt-3 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:border-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                    class="mt-3 rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800 hover:border-rose-400 disabled:cursor-not-allowed disabled:opacity-60"
                                     :disabled="clearingInjuryPlayerId === player.id"
                                     @click="clearInjury(player)"
                                 >
@@ -707,5 +707,30 @@ function clearInjury(player: PlayerRow) {
 .athlete-modal-leave-from {
     opacity: 1;
     transform: translateY(0) scale(1);
+}
+</style>
+<style scoped>
+.page-card {
+    opacity: 0;
+    animation: coach-team-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes coach-team-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-card {
+        animation: none;
+        opacity: 1;
+    }
 }
 </style>

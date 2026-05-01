@@ -23,7 +23,6 @@ class AcademicPeriod extends Model
 
     protected $appends = [
         'status',
-        'announcement',
     ];
 
     public function getStatusAttribute(): string
@@ -59,49 +58,5 @@ class AcademicPeriod extends Model
     public function evaluations()
     {
         return $this->hasMany(AcademicEligibilityEvaluation::class, 'academic_period_id');
-    }
-
-    public function messages()
-    {
-        return $this->hasMany(AcademicPeriodMessage::class, 'academic_period_id');
-    }
-
-    public function latestMessage()
-    {
-        return $this->hasOne(AcademicPeriodMessage::class, 'academic_period_id')->latestOfMany('published_at');
-    }
-
-    public function getAnnouncementAttribute(): ?string
-    {
-        $message = $this->relationLoaded('latestMessage')
-            ? $this->getRelation('latestMessage')
-            : $this->latestMessage()->first();
-
-        return $message?->message;
-    }
-
-    public function syncAnnouncement(?string $message, ?int $createdBy = null): void
-    {
-        $normalized = trim((string) $message);
-        $current = $this->latestMessage()->first();
-        $currentMessage = trim((string) ($current?->message ?? ''));
-
-        if ($normalized === '') {
-            $this->messages()->delete();
-            $this->unsetRelation('latestMessage');
-            return;
-        }
-
-        if ($currentMessage === $normalized) {
-            return;
-        }
-
-        $this->messages()->create([
-            'message' => $normalized,
-            'published_at' => now(),
-            'created_by' => $createdBy,
-        ]);
-
-        $this->unsetRelation('latestMessage');
     }
 }

@@ -18,7 +18,6 @@ const reportTabs = [
     { label: 'Attendance', href: '/reports/attendance' },
     { label: 'Roster', href: '/reports/roster' },
     { label: 'Academics', href: '/reports/academics' },
-    { label: 'Health', href: '/reports/health' },
 ]
 
 const props = defineProps<{
@@ -108,7 +107,7 @@ function resetFilters() {
     <Head title="Academic Report" />
 
     <div class="space-y-5">
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold text-slate-900">Academic Submission Report</h1>
@@ -129,7 +128,7 @@ function resetFilters() {
             </div>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Period</label>
@@ -188,25 +187,25 @@ function resetFilters() {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5">
+        <section class="page-card space-y-4 rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Total Submissions</p>
                     <p class="mt-1 text-2xl font-bold text-[#034485]">{{ props.academicReport.summary.total_submissions }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Eligible</p>
                     <p class="mt-1 text-2xl font-bold text-emerald-700">{{ props.academicReport.summary.eligible }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Probation</p>
                     <p class="mt-1 text-2xl font-bold text-amber-700">{{ props.academicReport.summary.pending_review }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Ineligible</p>
                     <p class="mt-1 text-2xl font-bold text-rose-700">{{ props.academicReport.summary.ineligible }}</p>
                 </article>
-                <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Pending</p>
                     <p class="mt-1 text-2xl font-bold text-slate-900">{{ props.academicReport.summary.pending }}</p>
                 </article>

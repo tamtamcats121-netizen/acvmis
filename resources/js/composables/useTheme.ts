@@ -1,49 +1,51 @@
+import { computed, ref } from 'vue'
+
 export type ThemeMode = 'light' | 'dark'
 
-const THEME_KEY = 'ac-vmis-theme-mode'
-const THEME_OPTIONS: Array<{ value: ThemeMode; label: string }> = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-]
+const STORAGE_KEY = 'ac-vmis-theme-mode'
+const themeModeState = ref<ThemeMode>('light')
 
-function normalizeTheme(value: string | null | undefined): ThemeMode {
-  if (value === 'dark' || value === 'blue') return 'dark'
-  return 'light'
+function normalizeThemeMode(value: unknown): ThemeMode {
+  return value === 'dark' ? 'dark' : 'light'
 }
 
-export function getStoredTheme(): ThemeMode {
-  if (typeof window === 'undefined') return 'light'
-  return normalizeTheme(window.localStorage.getItem(THEME_KEY))
+function readStoredThemeMode(): ThemeMode {
+  if (typeof window === 'undefined') {
+    return 'light'
+  }
+
+  return normalizeThemeMode(window.localStorage.getItem(STORAGE_KEY))
 }
 
-export function applyTheme(mode: ThemeMode) {
-  if (typeof document === 'undefined') return
+function applyTheme(mode: ThemeMode, persist = true) {
+  themeModeState.value = mode
+
+  if (typeof document === 'undefined') {
+    return
+  }
+
   const root = document.documentElement
-
-  root.classList.forEach((className) => {
-    if (className.startsWith('theme-')) {
-      root.classList.remove(className)
-    }
-  })
-  if (mode === 'dark') root.classList.add('theme-dark')
+  root.classList.remove('theme-light', 'theme-dark')
+  root.classList.add(`theme-${mode}`)
   root.setAttribute('data-theme', mode)
+
+  if (persist && typeof window !== 'undefined') {
+    window.localStorage.setItem(STORAGE_KEY, mode)
+  }
 }
 
 export function initTheme() {
-  applyTheme(getStoredTheme())
-}
-
-export function setStoredTheme(mode: ThemeMode) {
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(THEME_KEY, mode)
-  }
-  applyTheme(mode)
+  applyTheme(readStoredThemeMode(), false)
 }
 
 export function useTheme() {
+  const themeMode = computed(() => themeModeState.value)
+  const isDarkMode = computed(() => themeModeState.value === 'dark')
+
   return {
-    themeOptions: THEME_OPTIONS,
-    getTheme: getStoredTheme,
-    setTheme: setStoredTheme,
+    themeMode,
+    isDarkMode,
+    setTheme: (mode: ThemeMode) => applyTheme(mode),
+    toggleTheme: () => applyTheme(themeModeState.value === 'dark' ? 'light' : 'dark'),
   }
 }

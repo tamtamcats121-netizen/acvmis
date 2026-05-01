@@ -16,6 +16,10 @@ return new class extends Migration
             if (Schema::hasColumn('user_settings', 'language')) {
                 $table->dropColumn('language');
             }
+
+            if (Schema::hasColumn('user_settings', 'timezone')) {
+                $table->dropColumn('timezone');
+            }
         });
 
         Schema::table('wellness_attachments', function (Blueprint $table) {
@@ -55,7 +59,11 @@ return new class extends Migration
             }
 
             if (!Schema::hasColumn('user_settings', 'language')) {
-                $table->string('language', 12)->default('en')->after('timezone');
+                $table->string('language', 12)->default('en')->after('notification_email_enabled');
+            }
+
+            if (!Schema::hasColumn('user_settings', 'timezone')) {
+                $table->string('timezone', 60)->default('Asia/Manila')->after('notification_in_app_enabled');
             }
         });
 

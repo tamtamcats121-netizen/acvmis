@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicDocument;
 use App\Models\AcademicEligibilityEvaluation;
 use App\Models\AcademicPeriod;
-use App\Models\AthleteHealthClearance;
 use App\Models\Sport;
 use App\Models\Team;
 use Carbon\Carbon;
@@ -90,32 +89,6 @@ class ReportsController extends Controller
             'academicReport' => [
                 'summary' => $this->academicSummary($filters),
                 'rows' => $this->academicRows($filters),
-            ],
-        ]);
-    }
-
-    public function health(Request $request)
-    {
-        $filters = $this->validatedFilters($request);
-
-        return Inertia::render('Admin/Reports/Health', [
-            'filters' => [
-                'selected' => [
-                    'team_id' => $filters['team_id'],
-                    'clearance_status' => $filters['clearance_status'],
-                    'review_state' => $filters['review_state'],
-                    'start_date' => $filters['start_date'],
-                    'end_date' => $filters['end_date'],
-                ],
-                'options' => [
-                    'teams' => $this->teamOptions(),
-                    'clearance_statuses' => $this->clearanceStatusOptions(),
-                    'review_states' => $this->reviewStateOptions(),
-                ],
-            ],
-            'healthReport' => [
-                'summary' => $this->healthSummary($filters),
-                'rows' => $this->healthRows($filters),
             ],
         ]);
     }
@@ -268,57 +241,6 @@ class ReportsController extends Controller
         return view('print.academic-submission-report', [
             'rows' => $this->academicRows($filters),
             'summary' => $this->academicSummary($filters),
-            'filtersSummary' => $this->filtersSummary($filters),
-            'generatedAt' => now()->format('M j, Y g:i A'),
-        ]);
-    }
-
-    public function exportHealthCsv(Request $request): StreamedResponse
-    {
-        $filters = $this->validatedFilters($request);
-        $rows = $this->healthRows($filters);
-
-        return response()->streamDownload(function () use ($rows) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, [
-                'Student',
-                'Student ID',
-                'Team',
-                'Clearance Date',
-                'Valid Until',
-                'Physician',
-                'Clearance Status',
-                'Reviewed',
-                'Reviewed By',
-            ]);
-
-            foreach ($rows as $row) {
-                fputcsv($handle, [
-                    $row['student_name'],
-                    $row['student_id_number'],
-                    $row['team_name'],
-                    $row['clearance_date'],
-                    $row['valid_until'],
-                    $row['physician_name'],
-                    $row['clearance_status'],
-                    $row['review_state'],
-                    $row['reviewed_by'],
-                ]);
-            }
-
-            fclose($handle);
-        }, 'health-clearance-status-report.csv', [
-            'Content-Type' => 'text/csv',
-        ]);
-    }
-
-    public function printHealthSummary(Request $request)
-    {
-        $filters = $this->validatedFilters($request);
-
-        return view('print.health-clearance-report', [
-            'rows' => $this->healthRows($filters),
-            'summary' => $this->healthSummary($filters),
             'filtersSummary' => $this->filtersSummary($filters),
             'generatedAt' => now()->format('M j, Y g:i A'),
         ]);
@@ -622,110 +544,6 @@ class ReportsController extends Controller
             ->values();
     }
 
-    private function healthSummary(array $filters): array
-    {
-        $today = now()->toDateString();
-        $statusCaseSql = AthleteHealthClearance::statusCaseSql('ahc');
-
-        $row = $this->healthBaseQuery($filters)
-            ->selectRaw('COUNT(*) as total_records')
-            ->selectRaw("SUM(CASE WHEN {$statusCaseSql} = 'fit' THEN 1 ELSE 0 END) as fit_count", [$today])
-            ->selectRaw("SUM(CASE WHEN {$statusCaseSql} = 'fit_with_restrictions' THEN 1 ELSE 0 END) as fit_with_restrictions_count", [$today])
-            ->selectRaw("SUM(CASE WHEN {$statusCaseSql} = 'not_fit' THEN 1 ELSE 0 END) as not_fit_count", [$today])
-            ->selectRaw("SUM(CASE WHEN {$statusCaseSql} = 'expired' THEN 1 ELSE 0 END) as expired_count", [$today])
-            ->selectRaw('SUM(CASE WHEN ahc.reviewed_at IS NOT NULL THEN 1 ELSE 0 END) as reviewed_count')
-            ->first();
-
-        return [
-            'total_records' => (int) ($row->total_records ?? 0),
-            'fit' => (int) ($row->fit_count ?? 0),
-            'fit_with_restrictions' => (int) ($row->fit_with_restrictions_count ?? 0),
-            'not_fit' => (int) ($row->not_fit_count ?? 0),
-            'expired' => (int) ($row->expired_count ?? 0),
-            'reviewed' => (int) ($row->reviewed_count ?? 0),
-        ];
-    }
-
-    private function healthRows(array $filters)
-    {
-        $today = now()->toDateString();
-        $statusCaseSql = AthleteHealthClearance::statusCaseSql('ahc');
-
-        return $this->healthBaseQuery($filters)
-            ->select([
-                'ahc.id',
-                's.student_id_number',
-                'su.first_name',
-                'su.last_name',
-                't.team_name',
-                'ahc.clearance_date',
-                'ahc.valid_until',
-                'ahc.physician_name',
-                'reviewer.first_name as reviewer_first_name',
-                'reviewer.last_name as reviewer_last_name',
-                'ahc.reviewed_at',
-            ])
-            ->selectRaw("{$statusCaseSql} as computed_clearance_status", [$today])
-            ->orderByDesc('ahc.clearance_date')
-            ->get()
-            ->map(fn ($row) => [
-                'id' => (int) $row->id,
-                'student_name' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
-                'student_id_number' => $row->student_id_number,
-                'team_name' => $row->team_name ?? 'No team',
-                'clearance_date' => $row->clearance_date,
-                'valid_until' => $row->valid_until,
-                'physician_name' => $row->physician_name ?: 'N/A',
-                'clearance_status' => ucfirst(str_replace('_', ' ', (string) $row->computed_clearance_status)),
-                'review_state' => $row->reviewed_at ? 'Reviewed' : 'Unreviewed',
-                'reviewed_by' => trim(($row->reviewer_first_name ?? '') . ' ' . ($row->reviewer_last_name ?? '')) ?: 'N/A',
-            ])
-            ->values();
-    }
-
-    private function healthBaseQuery(array $filters)
-    {
-        $query = DB::table('athlete_health_clearances as ahc')
-            ->join('students as s', 's.id', '=', 'ahc.student_id')
-            ->join('users as su', 'su.id', '=', 's.user_id')
-            ->leftJoin('users as reviewer', 'reviewer.id', '=', 'ahc.reviewed_by')
-            ->leftJoin('teams as t', function ($join) {
-                $join->on('t.id', '=', DB::raw('(SELECT tp.team_id FROM team_players tp WHERE tp.student_id = ahc.student_id ORDER BY tp.id ASC LIMIT 1)'));
-            });
-
-        if (!empty($filters['team_id'])) {
-            $query->whereExists(function ($sq) use ($filters) {
-                $sq->selectRaw('1')
-                    ->from('team_players as tp')
-                    ->whereColumn('tp.student_id', 's.id')
-                    ->where('tp.team_id', (int) $filters['team_id']);
-            });
-        }
-
-        if (!empty($filters['start_date'])) {
-            $query->whereDate('ahc.clearance_date', '>=', $filters['start_date']);
-        }
-        if (!empty($filters['end_date'])) {
-            $query->whereDate('ahc.clearance_date', '<=', $filters['end_date']);
-        }
-
-        if (!empty($filters['clearance_status'])) {
-            $today = now()->toDateString();
-            $statusCaseSql = AthleteHealthClearance::statusCaseSql('ahc');
-            $query->whereRaw("{$statusCaseSql} = ?", [$today, $filters['clearance_status']]);
-        }
-
-        if (!empty($filters['review_state'])) {
-            if ($filters['review_state'] === 'reviewed') {
-                $query->whereNotNull('ahc.reviewed_at');
-            } elseif ($filters['review_state'] === 'unreviewed') {
-                $query->whereNull('ahc.reviewed_at');
-            }
-        }
-
-        return $query;
-    }
-
     private function validatedFilters(Request $request): array
     {
         $validated = $request->validate([
@@ -734,9 +552,7 @@ class ReportsController extends Controller
             'team_id' => 'nullable|integer|exists:teams,id',
             'status' => 'nullable|in:present,absent,late,excused,no_response',
             'academic_status' => 'nullable|in:eligible,pending_review,ineligible,pending',
-            'clearance_status' => 'nullable|in:fit,fit_with_restrictions,not_fit,expired',
             'player_status' => 'nullable|in:active,injured,suspended,inactive',
-            'review_state' => 'nullable|in:reviewed,unreviewed',
             'year' => 'nullable|digits:4',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
@@ -748,9 +564,7 @@ class ReportsController extends Controller
             'team_id' => !empty($validated['team_id']) ? (int) $validated['team_id'] : null,
             'status' => $validated['status'] ?? null,
             'academic_status' => $validated['academic_status'] ?? null,
-            'clearance_status' => $validated['clearance_status'] ?? null,
             'player_status' => $validated['player_status'] ?? null,
-            'review_state' => $validated['review_state'] ?? null,
             'year' => $validated['year'] ?? null,
             'start_date' => $validated['start_date'] ?? null,
             'end_date' => $validated['end_date'] ?? null,
@@ -777,9 +591,7 @@ class ReportsController extends Controller
                 : 'All Sports',
             'status' => $filters['status'] ? ucfirst(str_replace('_', ' ', $filters['status'])) : 'All Statuses',
             'academic_status' => $filters['academic_status'] ? ucfirst(str_replace('_', ' ', $filters['academic_status'])) : 'All Academic Statuses',
-            'clearance_status' => $filters['clearance_status'] ? ucfirst(str_replace('_', ' ', $filters['clearance_status'])) : 'All Clearance Statuses',
             'player_status' => $filters['player_status'] ? ucfirst(str_replace('_', ' ', $filters['player_status'])) : 'All Player Statuses',
-            'review_state' => $filters['review_state'] ? ucfirst(str_replace('_', ' ', $filters['review_state'])) : 'All Review States',
             'year' => $filters['year'] ?? 'All Years',
             'date_range' => ($filters['start_date'] && $filters['end_date'])
                 ? "{$filters['start_date']} to {$filters['end_date']}"
@@ -851,24 +663,6 @@ class ReportsController extends Controller
             ['value' => 'pending_review', 'label' => 'Pending Review'],
             ['value' => 'ineligible', 'label' => 'Ineligible'],
             ['value' => 'pending', 'label' => 'Pending'],
-        ];
-    }
-
-    private function clearanceStatusOptions(): array
-    {
-        return [
-            ['value' => 'fit', 'label' => 'Fit'],
-            ['value' => 'fit_with_restrictions', 'label' => 'Fit with Restrictions'],
-            ['value' => 'not_fit', 'label' => 'Not Fit'],
-            ['value' => 'expired', 'label' => 'Expired'],
-        ];
-    }
-
-    private function reviewStateOptions(): array
-    {
-        return [
-            ['value' => 'reviewed', 'label' => 'Reviewed'],
-            ['value' => 'unreviewed', 'label' => 'Unreviewed'],
         ];
     }
 

@@ -3,17 +3,14 @@
 namespace App\Http\Controllers\Coaches;
 
 use App\Http\Controllers\Controller;
-use App\Models\AcademicDocument;
-use App\Models\AcademicPeriod;
-use App\Models\ScheduleAttendance;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\TeamSchedule;
+use App\Models\WellnessLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class CoachDashboardController extends Controller
@@ -37,91 +34,31 @@ class CoachDashboardController extends Controller
 
             $teamId = $team->id;
             $now = Carbon::now(config('app.timezone'));
+            $trendStart = $now->copy()->subDays(13)->startOfDay();
+            $trendEnd = $now->copy()->endOfDay();
 
             $rosterTotal = TeamPlayer::where('team_id', $teamId)->count();
-            $hasPlayerStatus = Schema::hasColumn('team_players', 'player_status');
-            $rosterInjured = $hasPlayerStatus
-                ? TeamPlayer::where('team_id', $teamId)->where('player_status', 'injured')->count()
-                : 0;
-            $rosterMissingPositions = TeamPlayer::where('team_id', $teamId)
-                ->where(function ($query) {
-                    $query->whereNull('athlete_position')->orWhere('athlete_position', '');
-                })
-                ->count();
-            $rosterJerseyPending = TeamPlayer::where('team_id', $teamId)
-                ->where(function ($query) {
-                    $query->whereNull('jersey_number')->orWhere('jersey_number', '');
-                })
-                ->count();
-
-            $nextScheduleModel = TeamSchedule::where('team_id', $teamId)
+            $upcomingSessions = TeamSchedule::query()
+                ->where('team_id', $teamId)
                 ->where('start_time', '>=', $now)
-                ->orderBy('start_time')
-                ->first();
-
-            $nextSchedule = $nextScheduleModel ? [
-                'id' => $nextScheduleModel->id,
-                'title' => $nextScheduleModel->title,
-                'type' => $nextScheduleModel->type,
-                'venue' => $nextScheduleModel->venue,
-                'start' => $nextScheduleModel->start_time?->toIso8601String(),
-                'end' => $nextScheduleModel->end_time?->toIso8601String(),
-            ] : null;
+                ->count();
 
             $pastSchedules = TeamSchedule::query()
                 ->where('team_id', $teamId)
                 ->where('end_time', '<', $now)
                 ->withCount(['attendances', 'wellnessLogs'])
+                ->orderByDesc('end_time')
                 ->get();
 
             $attendanceNeedsReview = $pastSchedules->where('attendances_count', 0)->count();
-            $attendanceInProgress = $rosterTotal > 0
-                ? $pastSchedules->filter(fn ($s) => $s->attendances_count > 0 && $s->attendances_count < $rosterTotal)->count()
-                : 0;
+            $nextAttendanceAction = $pastSchedules
+                ->first(function ($schedule) {
+                    return (int) ($schedule->attendances_count ?? 0) === 0;
+                });
             $wellnessPending = $pastSchedules->filter(function ($s) {
                 $type = strtolower((string) $s->type);
                 return in_array($type, ['practice', 'game'], true) && $s->attendances_count > 0 && $s->wellness_logs_count === 0;
             })->count();
-
-            $latestPeriod = AcademicPeriod::query()
-                ->orderByDesc('starts_on')
-                ->first();
-
-            $academicMissing = 0;
-            if ($latestPeriod && $rosterTotal > 0) {
-                $studentIds = TeamPlayer::where('team_id', $teamId)
-                    ->pluck('student_id')
-                    ->filter()
-                    ->unique()
-                    ->values();
-
-                if ($studentIds->isNotEmpty()) {
-                    $submittedIds = AcademicDocument::query()
-                        ->periodSubmission()
-                        ->whereIn('student_id', $studentIds)
-                        ->where('academic_period_id', $latestPeriod->id)
-                        ->pluck('student_id')
-                        ->unique();
-
-                    $academicMissing = $studentIds->diff($submittedIds)->count();
-                }
-            }
-
-            $since = $now->copy()->subDays(7);
-            $attendanceRaw = ScheduleAttendance::query()
-                ->join('team_schedules', 'schedule_attendances.schedule_id', '=', 'team_schedules.id')
-                ->where('team_schedules.team_id', $teamId)
-                ->where('team_schedules.start_time', '>=', $since)
-                ->groupBy('schedule_attendances.status')
-                ->select('schedule_attendances.status', DB::raw('COUNT(*) as total'))
-                ->pluck('total', 'schedule_attendances.status');
-
-            $attendanceSnapshot = [
-                'present' => (int) ($attendanceRaw['present'] ?? 0),
-                'late' => (int) ($attendanceRaw['late'] ?? 0),
-                'absent' => (int) ($attendanceRaw['absent'] ?? 0),
-                'excused' => (int) ($attendanceRaw['excused'] ?? 0),
-            ];
 
             return Inertia::render('Coaches/CoachDashboard', [
                 'team' => [
@@ -129,19 +66,25 @@ class CoachDashboardController extends Controller
                     'team_name' => $team->team_name,
                     'sport' => $team->sport?->name ?? $team->sport_id ?? 'unknown',
                 ],
-                'nextSchedule' => $nextSchedule,
                 'metrics' => [
+                    'upcoming_sessions' => $upcomingSessions,
                     'attendance_needs_review' => $attendanceNeedsReview,
-                    'attendance_in_progress' => $attendanceInProgress,
                     'wellness_pending' => $wellnessPending,
-                    'academic_missing' => $academicMissing,
                     'roster_total' => $rosterTotal,
-                    'roster_injured' => $rosterInjured,
-                    'roster_missing_positions' => $rosterMissingPositions,
-                    'roster_jersey_pending' => $rosterJerseyPending,
-                    'latest_period' => $latestPeriod ? ($latestPeriod->school_year . ' ' . $latestPeriod->term) : null,
                 ],
-                'attendanceSnapshot' => $attendanceSnapshot,
+                'actions' => [
+                    'attendance_pending_schedule' => $nextAttendanceAction ? [
+                        'id' => $nextAttendanceAction->id,
+                        'title' => $nextAttendanceAction->title,
+                        'type' => $nextAttendanceAction->type,
+                        'venue' => $nextAttendanceAction->venue,
+                        'end_time' => optional($nextAttendanceAction->end_time)->toIso8601String(),
+                    ] : null,
+                ],
+                'trends' => [
+                    'attendance' => $this->attendanceTrend($teamId, $trendStart, $trendEnd),
+                ],
+                'wellness' => $this->wellnessSnapshot($teamId, $trendStart, $trendEnd),
             ]);
         } catch (\Throwable $e) {
             Log::warning('Coach dashboard load failed.', [
@@ -158,24 +101,130 @@ class CoachDashboardController extends Controller
     {
         return [
             'team' => null,
-            'nextSchedule' => null,
             'metrics' => [
+                'upcoming_sessions' => 0,
                 'attendance_needs_review' => 0,
-                'attendance_in_progress' => 0,
                 'wellness_pending' => 0,
-                'academic_missing' => 0,
                 'roster_total' => 0,
-                'roster_injured' => 0,
-                'roster_missing_positions' => 0,
-                'roster_jersey_pending' => 0,
-                'latest_period' => null,
             ],
-            'attendanceSnapshot' => [
-                'present' => 0,
-                'late' => 0,
-                'absent' => 0,
-                'excused' => 0,
+            'actions' => [
+                'attendance_pending_schedule' => null,
             ],
+            'trends' => [
+                'attendance' => [
+                    'labels' => [],
+                    'series' => [
+                        'present' => [],
+                        'late' => [],
+                        'absent' => [],
+                        'excused' => [],
+                    ],
+                ],
+            ],
+            'wellness' => [
+                'injury_observed_count' => 0,
+                'avg_fatigue' => 0,
+                'performance_breakdown' => [
+                    'excellent' => 0,
+                    'good' => 0,
+                    'fair' => 0,
+                    'poor' => 0,
+                ],
+                'recent_injury_notes' => [],
+            ],
+        ];
+    }
+
+    private function attendanceTrend(int $teamId, Carbon $start, Carbon $end): array
+    {
+        $rows = DB::table('team_schedules as ts')
+            ->leftJoin('schedule_attendances as sa', 'sa.schedule_id', '=', 'ts.id')
+            ->where('ts.team_id', $teamId)
+            ->whereBetween('ts.start_time', [$start->toDateTimeString(), $end->toDateTimeString()])
+            ->selectRaw('DATE(ts.start_time) as schedule_date')
+            ->selectRaw("SUM(CASE WHEN sa.status = 'present' THEN 1 ELSE 0 END) as present_count")
+            ->selectRaw("SUM(CASE WHEN sa.status = 'late' THEN 1 ELSE 0 END) as late_count")
+            ->selectRaw("SUM(CASE WHEN sa.status = 'absent' THEN 1 ELSE 0 END) as absent_count")
+            ->selectRaw("SUM(CASE WHEN sa.status = 'excused' THEN 1 ELSE 0 END) as excused_count")
+            ->groupByRaw('DATE(ts.start_time)')
+            ->orderByRaw('DATE(ts.start_time)')
+            ->get()
+            ->keyBy('schedule_date');
+
+        $labels = [];
+        $series = [
+            'present' => [],
+            'late' => [],
+            'absent' => [],
+            'excused' => [],
+        ];
+
+        $cursor = $start->copy();
+        while ($cursor->lte($end)) {
+            $key = $cursor->toDateString();
+            $labels[] = $cursor->format('M j');
+            $series['present'][] = (int) ($rows[$key]->present_count ?? 0);
+            $series['late'][] = (int) ($rows[$key]->late_count ?? 0);
+            $series['absent'][] = (int) ($rows[$key]->absent_count ?? 0);
+            $series['excused'][] = (int) ($rows[$key]->excused_count ?? 0);
+            $cursor->addDay();
+        }
+
+        return [
+            'labels' => $labels,
+            'series' => $series,
+        ];
+    }
+
+    private function wellnessSnapshot(int $teamId, Carbon $start, Carbon $end): array
+    {
+        $baseQuery = WellnessLog::query()
+            ->whereHas('schedule', function ($query) use ($teamId) {
+                $query->where('team_id', $teamId);
+            })
+            ->whereBetween('log_date', [$start->toDateString(), $end->toDateString()]);
+
+        $stats = (clone $baseQuery)
+            ->selectRaw('SUM(CASE WHEN injury_observed = 1 THEN 1 ELSE 0 END) as injury_observed_count')
+            ->selectRaw('AVG(fatigue_level) as avg_fatigue')
+            ->selectRaw("SUM(CASE WHEN performance_condition = 'excellent' THEN 1 ELSE 0 END) as excellent_count")
+            ->selectRaw("SUM(CASE WHEN performance_condition = 'good' THEN 1 ELSE 0 END) as good_count")
+            ->selectRaw("SUM(CASE WHEN performance_condition = 'fair' THEN 1 ELSE 0 END) as fair_count")
+            ->selectRaw("SUM(CASE WHEN performance_condition = 'poor' THEN 1 ELSE 0 END) as poor_count")
+            ->first();
+
+        $recentInjuryNotes = (clone $baseQuery)
+            ->with(['student.user:id,first_name,last_name'])
+            ->where('injury_observed', true)
+            ->whereNotNull('injury_notes')
+            ->where('injury_notes', '!=', '')
+            ->latest('log_date')
+            ->limit(5)
+            ->get()
+            ->map(function (WellnessLog $log) {
+                $studentUser = $log->student?->user;
+
+                return [
+                    'id' => $log->id,
+                    'student_name' => trim(($studentUser?->first_name ?? '') . ' ' . ($studentUser?->last_name ?? '')) ?: 'Unknown athlete',
+                    'student_id_number' => $log->student?->student_id_number,
+                    'injury_notes' => $log->injury_notes,
+                    'log_date' => optional($log->log_date)->toDateString(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'injury_observed_count' => (int) ($stats->injury_observed_count ?? 0),
+            'avg_fatigue' => round((float) ($stats->avg_fatigue ?? 0), 2),
+            'performance_breakdown' => [
+                'excellent' => (int) ($stats->excellent_count ?? 0),
+                'good' => (int) ($stats->good_count ?? 0),
+                'fair' => (int) ($stats->fair_count ?? 0),
+                'poor' => (int) ($stats->poor_count ?? 0),
+            ],
+            'recent_injury_notes' => $recentInjuryNotes,
         ];
     }
 }

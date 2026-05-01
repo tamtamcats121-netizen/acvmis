@@ -20,7 +20,6 @@ class UserSetting extends Model
         'notify_attendance_exceptions',
         'notify_wellness_injury_threshold',
         'wellness_injury_threshold_level',
-        'theme_preference',
     ];
 
     protected function casts(): array

@@ -43,7 +43,6 @@ class AcademicEligibilityController extends Controller
                 'starts_on' => optional($p->starts_on)->toDateString(),
                 'ends_on' => optional($p->ends_on)->toDateString(),
                 'status' => $this->resolveStatus($p),
-                'announcement' => $p->announcement,
             ]),
             'selectedPeriodId' => $selectedPeriodId ?: null,
         ]);
@@ -112,7 +111,6 @@ class AcademicEligibilityController extends Controller
                 'starts_on' => optional($p->starts_on)->toDateString(),
                 'ends_on' => optional($p->ends_on)->toDateString(),
                 'status' => $this->resolveStatus($p),
-                'announcement' => $p->announcement,
             ]),
             'selectedPeriodId' => $selectedPeriodId ?: null,
             'rows' => $rows,
@@ -161,16 +159,14 @@ class AcademicEligibilityController extends Controller
             'term' => 'required|in:1st_sem,2nd_sem,summer',
             'starts_on' => 'required|date',
             'ends_on' => 'required|date|after_or_equal:starts_on',
-            'announcement' => 'nullable|string',
         ]);
 
-        $period = AcademicPeriod::create([
+        AcademicPeriod::create([
             'school_year' => $validated['school_year'],
             'term' => $validated['term'],
             'starts_on' => $validated['starts_on'],
             'ends_on' => $validated['ends_on'],
         ]);
-        $period->syncAnnouncement($validated['announcement'] ?? null, auth()->id());
         $this->teamPlayerStatuses->syncAll();
 
         return back()->with('success', 'Academic period created.');
@@ -178,11 +174,6 @@ class AcademicEligibilityController extends Controller
 
     public function updateStatus(Request $request, AcademicPeriod $period)
     {
-        $validated = $request->validate([
-            'announcement' => 'nullable|string',
-        ]);
-
-        $period->syncAnnouncement($validated['announcement'] ?? null, auth()->id());
         $this->teamPlayerStatuses->syncAll();
 
         return back()->with('success', 'Academic period updated.');
@@ -277,7 +268,7 @@ class AcademicEligibilityController extends Controller
             if (($computedStatus ?? '') === 'eligible') {
                 $message .= ' You are now eligible; further submissions for this period are locked.';
             } elseif (($computedStatus ?? '') === 'pending_review') {
-                $message .= ' Your record needs additional review before a final clearance decision.';
+                $message .= ' Your record needs additional review before a final eligibility decision.';
             }
             $this->notifications->announce(
                 $studentUserId,

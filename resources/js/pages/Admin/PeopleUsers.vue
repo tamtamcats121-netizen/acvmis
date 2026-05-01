@@ -2,6 +2,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
+import EmptyResultsState from '@/components/ui/EmptyResultsState.vue';
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
 import { resolveUserAvatarUrl } from '@/utils/media';
 
@@ -124,6 +125,7 @@ const selectedUserId = ref<number | null>(props.users.data[0]?.id ?? null);
 const copiedUserId = ref<number | null>(null);
 const deactivateTarget = ref<UserRow | null>(null);
 const reactivateTarget = ref<UserRow | null>(null);
+const regenerateTarget = ref<UserRow | null>(null);
 const actionLoadingId = ref<number | null>(null);
 const search = ref(props.filters?.search ?? '');
 const roleFilter = ref<RoleFilter>(props.filters?.role ?? 'all');
@@ -138,6 +140,8 @@ const adminInviteFeedback = ref<string | null>(null);
 const selectedSportIds = ref<number[]>([]);
 const copiedOnboardingPassword = ref(false);
 const copiedActivationLink = ref(false);
+const statusSwitching = ref(false);
+const statusSwitchNotice = ref<string | null>(null);
 const onboardingFlash = ref<CoachOnboardingFlash | null>(null);
 const onboardingMode = ref<'created' | 'regenerated'>('created');
 const createCoachPanel = ref<HTMLElement | null>(null);
@@ -178,7 +182,7 @@ const hasActiveFilters = computed(
 );
 const isDeactivatedView = computed(() => statusFilter.value === 'deactivated');
 const selectedUser = computed(() => props.users.data.find((user) => user.id === selectedUserId.value) ?? props.users.data[0] ?? null);
-const hasBlockingModal = computed(() => Boolean(deactivateTarget.value || reactivateTarget.value || createCoachOpen.value || coachOnboardingOpen.value || adminInviteOpen.value));
+const hasBlockingModal = computed(() => Boolean(deactivateTarget.value || reactivateTarget.value || regenerateTarget.value || createCoachOpen.value || coachOnboardingOpen.value || adminInviteOpen.value));
 const sportOptions = computed(() => props.sports ?? []);
 const assignableTeams = computed(() => props.assignableTeams ?? []);
 const filteredAssignableTeams = computed(() => {
@@ -229,10 +233,6 @@ watch(search, () => {
 });
 
 watch(roleFilter, () => {
-    applyFilters({ resetPage: true });
-});
-
-watch(statusFilter, () => {
     applyFilters({ resetPage: true });
 });
 
@@ -408,11 +408,18 @@ async function copyActivationLink() {
 
 function regenerateCoachCredentials(user: UserRow) {
     if (user.role !== 'coach') return;
-    const confirmed = window.confirm(`Regenerate onboarding credentials for ${user.name}? The previous temporary password will no longer be valid.`);
-    if (!confirmed) return;
+    regenerateTarget.value = user;
+}
+
+function closeRegenerateDialog() {
+    regenerateTarget.value = null;
+}
+
+function confirmRegenerateCoachCredentials() {
+    if (!regenerateTarget.value || regenerateTarget.value.role !== 'coach') return;
 
     router.post(
-        `/admin/coaches/${user.id}/regenerate-onboarding`,
+        `/admin/coaches/${regenerateTarget.value.id}/regenerate-onboarding`,
         {},
         {
             preserveScroll: true,
@@ -428,6 +435,7 @@ function regenerateCoachCredentials(user: UserRow) {
                 if (flash) {
                     openCoachOnboardingModal('regenerated');
                 }
+                closeRegenerateDialog();
             },
         },
     );
@@ -462,7 +470,29 @@ function resetAllFilters() {
 
 function setStatusView(next: UserStatusFilter) {
     if (statusFilter.value === next) return;
+    const previous = statusFilter.value;
     statusFilter.value = next;
+    statusSwitching.value = true;
+    statusSwitchNotice.value = next === 'active' ? 'Showing active accounts.' : 'Showing deactivated accounts.';
+
+    if (searchDebounce) {
+        clearTimeout(searchDebounce);
+        searchDebounce = null;
+    }
+
+    router.get('/people', buildQuery(true), {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: ['users', 'filters', 'totals', 'pendingCount'],
+        onError: () => {
+            statusFilter.value = previous;
+            statusSwitchNotice.value = 'The account view could not be updated right now.';
+        },
+        onFinish: () => {
+            statusSwitching.value = false;
+        },
+    });
 }
 
 function formatRole(role: UserRow['role']) {
@@ -504,14 +534,14 @@ function userInitials(user: UserRow) {
 
 function accountTone(user: UserRow) {
     return user.status === 'active'
-        ? 'border border-emerald-200 bg-emerald-100 text-emerald-700'
+        ? 'border border-[#034485]/30 bg-[#e9f2ff] text-[#034485]'
         : 'border border-amber-200 bg-amber-100 text-amber-700';
 }
 
 function roleTone(user: UserRow) {
     return user.role === 'coach'
-        ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
-        : 'border border-sky-200 bg-sky-50 text-sky-700';
+        ? 'border border-[#1f3f73]/30 bg-[#edf4ff] text-[#1f3f73]'
+        : 'border border-[#034485]/25 bg-[#f3f8ff] text-[#034485]';
 }
 
 function getPrimaryPhone(user: UserRow) {
@@ -643,6 +673,7 @@ function onModalEscape(event: KeyboardEvent) {
     if (event.key === 'Escape') {
         closeDeactivateDialog();
         closeReactivateDialog();
+        closeRegenerateDialog();
         closeCreateCoach();
         closeAdminInvite();
     }
@@ -691,16 +722,16 @@ watch(
 
     <div class="space-y-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="relative inline-grid w-full grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-white p-1 sm:w-auto sm:rounded-full">
+            <div class="relative inline-grid w-full grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-[#f4f8ff] p-1 sm:w-auto sm:rounded-full">
                 <span
-                    class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#1f2937] transition-transform duration-200 ease-out"
+                    class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#034485] transition-transform duration-200 ease-out"
                     :class="topTab === 'active' ? 'translate-x-0' : 'translate-x-full'"
                     aria-hidden="true"
                 />
                 <button
                     type="button"
                     class="relative z-10 flex w-full min-w-0 items-center justify-center rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4 sm:py-1.5"
-                    :class="topTab === 'active' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="topTab === 'active' ? 'text-white' : 'text-[#034485] hover:text-[#02315f]'"
                     aria-current="page"
                 >
                     Active Users
@@ -709,12 +740,12 @@ watch(
                     type="button"
                     @click="goToApprovalRequests"
                     class="relative z-10 inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4 sm:py-1.5"
-                    :class="topTab === 'queue' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="topTab === 'queue' ? 'text-white' : 'text-[#034485] hover:text-[#02315f]'"
                 >
                     Approval Queue
                     <span
                         class="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                        :class="topTab === 'queue' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'"
+                        :class="topTab === 'queue' ? 'bg-white/20 text-white' : 'bg-[#dcecff] text-[#034485]'"
                     >
                         {{ props.pendingCount ?? 0 }}
                     </span>
@@ -724,72 +755,74 @@ watch(
                 <button
                     type="button"
                     @click="openAdminInvite"
-                    class="inline-flex w-full items-center justify-center rounded-full border border-[#1f2937]/25 bg-white px-4 py-2 text-center text-xs font-semibold text-[#1f2937] transition hover:border-[#1f2937]/45 hover:bg-slate-50 sm:w-auto"
+                    class="inline-flex w-full items-center justify-center rounded-full border border-[#034485]/45 bg-white px-4 py-2 text-center text-xs font-semibold text-[#034485] transition hover:border-[#034485] hover:bg-[#eef5ff] sm:w-auto"
                 >
                     Invite Administrator
                 </button>
                 <button
                     type="button"
                     @click="openCreateCoach"
-                    class="inline-flex w-full items-center justify-center rounded-full bg-[#1f2937] px-4 py-2 text-center text-xs font-semibold text-white transition hover:bg-[#334155] sm:w-auto"
+                    class="inline-flex w-full items-center justify-center rounded-full bg-[#034485] px-4 py-2 text-center text-xs font-semibold text-white transition hover:bg-[#02315f] sm:w-auto"
                 >
                     Create Coach Account
                 </button>
             </div>
         </div>
-        <p v-if="adminInviteFeedback" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700">
+        <p v-if="adminInviteFeedback" class="rounded-lg border border-[#034485]/25 bg-[#edf5ff] px-3 py-2 text-sm font-medium text-[#034485]">
             {{ adminInviteFeedback }}
         </p>
-        <p v-if="createCoachFeedback" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+        <p v-if="createCoachFeedback" class="rounded-lg border border-[#034485]/25 bg-[#edf5ff] px-3 py-2 text-sm font-medium text-[#034485]">
             {{ createCoachFeedback }}
         </p>
 
         <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Users</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ totalUsers }}</p>
             </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Student-Athletes</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ totalStudents }}</p>
             </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Coaches</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ totalCoaches }}</p>
             </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Deactivated</p>
-                <p class="mt-1 text-2xl font-bold text-amber-600">{{ totalDeactivated }}</p>
+                <p class="mt-1 text-2xl font-bold text-[#1f3f73]">{{ totalDeactivated }}</p>
             </article>
         </div>
 
-        <div class="rounded-xl border border-[#034485]/45 bg-white p-4">
-            <div class="mb-3 inline-grid w-full max-w-md grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-slate-50 p-1 sm:inline-flex sm:rounded-full">
+        <div class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
+            <div class="mb-3 inline-grid w-full max-w-md grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-[#f4f8ff] p-1 sm:inline-flex sm:rounded-full">
                 <button
                     type="button"
                     @click="setStatusView('active')"
                     class="relative inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4"
-                    :class="statusFilter === 'active' ? 'bg-[#1f2937] text-white shadow-sm' : 'text-slate-700 hover:bg-white hover:text-slate-900'"
+                    :class="statusFilter === 'active' ? 'bg-[#034485] text-white shadow-sm' : 'text-[#034485] hover:bg-white hover:text-[#02315f]'"
                     :aria-pressed="statusFilter === 'active'"
+                    :disabled="statusSwitching"
                 >
                     <span>Active</span>
                     <span
                         class="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                        :class="statusFilter === 'active' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'"
+                        :class="statusFilter === 'active' ? 'bg-white/20 text-white' : 'bg-[#dcecff] text-[#034485]'"
                     >
                         {{ totalActive }}
                     </span>
                 </button>
                 <span
-                    class="mx-1 h-6 w-px bg-slate-200"
+                    class="mx-1 h-6 w-px bg-[#034485]/15"
                     aria-hidden="true"
                 />
                 <button
                     type="button"
                     @click="setStatusView('deactivated')"
                     class="relative inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4"
-                    :class="statusFilter === 'deactivated' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:bg-white hover:text-slate-900'"
+                    :class="statusFilter === 'deactivated' ? 'bg-amber-600 text-white shadow-sm' : 'text-amber-700 hover:bg-white hover:text-amber-800'"
                     :aria-pressed="statusFilter === 'deactivated'"
+                    :disabled="statusSwitching"
                 >
                     <span>Deactivated</span>
                     <span
@@ -805,13 +838,13 @@ watch(
                 <input
                     v-model="search"
                     type="text"
-                    placeholder="Search by full name, email, student ID, or course"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-6"
+                    placeholder="Search by name, email, student ID, course, or status"
+                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-6"
                 />
 
                 <select
                     v-model="roleFilter"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-3"
+                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-3"
                 >
                     <option value="all">All Roles</option>
                     <option value="student-athlete">Student Athlete</option>
@@ -820,7 +853,7 @@ watch(
 
                 <select
                     v-model="sortOption"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-3"
+                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-3"
                 >
                     <option value="created_at:desc">Newest First</option>
                     <option value="created_at:asc">Oldest First</option>
@@ -835,13 +868,21 @@ watch(
                 <button
                     type="button"
                     @click="resetAllFilters"
-                    class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                    class="rounded-md border border-[#034485]/35 bg-white px-3 py-1.5 text-xs font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
                 >
                     Clear Filters
                 </button>
             </div>
             <p class="mt-2 text-xs font-medium text-slate-500">
-                {{ isDeactivatedView ? 'Viewing deactivated accounts. Select Reactivate to restore account access.' : `Matching records: ${filteredTotal}` }}
+                {{
+                    statusSwitching
+                        ? 'Updating the account list...'
+                        : statusSwitchNotice
+                            ? statusSwitchNotice
+                        : isDeactivatedView
+                            ? 'Viewing deactivated accounts. Select Reactivate to restore account access.'
+                            : `Matching records: ${filteredTotal}`
+                }}
             </p>
         </div>
 
@@ -854,10 +895,10 @@ watch(
             leave-from-class="opacity-100 translate-y-0"
             leave-to-class="opacity-0 -translate-y-1"
         >
-            <div :key="statusFilter" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
+            <div :key="statusFilter" class="page-card overflow-hidden rounded-xl border border-[#034485]/45 bg-white" :class="statusSwitching ? 'opacity-75' : ''">
                 <div v-if="users.data.length" class="grid gap-0 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                    <div class="flex h-full min-h-full flex-col border-b border-slate-200 bg-slate-50/45 xl:border-r xl:border-b-0">
-                        <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                            <div class="flex h-full min-h-full flex-col border-b border-[#034485]/15 bg-[#f8fbff] xl:border-r xl:border-b-0">
+                        <div class="border-b border-[#034485]/15 bg-[#eef5ff] px-4 py-3">
                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">User Directory</p>
                             <p v-if="isDeactivatedView" class="mt-1 text-sm text-slate-600">
                                 Review deactivated accounts and restore access without leaving the page.
@@ -869,8 +910,8 @@ watch(
                                 v-for="user in users.data"
                                 :key="user.id"
                                 type="button"
-                                class="w-full border-b border-slate-200 px-4 py-4 text-left transition-colors duration-200 ease-out last:border-b-0"
-                                :class="selectedUser?.id === user.id ? 'bg-[#034485]' : 'hover:bg-slate-50'"
+                                class="user-directory-row w-full border-b border-[#034485]/12 px-4 py-4 text-left transition-colors duration-200 ease-out last:border-b-0"
+                                :class="selectedUser?.id === user.id ? 'border-l-4 border-l-[#02315f] bg-[#034485]' : ''"
                                 @click="openInfo(user)"
                             >
                                 <div class="flex items-start gap-3">
@@ -907,13 +948,13 @@ watch(
                                         <div class="mt-3 flex flex-wrap gap-2">
                                             <span
                                                 class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
-                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-slate-200 bg-white text-slate-600'"
+                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-[#034485]/15 bg-white text-[#034485]'"
                                             >
                                                 Registered {{ formatDate(user.created_at) }}
                                             </span>
                                             <span
                                                 class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
-                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-slate-200 bg-white text-slate-600'"
+                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-[#034485]/15 bg-white text-[#034485]'"
                                             >
                                                 Profile {{ profileCompleteness(user) }}%
                                             </span>
@@ -927,7 +968,7 @@ watch(
 
                     <div class="bg-white">
                         <div v-if="selectedUser" class="space-y-5 p-4 sm:p-5">
-                            <div class="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="flex flex-col gap-4 border-b border-[#034485]/15 pb-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div class="flex items-start gap-3">
                                     <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-[#e9f2ff] text-base font-bold text-[#034485]">
                                         <img
@@ -957,7 +998,7 @@ watch(
                                     <button
                                         type="button"
                                         @click="copyEmail(selectedUser)"
-                                        class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:w-auto"
+                                        class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-[#034485]/35 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff] sm:w-auto"
                                     >
                                         <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor">
                                             <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
@@ -968,8 +1009,12 @@ watch(
                                         v-if="selectedUser.role === 'coach'"
                                         type="button"
                                         @click="regenerateCoachCredentials(selectedUser)"
-                                        class="w-full rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-auto"
+                                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#034485]/35 bg-[#eef5ff] px-3 py-2 text-sm font-semibold text-[#034485] transition hover:border-[#034485] hover:bg-[#e1eeff] sm:w-auto"
                                     >
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                                            <path d="M21 3v6h-6" />
+                                        </svg>
                                         Regenerate Credentials
                                     </button>
                                     <button
@@ -986,7 +1031,7 @@ watch(
                                         type="button"
                                         @click="openReactivateDialog(selectedUser)"
                                         :disabled="actionLoadingId === selectedUser.id"
-                                        class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                                        class="w-full rounded-lg bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                                     >
                                         Reactivate
                                     </button>
@@ -994,7 +1039,7 @@ watch(
                             </div>
 
                             <div class="grid gap-4 lg:grid-cols-2">
-                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Account Overview</p>
                                     <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                         <div>
@@ -1016,7 +1061,7 @@ watch(
                                     </div>
                                 </section>
 
-                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contact</p>
                                     <div class="mt-3 grid gap-3">
                                         <div>
@@ -1030,7 +1075,7 @@ watch(
                                     </div>
                                 </section>
 
-                                <section v-if="selectedUser.student" class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                <section v-if="selectedUser.student" class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Student Information</p>
                                     <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                         <div>
@@ -1076,7 +1121,7 @@ watch(
                                     </div>
                                 </section>
 
-                                <section v-if="selectedUser.student" class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                <section v-if="selectedUser.student" class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Emergency Contact</p>
                                     <div class="mt-3 grid gap-3">
                                         <div>
@@ -1094,7 +1139,7 @@ watch(
                                     </div>
                                 </section>
 
-                                <section v-if="selectedUser.coach" class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4 lg:col-span-2">
+                                <section v-if="selectedUser.coach" class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4 lg:col-span-2">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Coach Information</p>
                                     <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                         <div>
@@ -1128,7 +1173,12 @@ watch(
                     </div>
                 </div>
 
-                <div v-else class="px-4 py-10 text-center text-sm text-slate-500">No user records match the selected filters.</div>
+                <div v-else class="p-4">
+                    <EmptyResultsState
+                        title="No user records matched your filters"
+                        description="Try adjusting the account status, role, or search terms to find the user you need."
+                    />
+                </div>
 
                 <div
                     class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
@@ -1144,8 +1194,8 @@ watch(
                             class="min-w-9 rounded-md border px-2 py-1 text-xs transition"
                             :class="
                                 link.active
-                                    ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'
+                                    ? 'border-[#034485] bg-[#034485] text-white'
+                                    : 'border-[#034485]/25 bg-white text-[#034485] hover:bg-[#eef5ff] disabled:cursor-not-allowed disabled:opacity-40'
                             "
                             v-html="link.label"
                         />
@@ -1170,7 +1220,7 @@ watch(
                     <button
                         type="button"
                         @click="closeAdminInvite"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#034485]/30 bg-white text-[#034485] hover:bg-[#eef5ff]"
                         aria-label="Close admin invite form"
                     >
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1186,13 +1236,13 @@ watch(
                         <input
                             v-model="adminInviteForm.email"
                             type="email"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                             placeholder="futureadmin@example.com"
                         />
                         <p v-if="adminInviteForm.errors.email" class="mt-1 text-xs text-rose-600">{{ adminInviteForm.errors.email }}</p>
                     </div>
 
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                    <div class="rounded-xl border border-[#034485]/15 bg-[#f6faff] p-3 text-xs text-slate-600">
                         This invitation link may be used only once and will expire after three days. The administrator account will be created after setup is completed.
                     </div>
 
@@ -1200,14 +1250,14 @@ watch(
                         <button
                             type="button"
                             @click="closeAdminInvite"
-                            class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                            class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             :disabled="adminInviteForm.processing"
-                            class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#334155] disabled:cursor-not-allowed disabled:opacity-60"
+                            class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {{ adminInviteForm.processing ? 'Sending...' : 'Send Invitation' }}
                         </button>
@@ -1235,7 +1285,7 @@ watch(
                     <button
                         type="button"
                         @click="closeCreateCoach"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#034485]/30 bg-white text-[#034485] hover:bg-[#eef5ff]"
                         aria-label="Close create coach form"
                     >
                         <svg
@@ -1260,7 +1310,7 @@ watch(
                         <input
                             v-model="createCoachForm.first_name"
                             type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                         />
                         <p v-if="createCoachForm.errors.first_name" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.first_name }}</p>
                     </div>
@@ -1269,7 +1319,7 @@ watch(
                         <input
                             v-model="createCoachForm.last_name"
                             type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                         />
                         <p v-if="createCoachForm.errors.last_name" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.last_name }}</p>
                     </div>
@@ -1278,7 +1328,7 @@ watch(
                         <input
                             v-model="createCoachForm.middle_name"
                             type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                         />
                     </div>
                     <div>
@@ -1286,7 +1336,7 @@ watch(
                         <input
                             v-model="createCoachForm.email"
                             type="email"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                         />
                         <p v-if="createCoachForm.errors.email" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.email }}</p>
                     </div>
@@ -1295,14 +1345,14 @@ watch(
                         <input
                             v-model="createCoachForm.phone_number"
                             type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                         />
                     </div>
                     <div>
                         <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Gender</label>
                         <select
                             v-model="createCoachForm.gender"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                         >
                             <option value="">Not set</option>
                             <option value="Male">Male</option>
@@ -1345,11 +1395,11 @@ watch(
 
                     <div class="lg:col-span-2">
                         <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Sports Filter (Optional)</label>
-                        <div class="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                        <div class="flex flex-wrap gap-2 rounded-lg border border-[#034485]/15 bg-[#f6faff] p-2">
                             <label
                                 v-for="sport in sportOptions"
                                 :key="sport.id"
-                                class="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                                class="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#034485]/20 bg-white px-3 py-1 text-xs font-semibold text-[#034485]"
                             >
                                 <input v-model="selectedSportIds" type="checkbox" :value="sport.id" class="h-3.5 w-3.5" />
                                 {{ sport.name }}
@@ -1359,11 +1409,11 @@ watch(
 
                     <div class="lg:col-span-2">
                         <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Assign Team(s)</label>
-                        <div class="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2">
+                        <div class="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-[#034485]/15 bg-[#f6faff] p-2">
                             <label
                                 v-for="team in filteredAssignableTeams"
                                 :key="team.id"
-                                class="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                                class="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-[#034485]/15 bg-white px-3 py-2 text-sm"
                                 :class="teamSlotTaken(team) ? 'opacity-60' : ''"
                             >
                                 <div class="min-w-0">
@@ -1371,7 +1421,7 @@ watch(
                                         {{ team.team_name }} <span class="text-slate-500">({{ team.year || 'N/A' }})</span>
                                     </p>
                                     <p class="text-xs text-slate-500">{{ team.sport_name || 'No sport assigned' }}</p>
-                                    <p class="mt-1 text-xs" :class="teamSlotTaken(team) ? 'text-amber-700' : 'text-emerald-700'">
+                                    <p class="mt-1 text-xs" :class="teamSlotTaken(team) ? 'text-[#1f3f73]' : 'text-[#034485]'">
                                         {{ teamSlotLabel(team) }}
                                     </p>
                                 </div>
@@ -1397,7 +1447,7 @@ watch(
                         <textarea
                             v-model="createCoachForm.notes"
                             rows="2"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                         />
                         <p v-if="createCoachForm.errors.notes" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.notes }}</p>
                     </div>
@@ -1406,14 +1456,14 @@ watch(
                         <button
                             type="button"
                             @click="closeCreateCoach"
-                            class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                            class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             :disabled="createCoachForm.processing"
-                            class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#334155] disabled:cursor-not-allowed disabled:opacity-60"
+                            class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {{ createCoachForm.processing ? 'Creating...' : 'Create Coach Account' }}
                         </button>
@@ -1429,10 +1479,10 @@ watch(
             class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
             @click.self="closeCoachOnboardingModal"
         >
-            <div class="modal-panel w-full max-w-xl rounded-2xl border border-emerald-200 bg-white p-6 shadow-2xl sm:p-7">
+            <div class="modal-panel w-full max-w-xl rounded-2xl border border-[#034485]/35 bg-white p-6 shadow-2xl sm:p-7">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <p class="text-sm font-semibold text-emerald-800">
+                        <p class="text-sm font-semibold text-[#034485]">
                             {{ onboardingMode === 'regenerated' ? 'Coach access credentials regenerated' : 'New coach account credentials' }}
                         </p>
                         <p class="mt-1 text-sm text-slate-600">Please record these details now. The temporary password will not be displayed again.</p>
@@ -1440,7 +1490,7 @@ watch(
                     <button
                         type="button"
                         @click="closeCoachOnboardingModal"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#034485]/30 bg-white text-[#034485] hover:bg-[#eef5ff]"
                         aria-label="Close coach onboarding details"
                     >
                         <svg
@@ -1462,21 +1512,21 @@ watch(
                 <div
                     ref="onboardingPanel"
                     tabindex="-1"
-                    class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 outline-none ring-0"
+                    class="mt-5 rounded-xl border border-[#034485]/20 bg-[#f4f8ff] p-4 outline-none ring-0"
                 >
-                    <p class="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Coach Email</p>
-                    <p class="mt-1 text-sm font-semibold text-emerald-900">{{ onboardingFlash.email }}</p>
+                    <p class="text-xs font-semibold tracking-wide text-[#034485] uppercase">Coach Email</p>
+                    <p class="mt-1 text-sm font-semibold text-[#02315f]">{{ onboardingFlash.email }}</p>
 
                     <div class="mt-4">
-                        <p class="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Temporary Password</p>
+                        <p class="text-xs font-semibold tracking-wide text-[#034485] uppercase">Temporary Password</p>
                         <div class="mt-2 flex flex-wrap items-center gap-2">
-                            <span class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 font-mono text-sm text-emerald-900">
+                            <span class="rounded-md border border-[#034485]/30 bg-white px-3 py-1.5 font-mono text-sm text-[#02315f]">
                                 {{ onboardingFlash.temporary_password }}
                             </span>
                             <button
                                 type="button"
                                 @click="copyOnboardingPassword"
-                                class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                                class="rounded-md border border-[#034485]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#034485] hover:bg-[#eef5ff]"
                             >
                                 {{ copiedOnboardingPassword ? 'Copied' : 'Copy Temporary Password' }}
                             </button>
@@ -1484,19 +1534,19 @@ watch(
                     </div>
 
                     <div class="mt-4">
-                        <p class="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Activation Link</p>
+                        <p class="text-xs font-semibold tracking-wide text-[#034485] uppercase">Activation Link</p>
                         <div class="mt-2 flex flex-wrap items-center gap-2">
                             <button
                                 type="button"
                                 @click="copyActivationLink"
-                                class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                                class="rounded-md border border-[#034485]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#034485] hover:bg-[#eef5ff]"
                             >
                                 {{ copiedActivationLink ? 'Copied Link' : 'Copy Activation Link' }}
                             </button>
                         </div>
                     </div>
 
-                    <p class="mt-4 text-xs" :class="onboardingFlash.email_sent ? 'text-emerald-700' : 'text-amber-700'">
+                    <p class="mt-4 text-xs" :class="onboardingFlash.email_sent ? 'text-[#034485]' : 'text-[#1f3f73]'">
                         {{
                             onboardingFlash.email_sent
                                 ? 'The onboarding email was sent successfully.'
@@ -1509,9 +1559,41 @@ watch(
                     <button
                         type="button"
                         @click="closeCoachOnboardingModal"
-                        class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#334155]"
+                        class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f]"
                     >
                         Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Transition>
+
+    <Transition name="modal-fade">
+        <div
+            v-if="regenerateTarget"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+            @click.self="closeRegenerateDialog"
+        >
+            <div class="modal-panel w-full max-w-lg rounded-xl border border-[#034485]/45 bg-white p-5">
+                <h2 class="text-lg font-bold text-slate-900">Regenerate Credentials</h2>
+                <p class="mt-2 text-sm text-slate-600">
+                    Regenerate onboarding credentials for <span class="font-semibold text-slate-900">{{ regenerateTarget.name }}</span
+                    >? The previous temporary password will no longer be valid.
+                </p>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        @click="closeRegenerateDialog"
+                        class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        @click="confirmRegenerateCoachCredentials"
+                        class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#02315f]"
+                    >
+                        Confirm Regenerate
                     </button>
                 </div>
             </div>
@@ -1534,7 +1616,7 @@ watch(
                     <button
                         type="button"
                         @click="closeDeactivateDialog"
-                        class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                        class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
                     >
                         Cancel
                     </button>
@@ -1567,7 +1649,7 @@ watch(
                     <button
                         type="button"
                         @click="closeReactivateDialog"
-                        class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                        class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
                     >
                         Cancel
                     </button>
@@ -1575,7 +1657,7 @@ watch(
                         type="button"
                         @click="reactivateUser"
                         :disabled="actionLoadingId === reactivateTarget.id"
-                        class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         Confirm Reactivate
                     </button>
@@ -1607,5 +1689,13 @@ watch(
 .modal-fade-leave-to .modal-panel {
     transform: translateY(8px) scale(0.98);
     opacity: 0;
+}
+
+.user-directory-row:hover {
+    background: #f5f9ff;
+}
+
+:global(html.theme-dark) .user-directory-row:hover {
+    background: rgba(3, 68, 133, 0.16) !important;
 }
 </style>

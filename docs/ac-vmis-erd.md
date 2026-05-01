@@ -71,8 +71,6 @@ erDiagram
         boolean notify_attendance_exceptions
         boolean notify_wellness_injury_threshold
         tinyint wellness_injury_threshold_level
-        varchar theme_preference
-        varchar timezone
         timestamp created_at
         timestamp updated_at
     }
@@ -159,23 +157,6 @@ erDiagram
         tinyint fatigue_level
         enum performance_condition
         text remarks
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    ATHLETE_HEALTH_CLEARANCES {
-        bigint id PK
-        bigint student_id FK
-        date clearance_date
-        date valid_until
-        varchar physician_name
-        text conditions
-        text allergies
-        text restrictions
-        varchar certificate_path
-        bigint reviewed_by FK
-        timestamp reviewed_at
-        text notes
         timestamp created_at
         timestamp updated_at
     }
@@ -408,7 +389,6 @@ The current schema is close to 3NF for the active workflows, but these follow-up
 - Keep `students.current_grade_level` only if it remains the canonical academic level field for both SHS and college students; otherwise split or standardize it further.
 - Keep `academic_eligibility_evaluations.final_status` only as the official adjudicated result. If it is always derived from `gpa`, it should be treated as redundant.
 - Rename the application model that maps to `announcement_recipients` from `Announcement` to a recipient-specific name to match the normalized schema more clearly.
-- Consider normalizing `athlete_health_clearances.conditions`, `allergies`, and `restrictions` into child tables if those values need structured reporting rather than free-text notes.
 
 ## Workflow Gap
 

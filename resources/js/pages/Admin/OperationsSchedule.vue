@@ -119,12 +119,12 @@ function formatPHT(dt: string | Date | null) {
         </div>
 
         <div class="grid grid-cols-1 xl:grid-cols-4 gap-4">
-            <section class="xl:col-span-3 bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <section class="page-card xl:col-span-3 bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <VueCal sm style="height: 700px" :events="calendarEvents" default-view="week" :time="true"
                     :twelve-hour="true" time-format="h:mm {am}" events-on-month-view />
             </section>
 
-            <aside class="xl:col-span-1 bg-gray-900 border border-gray-800 rounded-xl p-4 max-h-175 overflow-y-auto">
+            <aside class="page-card xl:col-span-1 bg-gray-900 border border-gray-800 rounded-xl p-4 max-h-175 overflow-y-auto">
                 <h2 class="text-white font-semibold mb-3">Schedules</h2>
 
                 <div v-if="sortedSchedules.length === 0" class="text-sm text-gray-500">
@@ -132,7 +132,7 @@ function formatPHT(dt: string | Date | null) {
                 </div>
 
                 <div v-else class="space-y-3">
-                    <div v-for="item in sortedSchedules" :key="item.id" class="rounded-lg border border-gray-800 bg-gray-950 p-3">
+                    <div v-for="item in sortedSchedules" :key="item.id" class="page-card rounded-lg border border-gray-800 bg-gray-950 p-3">
                         <div class="flex items-center justify-between gap-2">
                             <div class="text-white font-medium leading-tight">{{ item.title }}</div>
                             <span class="text-[10px] px-2 py-0.5 rounded font-semibold"

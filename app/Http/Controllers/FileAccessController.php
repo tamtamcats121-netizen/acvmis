@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicDocument;
-use App\Models\AthleteHealthClearance;
 use App\Models\Coach;
 use App\Models\Team;
 use Illuminate\Support\Facades\Auth;
@@ -11,17 +10,6 @@ use Illuminate\Support\Facades\Storage;
 
 class FileAccessController extends Controller
 {
-    public function clearance(AthleteHealthClearance $clearance)
-    {
-        abort_unless($this->canAccessStudentFile((int) $clearance->student_id), 403);
-        $path = (string) $clearance->certificate_path;
-        abort_if($path === '' || !Storage::disk('public')->exists($path), 404);
-
-        return Storage::disk('public')->response($path, basename($path), [
-            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
-        ]);
-    }
-
     public function academic(AcademicDocument $document)
     {
         abort_unless($this->canAccessStudentFile((int) $document->student_id), 403);

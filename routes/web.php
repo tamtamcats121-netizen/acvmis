@@ -139,7 +139,6 @@ Route::middleware(['auth', 'force_password_change'])->group(function () {
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
     Route::put('/announcements/read-all', [AnnouncementController::class, 'markAllRead'])->name('announcements.readAll');
     Route::put('/announcements/{announcement}/read', [AnnouncementController::class, 'markRead'])->name('announcements.read');
-    Route::get('/files/clearance/{clearance}', [FileAccessController::class, 'clearance'])->name('files.clearance');
     Route::get('/files/academic/{document}', [FileAccessController::class, 'academic'])->name('files.academic');
     Route::get('/account/profile', [AccountSettingsController::class, 'profile'])->name('account.profile.show');
     Route::put('/account/profile', [AccountSettingsController::class, 'updateProfile'])->name('account.profile.update');
@@ -247,10 +246,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::get('/health', [HealthWorkspaceController::class, 'index'])
         ->name('admin.health.index');
-    Route::redirect('/health/clearance', '/health?tab=clearance')
-        ->name('admin.health.clearance');
-    Route::redirect('/health/wellness', '/health?tab=wellness')
-        ->name('admin.health.wellness');
 
     Route::get('/academics', [AcademicEligibilityController::class, 'index'])
         ->name('admin.academics.index');
@@ -264,8 +259,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.reports.roster');
     Route::get('/reports/academics', [ReportsController::class, 'academics'])
         ->name('admin.reports.academics');
-    Route::get('/reports/health', [ReportsController::class, 'health'])
-        ->name('admin.reports.health');
     Route::get('/reports/attendance/export.csv', [ReportsController::class, 'exportAttendanceCsv'])
         ->name('admin.reports.attendance.csv');
     Route::get('/reports/attendance/print', [ReportsController::class, 'printAttendanceSummary'])
@@ -278,10 +271,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.reports.academics.csv');
     Route::get('/reports/academics/print', [ReportsController::class, 'printAcademicSummary'])
         ->name('admin.reports.academics.print');
-    Route::get('/reports/health/export.csv', [ReportsController::class, 'exportHealthCsv'])
-        ->name('admin.reports.health.csv');
-    Route::get('/reports/health/print', [ReportsController::class, 'printHealthSummary'])
-        ->name('admin.reports.health.print');
     Route::get('/academics/submissions', [AcademicEligibilityController::class, 'submissions'])
         ->name('admin.academics.submissions');
     Route::get('/academics/past-periods', [AcademicEligibilityController::class, 'pastPeriods'])
@@ -314,8 +303,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/CreateTeam/{team}', [CreateTeamController::class, 'update']);
     Route::redirect('/ScheduleOverview', '/operations');
     Route::redirect('/AttendanceInsights', '/operations?tab=attendance');
-    Route::redirect('/ClearanceOverview', '/health?tab=clearance');
-    Route::redirect('/WellnessOverview', '/health?tab=wellness');
+    Route::redirect('/WellnessOverview', '/health');
     Route::redirect('/AcademicEligibility', '/academics');
     Route::post('/AcademicEligibility/periods', [AcademicEligibilityController::class, 'storePeriod']);
     Route::put('/AcademicEligibility/periods/{period}/window', [AcademicEligibilityController::class, 'toggleWindow']);
@@ -400,14 +388,14 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
     Route::redirect('/CoachAcademicVisibility', '/coach/academics');
 });
 
-Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold'])->group(function () {
+Route::middleware(['auth', 'role:student-athlete,student'])->group(function () {
     Route::get('/AcademicSubmissions', [AcademicSubmissionController::class, 'index'])->name('AcademicSubmissions');
     Route::get('/AcademicSubmissions/new', [AcademicSubmissionController::class, 'create'])->name('AcademicSubmissions.create');
     Route::get('/AcademicSubmissions/print', [AcademicSubmissionController::class, 'print'])->name('AcademicSubmissions.print');
     Route::post('/AcademicSubmissions', [AcademicSubmissionController::class, 'store'])->name('academic.submissions.store');
 });
 
-Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold', 'academic.eligibility'])->group(function () {
+Route::middleware(['auth', 'role:student-athlete,student', 'academic.eligibility'])->group(function () {
     Route::get('/StudentAthleteDashboard', [StudentAthleteController::class, 'dashboard'])
         ->name('StudentAthleteDashboard');
     Route::get('/MyTeam', [StudentAthleteController::class, 'index'])->name('MyTeam');

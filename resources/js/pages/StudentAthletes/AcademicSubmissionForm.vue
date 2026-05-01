@@ -15,7 +15,6 @@ type Period = {
   term: string
   starts_on: string
   ends_on: string
-  announcement: string | null
   eligibility_status?: string | null
   is_eligible?: boolean
   can_submit?: boolean
@@ -137,7 +136,7 @@ function submit() {
       </div>
     </div>
 
-    <section class="rounded-3xl border border-[#034485]/35 bg-white p-5">
+    <section class="page-card rounded-3xl border border-[#034485]/35 bg-white p-5">
       <form @submit.prevent="submit">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <span class="rounded-full bg-[#034485] px-3 py-1 text-xs font-semibold text-white">Submission Form</span>
@@ -206,7 +205,7 @@ function submit() {
               </div>
             </div>
           </div>
-          <aside class="rounded-2xl border border-[#034485]/25 bg-[#034485]/5 p-4 text-xs text-slate-700">
+          <aside class="page-card rounded-2xl border border-[#034485]/25 bg-[#034485]/5 p-4 text-xs text-slate-700">
             <div class="text-[11px] font-semibold text-[#034485]">Selected Period</div>
             <div class="mt-1 text-sm font-semibold text-slate-900">
               {{ selectedPeriod ? `${selectedPeriod.school_year} - ${termLabel(selectedPeriod.term)}` : 'Select a period' }}
@@ -215,9 +214,6 @@ function submit() {
               Window:
               {{ selectedPeriod ? `${selectedPeriod.starts_on} to ${selectedPeriod.ends_on}` : '—' }}
             </div>
-            <div v-if="selectedPeriod?.announcement" class="mt-2 text-[11px] text-amber-700">
-              {{ selectedPeriod.announcement }}
-            </div>
             <div class="mt-3 text-[11px] text-slate-500">Accepted: PDF, PNG, JPG.</div>
           </aside>
         </div>
@@ -225,3 +221,29 @@ function submit() {
     </section>
   </div>
 </template>
+
+<style scoped>
+.page-card {
+  opacity: 0;
+  animation: student-form-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes student-form-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-card {
+    animation: none;
+    opacity: 1;
+  }
+}
+</style>

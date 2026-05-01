@@ -2,6 +2,7 @@
 import { Head, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
+import EmptyResultsState from '@/components/ui/EmptyResultsState.vue';
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
 import { resolveUserAvatarUrl } from '@/utils/media';
 
@@ -40,16 +41,6 @@ type QueueUser = {
         emergency_contact_name?: string | null;
         emergency_contact_relationship?: string | null;
         emergency_contact_phone?: string | null;
-        latest_health_clearance?: {
-            id: number;
-            clearance_date?: string | null;
-            clearance_status: string | null;
-            valid_until: string | null;
-            physician_name: string | null;
-            conditions?: string | null;
-            allergies?: string | null;
-            restrictions?: string | null;
-        } | null;
         latest_academic_document?: {
             id: number;
             document_type: string | null;
@@ -213,15 +204,12 @@ function visitPage(url: string | null) {
 }
 
 function hasRequirements(user: QueueUser) {
-    return Boolean(user.student?.latest_health_clearance) && Boolean(user.student?.latest_academic_document);
+    return Boolean(user.student?.latest_academic_document);
 }
 
 function requirementIssues(user: QueueUser) {
     const issues: string[] = [];
 
-    if (!user.student?.latest_health_clearance) {
-        issues.push('Health clearance not submitted');
-    }
     if (!user.student?.latest_academic_document) {
         issues.push('Academic document not submitted');
     }
@@ -257,11 +245,6 @@ function formatDateTime(value?: string | null) {
     });
 }
 
-function formatClearanceStatus(value?: string | null) {
-    if (!value) return 'No clearance';
-    return value.replaceAll('_', ' ');
-}
-
 function formatDocumentType(value?: string | null) {
     if (!value) return 'No document';
     return value.replaceAll('_', ' ').toUpperCase();
@@ -290,11 +273,6 @@ function userInitials(user: QueueUser) {
 
 function infoValue(value?: string | null) {
     return value && String(value).trim() ? String(value) : '-';
-}
-
-function clearanceFileUrl(id?: number | null) {
-    if (!id) return null;
-    return `/files/clearance/${id}`;
 }
 
 function academicFileUrl(id?: number | null) {
@@ -382,9 +360,9 @@ function rejectUser() {
 
     <div class="space-y-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="relative inline-grid w-full grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-white p-1 sm:w-auto sm:rounded-full">
+            <div class="relative inline-grid w-full grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-[#f4f8ff] p-1 sm:w-auto sm:rounded-full">
                 <span
-                    class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#1f2937] transition-transform duration-200 ease-out"
+                    class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#034485] transition-transform duration-200 ease-out"
                     :class="topTab === 'active' ? 'translate-x-0' : 'translate-x-full'"
                     aria-hidden="true"
                 />
@@ -392,20 +370,20 @@ function rejectUser() {
                     type="button"
                     @click="goToUserManagement"
                     class="relative z-10 flex w-full min-w-0 items-center justify-center rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4 sm:py-1.5"
-                    :class="topTab === 'active' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="topTab === 'active' ? 'text-white' : 'text-[#034485] hover:text-[#02315f]'"
                 >
                     Active Users
                 </button>
                 <button
                     type="button"
                     class="relative z-10 inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4 sm:py-1.5"
-                    :class="topTab === 'queue' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="topTab === 'queue' ? 'text-white' : 'text-[#034485] hover:text-[#02315f]'"
                     aria-current="page"
                 >
                     Approval Queue
                     <span
                         class="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                        :class="topTab === 'queue' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'"
+                        :class="topTab === 'queue' ? 'bg-white/20 text-white' : 'bg-[#dcecff] text-[#034485]'"
                     >
                         {{ props.pendingCount ?? stats.pending_total }}
                     </span>
@@ -414,36 +392,36 @@ function rejectUser() {
         </div>
 
         <section class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Pending Accounts</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ stats.pending_total }}</p>
             </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Ready To Approve</p>
-                <p class="mt-1 text-2xl font-bold text-emerald-600">{{ stats.ready_total }}</p>
+                <p class="mt-1 text-2xl font-bold text-[#034485]">{{ stats.ready_total }}</p>
             </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Needs Requirements</p>
                 <p class="mt-1 text-2xl font-bold text-amber-600">{{ stats.incomplete_total }}</p>
             </article>
-            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
                 <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Rejected Accounts</p>
                 <p class="mt-1 text-2xl font-bold text-rose-600">{{ stats.rejected_total }}</p>
             </article>
         </section>
 
-        <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
-            <div class="relative mb-3 inline-grid w-full grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-white p-1 sm:inline-flex sm:w-auto sm:rounded-full">
+        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
+            <div class="relative mb-3 inline-grid w-full grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-[#f4f8ff] p-1 sm:inline-flex sm:w-auto sm:rounded-full">
                 <span
                     class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full transition-transform duration-200 ease-out"
-                    :class="status === 'pending' ? 'translate-x-0 bg-[#1f2937]' : 'translate-x-full bg-rose-600'"
+                    :class="status === 'pending' ? 'translate-x-0 bg-[#034485]' : 'translate-x-full bg-rose-600'"
                     aria-hidden="true"
                 />
                 <button
                     type="button"
                     @click="status = 'pending'"
                     class="relative z-10 rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4 sm:py-1.5"
-                    :class="status === 'pending' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="status === 'pending' ? 'text-white' : 'text-[#034485] hover:text-[#02315f]'"
                 >
                     Pending Applications
                 </button>
@@ -451,7 +429,7 @@ function rejectUser() {
                     type="button"
                     @click="status = 'rejected'"
                     class="relative z-10 rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4 sm:py-1.5"
-                    :class="status === 'rejected' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="status === 'rejected' ? 'text-white' : 'text-[#034485] hover:text-[#02315f]'"
                 >
                     Rejected Applications
                 </button>
@@ -460,14 +438,14 @@ function rejectUser() {
                 <input
                     v-model="search"
                     type="text"
-                    placeholder="Search by name or email"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-6"
+                    placeholder="Search by name, email, or applicant status"
+                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-6"
                 />
 
                 <select
                     v-model="readiness"
                     :disabled="isRejectedView"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-3"
+                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-3"
                 >
                     <option value="all">All Readiness</option>
                     <option value="ready">Ready to Approve</option>
@@ -476,7 +454,7 @@ function rejectUser() {
 
                 <select
                     v-model="sort"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-3"
+                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-3"
                 >
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
@@ -495,10 +473,10 @@ function rejectUser() {
             leave-from-class="opacity-100 translate-y-0"
             leave-to-class="opacity-0 -translate-y-1"
         >
-            <section :key="status" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
+            <section :key="status" class="page-card overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
                 <div v-if="queue.data.length" class="grid gap-0 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                     <div class="border-b border-slate-200 xl:border-r xl:border-b-0">
-                        <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                    <div class="border-b border-[#034485]/15 bg-[#eef5ff] px-4 py-3">
                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Applicants</p>
                             <p class="mt-1 text-sm text-slate-600">Review applications efficiently while keeping all supporting details in view.</p>
                         </div>
@@ -507,8 +485,8 @@ function rejectUser() {
                                 v-for="(user, index) in queue.data"
                                 :key="user.id"
                                 type="button"
-                                class="w-full border-b border-slate-200 px-4 py-4 text-left transition-colors duration-200 ease-out last:border-b-0"
-                                :class="selectedUser?.id === user.id ? 'bg-[#034485]' : 'hover:bg-slate-50'"
+                                class="w-full border-b border-[#034485]/12 px-4 py-4 text-left transition-colors duration-200 ease-out last:border-b-0"
+                                :class="selectedUser?.id === user.id ? 'border-l-4 border-l-[#02315f] bg-[#034485]' : 'hover:bg-[#f5f9ff]'"
                                 @click="selectedUserId = user.id"
                             >
                                 <div class="flex items-start gap-3">
@@ -535,19 +513,13 @@ function rejectUser() {
                                         <div class="mt-3 flex flex-wrap gap-2">
                                             <span
                                                 class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
-                                                :class="user.student?.latest_health_clearance ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'"
-                                            >
-                                                {{ user.student?.latest_health_clearance ? 'Health clearance submitted' : 'Health clearance missing' }}
-                                            </span>
-                                            <span
-                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
                                                 :class="user.student?.latest_academic_document ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'"
                                             >
                                                 {{ user.student?.latest_academic_document ? 'Academic document submitted' : 'Academic document missing' }}
                                             </span>
                                             <span
                                                 class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
-                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-slate-200 bg-white text-slate-600'"
+                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-[#034485]/15 bg-white text-[#034485]'"
                                             >
                                                 #{{ queuePosition(index) }} • {{ formatDate(user.created_at) }}
                                             </span>
@@ -586,7 +558,7 @@ function rejectUser() {
                                         type="button"
                                         @click="openApproveDialog(selectedUser)"
                                         :disabled="!hasRequirements(selectedUser) || approvingId === selectedUser.id || rejectingId === selectedUser.id"
-                                        class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                                        class="w-full rounded-lg bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                                     >
                                         Approve
                                     </button>
@@ -607,7 +579,7 @@ function rejectUser() {
                             </div>
 
                             <div class="grid gap-4 lg:grid-cols-2">
-                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Identity</p>
                                     <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                         <div>
@@ -629,7 +601,7 @@ function rejectUser() {
                                     </div>
                                 </section>
 
-                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Academic</p>
                                     <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                         <div>
@@ -651,7 +623,7 @@ function rejectUser() {
                                     </div>
                                 </section>
 
-                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contact</p>
                                     <div class="mt-3 grid gap-3">
                                         <div>
@@ -669,7 +641,7 @@ function rejectUser() {
                                     </div>
                                 </section>
 
-                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Emergency</p>
                                     <div class="mt-3 grid gap-3">
                                         <div>
@@ -688,57 +660,13 @@ function rejectUser() {
                                 </section>
                             </div>
 
-                            <section class="rounded-2xl border border-[#034485]/20 bg-white p-4">
+                            <section class="page-card rounded-2xl border border-[#034485]/20 bg-white p-4">
                                 <div>
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Documents</p>
                                     <p class="mt-1 text-sm text-slate-600">Preview supporting documents within the page to maintain review context.</p>
                                 </div>
-                                <div class="mt-4 grid gap-3 lg:grid-cols-2">
-                                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div>
-                                                <p class="text-sm font-semibold text-slate-900">Medical or Health Certificate</p>
-                                                <p class="mt-1 text-xs text-slate-500">
-                                                    {{
-                                                        selectedUser.student?.latest_health_clearance
-                                                            ? `Status: ${formatClearanceStatus(selectedUser.student.latest_health_clearance.clearance_status)}`
-                                                            : 'No health document has been submitted.'
-                                                    }}
-                                                </p>
-                                            </div>
-                                            <span
-                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                                                :class="selectedUser.student?.latest_health_clearance ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'"
-                                            >
-                                                {{ selectedUser.student?.latest_health_clearance ? 'Submitted' : 'Missing' }}
-                                            </span>
-                                        </div>
-                                        <div class="mt-3 space-y-2 text-sm text-slate-700">
-                                            <p>Issued: {{ formatDate(selectedUser.student?.latest_health_clearance?.clearance_date) }}</p>
-                                            <p>Valid Until: {{ formatDate(selectedUser.student?.latest_health_clearance?.valid_until) }}</p>
-                                            <p>Physician: {{ infoValue(selectedUser.student?.latest_health_clearance?.physician_name) }}</p>
-                                        </div>
-                                        <div class="mt-4 flex flex-wrap gap-2">
-                                            <button
-                                                v-if="clearanceFileUrl(selectedUser.student?.latest_health_clearance?.id)"
-                                                type="button"
-                                                class="w-full rounded-lg border border-[#034485]/30 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff] sm:w-auto"
-                                                @click="openDocumentPreview('Medical / Health Certificate', clearanceFileUrl(selectedUser.student?.latest_health_clearance?.id)!, selectedUser.name)"
-                                            >
-                                                Preview Document
-                                            </button>
-                                        </div>
-                                        <div
-                                            v-if="selectedUser.student?.latest_health_clearance?.conditions || selectedUser.student?.latest_health_clearance?.allergies || selectedUser.student?.latest_health_clearance?.restrictions"
-                                            class="mt-4 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"
-                                        >
-                                            <p><span class="font-semibold text-slate-800">Conditions:</span> {{ infoValue(selectedUser.student?.latest_health_clearance?.conditions) }}</p>
-                                            <p><span class="font-semibold text-slate-800">Allergies:</span> {{ infoValue(selectedUser.student?.latest_health_clearance?.allergies) }}</p>
-                                            <p><span class="font-semibold text-slate-800">Restrictions:</span> {{ infoValue(selectedUser.student?.latest_health_clearance?.restrictions) }}</p>
-                                        </div>
-                                    </article>
-
-                                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <div class="mt-4">
+                                    <article class="page-card rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                         <div class="flex items-start justify-between gap-3">
                                             <div>
                                                 <p class="text-sm font-semibold text-slate-900">Academic Supporting Document</p>
@@ -765,10 +693,10 @@ function rejectUser() {
                                             <button
                                                 v-if="academicFileUrl(selectedUser.student?.latest_academic_document?.id)"
                                                 type="button"
-                                                class="w-full rounded-lg border border-[#034485]/30 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff] sm:w-auto"
-                                                @click="openDocumentPreview('Academic Document', academicFileUrl(selectedUser.student?.latest_academic_document?.id)!, selectedUser.name)"
-                                            >
-                                                Preview Document
+                                            class="w-full rounded-lg border border-[#034485]/30 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff] sm:w-auto"
+                                            @click="openDocumentPreview('Academic Document', academicFileUrl(selectedUser.student?.latest_academic_document?.id)!, selectedUser.name)"
+                                        >
+                                            Preview Document
                                             </button>
                                         </div>
                                     </article>
@@ -778,12 +706,11 @@ function rejectUser() {
                     </div>
                 </div>
 
-                <div v-else class="px-4 py-10 text-center text-sm text-slate-500">
-                    {{
-                        isRejectedView
-                            ? 'No rejected applications match the selected filters.'
-                            : 'No pending applications match the selected filters.'
-                    }}
+                <div v-else class="p-4">
+                    <EmptyResultsState
+                        :title="isRejectedView ? 'No rejected applications matched your filters' : 'No pending applications matched your filters'"
+                        :description="isRejectedView ? 'Try changing the applicant search, readiness, or sort options.' : 'Try changing the applicant search, readiness, or sort options.'"
+                    />
                 </div>
 
                 <div
@@ -803,8 +730,8 @@ function rejectUser() {
                             class="min-w-9 rounded-md border px-2 py-1 text-xs transition"
                             :class="
                                 link.active
-                                    ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'
+                                    ? 'border-[#034485] bg-[#034485] text-white'
+                                    : 'border-[#034485]/25 bg-white text-[#034485] hover:bg-[#eef5ff] disabled:cursor-not-allowed disabled:opacity-40'
                             "
                             v-html="link.label"
                         />
@@ -833,7 +760,7 @@ function rejectUser() {
                     <button
                         type="button"
                         @click="closeApproveDialog"
-                        class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                        class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
                     >
                         Cancel
                     </button>
@@ -841,7 +768,7 @@ function rejectUser() {
                         type="button"
                         @click="approveUser"
                         :disabled="approvingId === approveTarget.id || !hasRequirements(approveTarget)"
-                        class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         Confirm Approval
                     </button>
@@ -863,7 +790,7 @@ function rejectUser() {
                     v-model="rejectRemarks"
                     rows="4"
                     placeholder="Enter remarks for the application review, if applicable"
-                    class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                    class="mt-3 w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
                 />
 
                 <div class="mt-5 flex justify-end gap-2">
@@ -898,10 +825,10 @@ function rejectUser() {
                     <div class="flex items-center gap-2">
                         <button
                             type="button"
-                            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                            @click="closeDocumentPreview"
-                        >
-                            Close
+                        class="rounded-lg border border-[#034485]/35 bg-white px-3 py-2 text-xs font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
+                        @click="closeDocumentPreview"
+                    >
+                        Close
                         </button>
                     </div>
                 </div>

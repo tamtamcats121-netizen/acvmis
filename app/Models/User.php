@@ -149,11 +149,6 @@ class User extends Authenticatable
         return $this->hasMany(ScheduleAttendance::class, 'recorded_by');
     }
 
-    public function reviewedHealthClearances()
-    {
-        return $this->hasMany(AthleteHealthClearance::class, 'reviewed_by');
-    }
-
     public function wellnessLogs()
     {
         return $this->hasMany(WellnessLog::class, 'logged_by');

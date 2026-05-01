@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use App\Models\AcademicDocument;
 use App\Models\AcademicPeriod;
 use App\Models\Announcement;
-use App\Models\AthleteHealthClearance;
 use App\Models\ScheduleAttendance;
 use App\Models\Student;
 use App\Models\Team;
@@ -13,7 +12,6 @@ use App\Models\TeamPlayer;
 use App\Models\TeamSchedule;
 use App\Models\TeamStaffAssignment;
 use App\Models\User;
-use App\Models\UserSetting;
 use App\Models\WellnessLog;
 use App\Services\AcademicEligibilityAccessService;
 use Illuminate\Support\Str;
@@ -102,13 +100,6 @@ class HandleInertiaRequests extends Middleware
                         }
                     })()
                     : null,
-                'settings' => [
-                    'theme_preference' => fn () => $request->user()
-                        ? (UserSetting::query()
-                            ->where('user_id', $request->user()->id)
-                            ->value('theme_preference') ?? 'light')
-                        : null,
-                ],
                 'announcements' => [
                     'unread_count' => fn () => $request->user()
                         ? (function () use ($request) {
@@ -154,10 +145,6 @@ class HandleInertiaRequests extends Middleware
 
                             $scheduleCount = TeamSchedule::query()
                                 ->whereBetween('start_time', [$now, (clone $now)->addDays(7)])
-                                ->count();
-
-                            $clearanceCount = AthleteHealthClearance::query()
-                                ->whereNull('reviewed_at')
                                 ->count();
 
                             $wellnessCount = WellnessLog::query()
@@ -208,9 +195,9 @@ class HandleInertiaRequests extends Middleware
                                     'href' => '/operations',
                                 ],
                                 [
-                                    'key' => 'clearance_wellness',
-                                    'label' => 'Clearance & wellness',
-                                    'count' => $clearanceCount + $wellnessCount,
+                                    'key' => 'wellness',
+                                    'label' => 'Wellness monitoring',
+                                    'count' => $wellnessCount,
                                     'href' => '/health',
                                 ],
                                 [

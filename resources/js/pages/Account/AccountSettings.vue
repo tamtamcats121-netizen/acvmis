@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 
 import AccountShell from '@/components/Account/AccountShell.vue';
 import { showAppToast } from '@/composables/useAppToast';
-import { resolveAccountLayout } from '@/pages/Account/accountRole';
+import { normalizeWorkspaceRole, resolveAccountLayout } from '@/pages/Account/accountRole';
 
 defineOptions({
     layout: (h: any, page: any) => h(resolveAccountLayout(page), [page]),
@@ -23,6 +23,7 @@ const showConfirmPassword = ref(false);
 const page = usePage();
 const currentEmail = computed(() => String(page.props.auth?.user?.email ?? ''));
 const mustChangePassword = computed(() => Boolean(page.props.auth?.user?.must_change_password));
+const role = computed(() => normalizeWorkspaceRole((page.props as any)?.auth?.user?.role));
 
 const emailForm = useForm({
     email: currentEmail.value,
@@ -67,6 +68,16 @@ function confirmDelete() {
     <Head title="Account Settings" />
 
     <AccountShell active="account">
+        <section
+            v-if="role === 'student'"
+            class="account-card mb-4 rounded-2xl border border-[#034485]/35 bg-[#034485] p-5 text-white"
+            :style="cardMotion(1)"
+        >
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Student account</p>
+            <h1 class="mt-2 text-2xl font-bold text-white">Account Settings</h1>
+            <p class="mt-2 text-sm leading-6 text-white/85">Update your email access and password securely without leaving the student workspace.</p>
+        </section>
+
         <div v-if="mustChangePassword" class="account-card rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800" :style="cardMotion(1)">
             Password update required. Set a new password to continue using AC-VMIS.
         </div>

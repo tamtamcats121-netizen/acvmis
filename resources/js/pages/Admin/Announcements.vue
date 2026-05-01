@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
+import BackLinkButton from '@/components/ui/BackLinkButton.vue'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
@@ -190,9 +191,7 @@ function formatRelative(value: string | null) {
     <div class="space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <Link href="/AdminDashboard" class="mb-2 inline-flex items-center rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-[#034485] transition hover:bg-[#034485]/10">
-                    Back to Dashboard
-                </Link>
+                <BackLinkButton href="/AdminDashboard" label="Back to Dashboard" class="mb-2" />
                 <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
                 <p class="text-sm text-slate-500">System and admin notices delivered to users.</p>
             </div>
@@ -234,14 +233,14 @@ function formatRelative(value: string | null) {
             {{ actionMessage }}
         </p>
 
-        <div v-if="localAnnouncements.length === 0" class="rounded-xl border border-[#034485]/40 bg-white p-6 text-slate-500">
+        <div v-if="localAnnouncements.length === 0" class="page-card rounded-xl border border-[#034485]/40 bg-white p-6 text-slate-500">
             No announcements yet.
         </div>
 
         <div
             v-for="item in localAnnouncements"
             :key="item.id"
-            class="rounded-xl border p-4 transition"
+            class="page-card rounded-xl border p-4 transition"
             :class="item.is_read
                 ? 'border-[#034485]/40 bg-white text-slate-900'
                 : 'cursor-pointer border-[#034485] bg-[#034485] text-white'"

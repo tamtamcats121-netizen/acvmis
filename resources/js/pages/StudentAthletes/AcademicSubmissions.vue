@@ -16,7 +16,6 @@ type Period = {
     term: string
     starts_on: string
     ends_on: string
-    announcement: string | null
     eligibility_status?: string | null
     is_eligible?: boolean
     can_submit?: boolean
@@ -73,11 +72,9 @@ const props = defineProps<{
     } | null
     openPeriods: Period[]
     submissions: Submission[]
-    submissionHoldStatus?: string | null
     hasActiveWindow?: boolean
-    hasTeam?: boolean
     hasSubmittedAll?: boolean
-    hasEligibleAll?: boolean
+    hasEligibleForActivePeriod?: boolean
     selectedPeriodId?: number
     resultSubmissionId?: number
 }>()
@@ -361,18 +358,20 @@ function cardMotion(order: number) {
     <Head title="Academic Submissions" />
 
     <div class="academics-page-view space-y-5">
+        <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">Academic Submissions</h1>
-                <p class="text-sm text-slate-500">
+                <h1 class="text-2xl font-bold text-white">Academic Submissions</h1>
+                <p class="text-sm text-white/80">
                     {{ isAcademicallyRestricted
                         ? 'Review your current academic standing, upload your latest grade report, and wait for the official eligibility result.'
                         : 'Submit your latest grade report through the guided scan flow.' }}
                 </p>
             </div>
         </div>
+        </section>
 
-        <div v-if="!student" class="page-card rounded-lg border border-[#034485]/35 bg-white p-4 text-slate-600" :style="cardMotion(1)">
+        <div v-if="!student" class="page-card rounded-lg border border-[#034485]/35 bg-white p-4 text-slate-600" :style="cardMotion(2)">
             Student profile not found.
         </div>
 
@@ -636,9 +635,6 @@ function cardMotion(order: number) {
                                 {{ period.is_eligible ? 'Eligible' : 'Open' }}
                             </span>
                         </div>
-                        <p v-if="period.announcement" class="mt-3 text-xs" :class="period.can_submit === false || period.is_eligible ? 'text-emerald-700' : 'text-white/80'">
-                            {{ period.announcement }}
-                        </p>
                         <p class="mt-4 text-xs font-semibold" :class="period.can_submit === false || period.is_eligible ? 'text-emerald-800' : 'text-white'">
                             {{ period.can_submit === false || period.is_eligible ? 'Eligibility already confirmed for this period' : 'Click to upload and scan your grade report' }}
                         </p>
@@ -652,11 +648,11 @@ function cardMotion(order: number) {
                 >
                     <span class="font-semibold text-slate-700">Current status:</span>
                     <span class="ml-2 rounded-full bg-[#034485] px-2 py-0.5 text-[10px] font-semibold text-white">
-                        {{ hasEligibleAll ? 'Eligible' : (submissionHoldStatus || 'Limited') }}
+                        {{ !isAcademicallyRestricted ? 'Eligible' : (restrictionEvaluation?.status || academicAccess?.status || 'Limited') }}
                     </span>
                     <span class="ml-2">
                         {{
-                            hasEligibleAll
+                            !isAcademicallyRestricted
                                 ? 'Access to varsity modules is currently restored.'
                                 : hasSubmittedAll
                                     ? 'Your file is already on record. Varsity access stays paused until the active period is marked eligible.'

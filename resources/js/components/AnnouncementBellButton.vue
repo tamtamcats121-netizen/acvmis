@@ -3,7 +3,7 @@ import { computed } from 'vue'
 
 const props = defineProps<{
     unreadCount?: number
-    dark?: boolean
+    inverse?: boolean
     loading?: boolean
 }>()
 
@@ -15,7 +15,7 @@ const hasUnread = computed(() => (props.unreadCount ?? 0) > 0)
         type="button"
         class="announcement-bell relative inline-flex h-10 w-10 items-center justify-center rounded-full border transition"
         :class="
-            dark
+            inverse
                 ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
         "

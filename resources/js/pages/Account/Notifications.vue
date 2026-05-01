@@ -20,7 +20,6 @@ const props = defineProps<{
     notify_attendance_exceptions: boolean
     notify_wellness_injury_threshold: boolean
     wellness_injury_threshold_level: number
-    theme_preference: 'system' | 'light' | 'dark'
   }
   scope: {
     notifications: string[]
@@ -80,7 +79,6 @@ const form = useForm({
   notify_attendance_exceptions: Boolean(props.settings?.notify_attendance_exceptions ?? true),
   notify_wellness_injury_threshold: Boolean(props.settings?.notify_wellness_injury_threshold ?? true),
   wellness_injury_threshold_level: Number(props.settings?.wellness_injury_threshold_level ?? 3),
-  theme_preference: (props.settings?.theme_preference ?? 'light') as 'light' | 'dark',
 })
 
 function submitSettings() {
@@ -104,7 +102,17 @@ function cardMotion(order: number) {
 
   <AccountShell active="notifications">
       <form @submit.prevent="submitSettings" class="space-y-4">
-        <section class="account-card rounded-2xl border border-[#034485]/40 bg-white p-5" :style="cardMotion(1)">
+        <section
+          v-if="role === 'student'"
+          class="account-card rounded-2xl border border-[#034485]/35 bg-[#034485] p-5 text-white"
+          :style="cardMotion(1)"
+        >
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Student alerts</p>
+          <h1 class="mt-2 text-2xl font-bold text-white">Notifications</h1>
+          <p class="mt-2 text-sm leading-6 text-white/85">Choose how academic, schedule, roster, and wellness updates reach you.</p>
+        </section>
+
+        <section class="account-card rounded-2xl border border-[#034485]/40 bg-white p-5" :style="cardMotion(2)">
         <h2 class="section-title">
           <svg class="h-4 w-4 text-[#1f2937]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -115,7 +123,7 @@ function cardMotion(order: number) {
         <p class="settings-muted mt-1 text-xs text-slate-500">Choose how and when you want to be alerted.</p>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-2">
-          <div class="account-card rounded-xl border border-[#034485]/30 bg-slate-50 p-4" :style="cardMotion(2)">
+          <div class="account-card rounded-xl border border-[#034485]/30 bg-slate-50 p-4" :style="cardMotion(3)">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p class="settings-kicker text-xs font-semibold uppercase tracking-wide text-slate-500">Email Notifications</p>
