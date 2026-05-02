@@ -68,7 +68,7 @@ const navToggleLabel = computed(() => (isNavCollapsed.value ? 'Expand sidebar' :
 const footerLinks = [
     { label: 'Dashboard', href: '/coach/dashboard' },
     { label: 'Schedule & Attendance', href: '/coach/schedule' },
-    { label: 'Wellness', href: '/coach/wellness' },
+    { label: 'Performance', href: '/coach/wellness' },
     { label: 'Team', href: '/coach/team' },
     { label: 'Academics', href: '/coach/academics' },
     { label: 'Announcements', href: '/announcements' },
@@ -593,7 +593,7 @@ watch(isNavCollapsed, (collapsed) => {
 
             <RoleFooter
                 title="Coach"
-                description="Manage schedules, attendance checks, wellness tracking, and academic visibility in one place."
+                description="Manage schedules, attendance checks, performance monitoring, and academic visibility in one place."
                 :links="footerLinks"
                 :bottom-nav="true"
             />

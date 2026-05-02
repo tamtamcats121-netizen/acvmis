@@ -39,7 +39,7 @@
 </div>
 
 <h2 id="system-overview">System Overview</h2>
-<p>The Asian College Varsity Management Information System (AC-VMIS) is a centralized, web-based information system developed to organize and support the day-to-day operations of varsity programs within Asian College. The system provides a structured environment for managing student-athlete registration, coach assignment, team organization, schedule monitoring, attendance recording, academic compliance, wellness monitoring, announcements, and administrative reporting.</p>
+<p>The Asian College Varsity Management Information System (AC-VMIS) is a centralized, web-based information system developed to organize and support the day-to-day operations of varsity programs within Asian College. The system provides a structured environment for managing student-athlete registration, coach assignment, team organization, schedule monitoring, attendance recording, academic compliance, performance monitoring, announcements, and administrative reporting.</p>
 <p>AC-VMIS addresses the operational limitations of fragmented record-keeping practices such as paper files, isolated spreadsheets, and informal messaging. Through a single role-based platform, the system promotes timely record updates, clearer accountability, and more reliable access to varsity information for authorized personnel.</p>
 <p>The current implementation follows a role-based access model with distinct dashboards and process controls for administrators, coaches, and student-athletes. Each role is restricted to functions that correspond to its institutional responsibilities. Administrative control is emphasized in account lifecycle management, academic review oversight, and operational monitoring, while coaches and student-athletes interact with approved functions relevant to team participation and compliance.</p>
 <p>The present system design also incorporates an OCR-assisted academic validation process. Uploaded academic documents are processed through an automated extraction pipeline, after which the system interprets the detected grade data and classifies the result as eligible, ineligible, or pending review. When extracted data is unclear or confidence is low, the document remains subject to administrator review before final academic disposition.</p>
@@ -52,7 +52,7 @@
   <li>control coach account access through formal administrative procedures;</li>
   <li>monitor attendance based on actual team schedules;</li>
   <li>evaluate academic submissions promptly and consistently;</li>
-  <li>track wellness observations and follow-up concerns;</li>
+  <li>track post-session performance observations and follow-up concerns;</li>
   <li>distribute role-appropriate notifications and maintain auditable administrative actions; and</li>
   <li>generate reliable reports for operational review and institutional decision-making.</li>
 </ul>
@@ -64,7 +64,7 @@
 
 <h3>Specific Objectives</h3>
 <ul>
-  <li>To centralize student-athlete, coach, team, schedule, attendance, academic, and wellness-related records in a single platform.</li>
+  <li>To centralize student-athlete, coach, team, schedule, attendance, academic, and performance-related records in a single platform.</li>
   <li>To implement administrator-managed account control, including student approval and coach account provisioning.</li>
   <li>To support a schedule-based attendance workflow in which authorized coaches record attendance during official team activities.</li>
   <li>To automate the initial evaluation of academic submissions through OCR-based grade extraction and rule-based classification.</li>
@@ -80,8 +80,8 @@
 <h3>2. Role-Based Dashboards</h3>
 <p>AC-VMIS provides separate dashboard views for each user role:</p>
 <ul>
-  <li>The administrator dashboard presents institutional summaries, approval queues, attendance indicators, academic risk indicators, wellness alerts, and recent activity logs.</li>
-  <li>The coach dashboard presents team-based metrics such as upcoming schedules, roster condition, attendance progress, wellness follow-up needs, and missing academic submissions.</li>
+  <li>The administrator dashboard presents institutional summaries, approval queues, attendance indicators, academic risk indicators, performance monitoring alerts, and recent activity logs.</li>
+  <li>The coach dashboard presents team-based metrics such as upcoming schedules, roster condition, attendance progress, performance follow-up needs, and missing academic submissions.</li>
   <li>The student-athlete dashboard presents upcoming schedules, recent attendance standing, academic eligibility status, and personal participation records.</li>
 </ul>
 
@@ -107,15 +107,15 @@
 </ul>
 <p>Academic evaluations are preserved per student and academic period, with support for administrator review, remarks, and final status confirmation.</p>
 
-<h3>7. Wellness Monitoring</h3>
-<p>The system maintains wellness logs linked to scheduled activities, allowing authorized personnel to record observed injury concerns, fatigue level, performance condition, and remarks for student-athletes.</p>
+<h3>7. Performance Monitoring</h3>
+<p>The system maintains schedule-based performance records linked to scheduled activities, allowing coaches to evaluate student-athlete condition, fatigue level, injury observations, performance condition, and coach remarks after training sessions or games.</p>
 
 <h3>8. Notifications and User Support Access</h3>
 <p>AC-VMIS includes an in-application notification mechanism supported by announcement event and recipient records. Notifications may also be sent through email, subject to user preference settings. Notification categories currently support approval, academic, schedule, general, and system-related communication.</p>
 <p>The current implementation also provides a role-sensitive help interface and official support contact channels for account, process, and record-related concerns. However, the present production schema does not implement a database-backed support ticket lifecycle. Accordingly, system documentation should refer to support access and contact guidance, not to a full internal ticket-tracking subsystem.</p>
 
 <h3>9. Reporting and Audit Monitoring</h3>
-<p>The system supports reporting for attendance, roster, academic, and wellness records. It also preserves administrative and process history through dedicated records such as student approval histories, account action logs, academic OCR runs, and evaluation actions. These records strengthen accountability and provide institutional reference for review and decision-making.</p>
+<p>The system supports reporting for attendance, roster, academic, and performance records. It also preserves administrative and process history through dedicated records such as student approval histories, account action logs, academic OCR runs, and evaluation actions. These records strengthen accountability and provide institutional reference for review and decision-making.</p>
 
 <h2 id="user-roles-and-responsibilities">User Roles and Responsibilities</h2>
 <h3>Administrator</h3>
@@ -124,7 +124,7 @@
   <li>reviewing and approving or rejecting student-athlete accounts;</li>
   <li>provisioning coach accounts and managing onboarding access;</li>
   <li>managing teams, roster composition, and coach assignments;</li>
-  <li>monitoring schedules, attendance records, and wellness records;</li>
+  <li>monitoring schedules, attendance records, and performance records;</li>
   <li>managing academic periods, reviewing academic submissions, and finalizing academic evaluations when needed;</li>
   <li>issuing announcements and overseeing notification-driven communication; and</li>
   <li>generating reports and reviewing audit-related records.</li>
@@ -136,7 +136,7 @@
   <li>viewing assigned teams and roster information;</li>
   <li>creating and maintaining team schedules;</li>
   <li>recording attendance during scheduled activities through the official attendance workflow;</li>
-  <li>monitoring athlete participation, wellness conditions, and selected academic submission visibility; and</li>
+  <li>monitoring athlete participation, performance conditions, and selected academic submission visibility; and</li>
   <li>receiving and responding to operational notifications related to team activities.</li>
 </ul>
 <p>The current implementation allows both head and assistant coaches assigned to a team to participate in authorized schedule and attendance processes.</p>
@@ -159,7 +159,7 @@
   <li>The administrator approves or rejects eligible student-athlete accounts and the decision is preserved in approval history.</li>
   <li>The administrator provisions coach accounts and issues onboarding access for coach activation.</li>
   <li>The administrator creates and maintains teams, assigns coaches, and manages roster records.</li>
-  <li>The administrator monitors schedules, attendance outcomes, wellness alerts, and academic submission queues.</li>
+  <li>The administrator monitors schedules, attendance outcomes, performance monitoring alerts, and academic submission queues.</li>
   <li>The administrator reviews OCR-assisted academic results and performs manual confirmation or override when review is required.</li>
   <li>The administrator generates reports and consults audit records for institutional monitoring.</li>
 </ol>
@@ -170,7 +170,7 @@
   <li>The coach reviews assigned teams, roster status, and the upcoming schedule.</li>
   <li>The coach creates or updates team schedules for practices, games, or meetings.</li>
   <li>Once a scheduled activity has started, the coach opens the attendance workflow and records attendance for team members using permitted statuses.</li>
-  <li>The coach reviews attendance progress, follows up on exceptions, and records wellness observations when applicable.</li>
+  <li>The coach reviews attendance progress, follows up on exceptions, and records post-session performance evaluations when applicable.</li>
   <li>The coach monitors academic submission visibility for team members as allowed by the current role configuration.</li>
   <li>The coach receives schedule, attendance, and academic-related notifications relevant to assigned teams.</li>
 </ol>
@@ -197,7 +197,7 @@
   <li><code>academic_eligibility_evaluations</code> stores the resulting academic interpretation per student and academic period.</li>
 </ul>
 <p>This design supports both automated processing and administrator review. Clear OCR outcomes may be auto-processed, while low-confidence or ambiguous outcomes remain subject to manual confirmation.</p>
-<p>Wellness-related data is stored through <code>wellness_logs</code>, allowing the system to preserve post-session observation records. Notification data is stored through <code>announcement_events</code> and <code>announcement_recipients</code>, while user notification preferences are stored in <code>user_settings</code>.</p>
+<p>Performance monitoring data is stored through <code>wellness_logs</code>, allowing the system to preserve post-session evaluation records. Notification data is stored through <code>announcement_events</code> and <code>announcement_recipients</code>, while user notification preferences are stored in <code>user_settings</code>.</p>
 <p>Administrative accountability is reinforced through <code>student_approval_histories</code>, <code>account_action_logs</code>, and related timestamped records that document important system actions.</p>
 
 <h2 id="scope-and-limitations">Scope and Limitations</h2>
@@ -211,7 +211,7 @@
   <li>schedule creation and schedule-based attendance recording;</li>
   <li>academic period management and academic document submission;</li>
   <li>OCR-assisted academic validation with rule-based classification and administrator review support;</li>
-  <li>wellness monitoring;</li>
+  <li>performance monitoring;</li>
   <li>in-application announcements, email-capable notifications, and user support guidance; and</li>
   <li>reporting and audit-oriented monitoring for varsity operations.</li>
 </ul>
@@ -221,7 +221,7 @@
 <ul>
   <li>It is intended for varsity management within Asian College and is not designed as a public or multi-institution platform.</li>
   <li>It does not replace the official academic records system of the institution; it only supports varsity-related academic compliance monitoring.</li>
-  <li>It does not provide medical diagnosis or clinical decision support; health records are limited to coach-recorded wellness observations.</li>
+  <li>It does not provide medical diagnosis or clinical decision support; health records are limited to coach-recorded performance monitoring observations.</li>
   <li>OCR-based academic interpretation depends on the clarity and quality of uploaded files; unclear or low-confidence outputs still require manual administrative review.</li>
   <li>Attendance recording is dependent on official schedule entries and is limited to authorized coaching and administrative actions within the implemented workflow.</li>
   <li>The current implementation provides support guidance and contact access, but it does not yet include a full database-backed support ticket tracking subsystem.</li>

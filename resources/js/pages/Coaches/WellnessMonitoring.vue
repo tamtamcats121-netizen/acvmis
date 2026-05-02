@@ -63,15 +63,15 @@ function cardMotion(order: number) {
 </script>
 
 <template>
-    <Head title="Wellness Monitoring" />
+    <Head title="Performance Monitoring" />
 
     <div class="space-y-6">
         <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
         <div class="flex flex-col gap-2">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Coach evaluation workflow</p>
-            <h1 class="text-2xl font-bold text-white">Wellness Monitoring</h1>
+            <h1 class="text-2xl font-bold text-white">Performance Monitoring</h1>
             <p class="max-w-3xl text-sm leading-6 text-white/80">
-                Choose a completed practice or game, then open a dedicated player review page for wellness evaluation.
+                Choose a completed practice or game, then open a dedicated player review page for post-session performance evaluation.
             </p>
         </div>
         </section>
@@ -102,7 +102,7 @@ function cardMotion(order: number) {
                         <div>
                             <h2 class="text-lg font-bold text-slate-900">Completed Sessions</h2>
                             <p class="mt-1 text-sm text-slate-500">
-                                Open the session you want to review, then continue to player wellness evaluation.
+                                Open the session you want to review, then continue to athlete performance evaluation.
                             </p>
                         </div>
 
@@ -154,7 +154,7 @@ function cardMotion(order: number) {
                                 class="rounded-md bg-[#1f2937] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#111827]"
                                 @click="openReview(schedule.id)"
                             >
-                                Review Players
+                                Evaluate Athlete Performance
                             </button>
                         </div>
                     </article>

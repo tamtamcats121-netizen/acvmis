@@ -100,7 +100,7 @@ function login() {
                 <section class="public-card login-copy">
                     <p class="copy-kicker">Account Access</p>
                     <h1>Welcome</h1>
-                    <p>Sign in to access schedules, attendance, wellness records, academic updates, and varsity announcements.</p>
+                    <p>Sign in to access schedules, attendance, performance records, academic updates, and varsity announcements.</p>
                 </section>
 
                 <section class="public-card login-card">

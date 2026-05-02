@@ -250,7 +250,7 @@ watch(mobileMenuOpen, (open) => {
                     <section class="footer-col footer-col-brand">
                         <p class="footer-brand">Asian College Varsity Management Information System</p>
                         <p class="footer-copy">
-                            One platform for student-athletes and coaches to handle schedules, attendance, wellness, academic eligibility, and
+                            One platform for student-athletes and coaches to handle schedules, attendance, performance monitoring, academic eligibility, and
                             announcements.
                         </p>
                         <p class="footer-contact">

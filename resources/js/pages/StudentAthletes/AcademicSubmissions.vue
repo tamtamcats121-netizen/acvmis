@@ -399,7 +399,7 @@ function cardMotion(order: number) {
                             </div>
                             <p class="max-w-3xl text-sm leading-6 text-slate-600">{{ academicAccess?.message }}</p>
                             <p class="text-sm text-slate-600">
-                                Upload your current academic document here. Access to teams, schedules, and wellness returns only after the active period is submitted and marked eligible.
+                                Upload your current academic document here. Access to teams, schedules, and performance records returns only after the active period is submitted and marked eligible.
                             </p>
                         </div>
                     </div>
@@ -656,7 +656,7 @@ function cardMotion(order: number) {
                                 ? 'Access to varsity modules is currently restored.'
                                 : hasSubmittedAll
                                     ? 'Your file is already on record. Varsity access stays paused until the active period is marked eligible.'
-                                    : 'Teams, schedules, and wellness stay paused until you submit and receive an eligible result.'
+                                    : 'Teams, schedules, and performance records stay paused until you submit and receive an eligible result.'
                         }}
                     </span>
                 </div>

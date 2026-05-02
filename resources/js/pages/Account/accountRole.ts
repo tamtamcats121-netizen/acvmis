@@ -29,7 +29,7 @@ export function workspaceNavigationPreview(rawRole: unknown): string[] {
     const role = normalizeWorkspaceRole(rawRole)
 
     if (role === 'admin') {
-        return ['Dashboard', 'People', 'Teams', 'Operations', 'Wellness', 'Academics']
+        return ['Dashboard', 'People', 'Teams', 'Operations', 'Performance', 'Academics']
     }
 
     if (role === 'coach') {

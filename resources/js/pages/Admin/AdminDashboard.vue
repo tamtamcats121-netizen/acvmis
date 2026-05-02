@@ -158,7 +158,7 @@ const pages: NavEntry[] = [
         ],
     },
     { name: 'Operations', route: '/operations', iconPaths: ['M3 3v18h18', 'M7 13l3-3 3 2 5-6'] },
-    { name: 'Wellness', route: '/health', iconPaths: ['M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z', 'M9 12l2 2 4-4'] },
+    { name: 'Performance', route: '/health', iconPaths: ['M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z', 'M9 12l2 2 4-4'] },
     {
         name: 'Academics',
         route: '/academics',
@@ -185,7 +185,7 @@ const footerLinks = [
     { label: 'People', href: '/people' },
     { label: 'Teams', href: '/teams' },
     { label: 'Operations', href: '/operations' },
-    { label: 'Wellness', href: '/health' },
+    { label: 'Performance', href: '/health' },
     { label: 'Academics', href: '/academics' },
     { label: 'Audit Trail', href: '/audit-trail' },
     { label: 'Reports', href: '/reports/attendance' },
@@ -202,7 +202,7 @@ const currentPageName = computed(() => {
         return 'Operations';
     }
     if (currentPath.value === '/health' || currentPath.value.startsWith('/health/')) {
-        return 'Wellness';
+        return 'Performance';
     }
     if (currentPath.value === '/account/profile' || currentPath.value.startsWith('/account/profile/')) {
         return 'Profile';
@@ -1409,16 +1409,16 @@ watch(
 
                         <article class="page-card rounded-2xl border border-[#034485]/18 bg-white p-4">
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Wellness Snapshot</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Performance Snapshot</p>
                                 <h4 class="mt-1 text-base font-semibold text-slate-900">Injury And Fatigue Overview</h4>
-                                <p class="mt-1 text-xs text-slate-600">Track wellness monitoring activity through observed injuries and average fatigue over the selected period.</p>
+                                <p class="mt-1 text-xs text-slate-600">Track performance monitoring activity through observed injuries and average fatigue over the selected period.</p>
                             </div>
 
                             <div
                                 v-if="dashboard.trends.wellness_snapshot.labels.length === 0"
                                 class="mt-4 rounded-2xl border border-dashed border-[#034485]/25 bg-[#034485]/5 px-4 py-10 text-center text-sm text-slate-500"
                             >
-                                No wellness monitoring data is available for this period.
+                                No performance monitoring data is available for this period.
                             </div>
 
                             <VueApexCharts

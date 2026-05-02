@@ -309,7 +309,7 @@ function formatScheduleDateTime(value?: string | null) {
               {{ props.team?.team_name ? `${props.team.team_name} Dashboard` : 'Coach Workspace' }}
             </h1>
             <p class="mt-2 max-w-3xl text-sm leading-6 text-white/85">
-              Access schedule coordination, attendance posting, wellness monitoring, and team oversight from one organized coaching workspace.
+              Access schedule coordination, attendance posting, performance monitoring, and team oversight from one organized coaching workspace.
             </p>
           </div>
 
@@ -336,7 +336,7 @@ function formatScheduleDateTime(value?: string | null) {
         </article>
 
         <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4" :style="cardMotion(4)">
-          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Wellness Pending</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Performance Pending</p>
           <p class="mt-2 text-2xl font-bold text-[#034485]">{{ safeMetrics.wellness_pending }}</p>
         </article>
 
@@ -390,8 +390,8 @@ function formatScheduleDateTime(value?: string | null) {
             href="/coach/wellness"
             class="rounded-2xl border border-[#034485]/18 bg-slate-50 px-4 py-4 transition hover:border-[#034485]/35 hover:bg-[#034485]/5"
           >
-            <p class="text-sm font-semibold text-slate-900">Open Wellness</p>
-            <p class="mt-1 text-xs text-slate-500">Log post-session injury, fatigue, and condition observations.</p>
+            <p class="text-sm font-semibold text-slate-900">Open Performance Monitoring</p>
+            <p class="mt-1 text-xs text-slate-500">Log post-session athlete condition, fatigue, injury observation, and coach remarks.</p>
           </Link>
 
           <Link
@@ -450,9 +450,9 @@ function formatScheduleDateTime(value?: string | null) {
 
       <section class="page-card rounded-2xl border border-[#034485]/22 bg-white p-5" :style="cardMotion(8)">
         <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Wellness Snapshot</p>
-          <h2 class="mt-2 text-xl font-bold text-slate-900">Team Wellness Snapshot</h2>
-          <p class="mt-1 text-sm text-slate-600">Overall team wellness observations based on recent injury flags, fatigue levels, and performance condition logs.</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Performance Snapshot</p>
+          <h2 class="mt-2 text-xl font-bold text-slate-900">Team Performance Snapshot</h2>
+          <p class="mt-1 text-sm text-slate-600">Overall team performance monitoring based on recent injury observations, fatigue levels, and performance condition logs.</p>
         </div>
 
         <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -490,7 +490,7 @@ function formatScheduleDateTime(value?: string | null) {
           <div class="rounded-2xl border border-[#034485]/16 bg-slate-50 p-4">
             <div>
               <h3 class="text-sm font-semibold text-slate-900">Players With Recent Injury Notes</h3>
-              <p class="mt-1 text-xs text-slate-500">Latest wellness entries where injury concerns were described by the coach.</p>
+              <p class="mt-1 text-xs text-slate-500">Latest performance records where injury observations were described by the coach.</p>
             </div>
 
             <div v-if="wellnessSnapshot.recent_injury_notes.length" class="mt-4 space-y-3">

@@ -10,7 +10,7 @@ export const studentPrimaryNav: StudentNavItem[] = [
   { key: 'home', label: 'Home', route: '/StudentAthleteDashboard', icon: 'layout-grid', mobileLabel: 'Home' },
   { key: 'team', label: 'Team', route: '/MyTeam', icon: 'users', mobileLabel: 'Team' },
   { key: 'schedule', label: 'Schedule', route: '/MySchedule', icon: 'calendar', mobileLabel: 'Schedule' },
-  { key: 'wellness', label: 'Wellness', route: '/WellnessHistory', icon: 'heart-pulse', mobileLabel: 'Wellness' },
+  { key: 'wellness', label: 'Performance', route: '/WellnessHistory', icon: 'heart-pulse', mobileLabel: 'Performance' },
   { key: 'academics', label: 'Academics', route: '/AcademicSubmissions', icon: 'graduation-cap', mobileLabel: 'Academics' },
 ]
 

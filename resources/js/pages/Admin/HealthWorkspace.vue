@@ -95,16 +95,16 @@ function resetFilters() {
 </script>
 
 <template>
-    <Head title="Wellness Workspace" />
+    <Head title="Performance Workspace" />
 
     <div class="space-y-5">
         <section class="page-card overflow-hidden rounded-3xl border border-[#034485]/35 bg-white">
             <div class="bg-[#034485] p-6 text-white">
                 <div class="max-w-3xl">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Wellness Workspace</p>
-                    <h1 class="mt-2 text-3xl font-bold">Post-Session Wellness Monitoring</h1>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Performance Workspace</p>
+                    <h1 class="mt-2 text-3xl font-bold">Post-Session Performance Monitoring</h1>
                     <p class="mt-2 text-sm text-white/80">
-                        Track coach-recorded wellness observations, inspect fatigue and injury signals, and review recovery-related remarks across teams and sessions.
+                        Review coach-led post-session evaluations of athlete condition, fatigue level, injury observation, performance condition, and coach remarks across teams and sessions.
                     </p>
                 </div>
             </div>
@@ -182,8 +182,8 @@ function resetFilters() {
 
         <section class="page-card overflow-hidden rounded-3xl border border-[#034485]/35 bg-white">
             <div class="border-b border-[#034485]/30 bg-[#034485] px-5 py-4 text-white">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Wellness Logs</p>
-                <h2 class="mt-2 text-lg font-semibold text-white">Recorded Wellness Entries</h2>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Performance Records</p>
+                <h2 class="mt-2 text-lg font-semibold text-white">Recorded Performance Entries</h2>
             </div>
 
             <div class="grid grid-cols-1 gap-4 p-5 xl:grid-cols-2">
@@ -253,7 +253,7 @@ function resetFilters() {
                     v-if="wellness.logs.data.length === 0"
                     class="xl:col-span-2 rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center text-slate-500"
                 >
-                    No wellness logs found for the selected filters.
+                    No performance records found for the selected filters.
                 </div>
             </div>
         </section>

@@ -119,15 +119,15 @@ function saveRow(studentId: number) {
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            showAppToast('Wellness evaluation saved.', 'success', {
-                summary: 'Wellness Monitoring',
+            showAppToast('Performance update saved.', 'success', {
+                summary: 'Performance Monitoring',
             })
         },
         onError: (errors) => {
             const firstError = Object.values(errors ?? {}).flat()[0]
 
-            showAppToast(String(firstError || 'Unable to save wellness evaluation.'), 'error', {
-                summary: 'Wellness Monitoring',
+            showAppToast(String(firstError || 'Unable to save performance update.'), 'error', {
+                summary: 'Performance Monitoring',
             })
         },
         onFinish: () => {
@@ -196,16 +196,16 @@ function cardMotion(order: number) {
 </script>
 
 <template>
-    <Head title="Wellness Review" />
+    <Head title="Evaluate Athlete Performance" />
 
     <div class="space-y-6">
         <div class="flex flex-col gap-3">
-            <BackLinkButton href="/coach/wellness" label="Back to Wellness Monitoring" />
+            <BackLinkButton href="/coach/wellness" label="Back to Performance Monitoring" />
             <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Player review</p>
-                <h1 class="mt-2 text-2xl font-bold text-white">Review Players</h1>
+                <h1 class="mt-2 text-2xl font-bold text-white">Evaluate Athlete Performance</h1>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-white/85">
-                    Evaluate present and late athletes for this completed session, then save wellness entries per player.
+                    Evaluate present and late athletes for this completed session, then save post-session performance records per athlete.
                 </p>
             </section>
         </div>
@@ -358,7 +358,7 @@ function cardMotion(order: number) {
                         <div class="flex items-center justify-between gap-3">
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-[#034485]">Injury Observed</p>
-                                <p class="mt-1 text-sm text-slate-600">Mark this if the athlete showed a confirmed concern during or after the session.</p>
+                                <p class="mt-1 text-sm text-slate-600">Mark this if the athlete showed a confirmed injury observation during or after the session.</p>
                             </div>
                             <button
                                 type="button"
@@ -399,7 +399,7 @@ function cardMotion(order: number) {
 
                         <div class="rounded-2xl border border-[#034485]/15 bg-white p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-[#034485]">Performance Condition</p>
-                            <p class="mt-1 text-sm text-slate-600">Capture the athlete’s overall condition during or after the session.</p>
+                            <p class="mt-1 text-sm text-slate-600">Capture the athlete’s performance condition during or after the session.</p>
                             <select
                                 v-model="rowForms[selectedAthlete.student_id].performance_condition"
                                 class="mt-3 w-full rounded-lg border border-[#034485]/20 bg-[#f7fbff] px-3 py-2.5 text-sm text-slate-900"
@@ -418,14 +418,14 @@ function cardMotion(order: number) {
                             v-model="rowForms[selectedAthlete.student_id].remarks"
                             rows="3"
                             class="mt-3 w-full rounded-lg border border-[#034485]/20 bg-[#f7fbff] px-3 py-2 text-sm text-slate-900"
-                            placeholder="Add coaching notes, recovery reminders, or readiness comments"
+                            placeholder="Add coach remarks, condition notes, or post-session evaluation comments"
                         />
                     </div>
                 </div>
 
                 <div class="mt-5 flex items-center justify-between gap-3">
                     <p class="text-xs text-slate-500">
-                        Save the athlete’s wellness evaluation once the session review is complete.
+                        Save the athlete’s performance update once the post-session evaluation is complete.
                     </p>
                     <button
                         type="button"
@@ -433,7 +433,7 @@ function cardMotion(order: number) {
                         :disabled="savingKey === `${schedule.id}:${selectedAthlete.student_id}`"
                         @click="saveRow(selectedAthlete.student_id)"
                     >
-                        {{ savingKey === `${schedule.id}:${selectedAthlete.student_id}` ? 'Saving...' : 'Save Evaluation' }}
+                        {{ savingKey === `${schedule.id}:${selectedAthlete.student_id}` ? 'Saving...' : 'Submit Performance Update' }}
                     </button>
                 </div>
             </article>

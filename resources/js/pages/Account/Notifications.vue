@@ -42,7 +42,7 @@ const labelMap = computed(() => {
       notify_schedule_changes: 'Team Assignment (Coach)',
       notify_attendance_exceptions: 'Roster Changes (Assistants & Athletes)',
       notify_attendance_changes: 'Attendance Status Updates',
-      notify_wellness_alerts: 'Wellness Monitoring Alerts',
+      notify_wellness_alerts: 'Performance Monitoring Alerts',
       notify_wellness_injury_threshold: 'Injury threshold alerts',
       notify_approvals: 'Newly pending accounts',
     }
@@ -52,7 +52,7 @@ const labelMap = computed(() => {
     return {
       notify_academic_alerts: 'Academic Period Openings',
       notify_attendance_changes: 'Submission Status Updates',
-      notify_wellness_alerts: 'Wellness Log Updates',
+      notify_wellness_alerts: 'Performance Record Updates',
       notify_schedule_changes: 'Schedule Updates (Start, Change, Cancel)',
       notify_attendance_exceptions: 'Team Roster & Coaching Updates',
       notify_wellness_injury_threshold: 'Injury Threshold Alerts',
@@ -65,7 +65,7 @@ const labelMap = computed(() => {
     notify_schedule_changes: 'Schedules',
     notify_attendance_exceptions: 'Team Change Requests',
     notify_attendance_changes: 'Period Ending Soon',
-    notify_wellness_alerts: 'Clearance & Wellness',
+    notify_wellness_alerts: 'Clearance & Performance',
     notify_wellness_injury_threshold: 'Injury Threshold Alerts',
     notify_approvals: 'Newly Pending Accounts',
   }
@@ -111,7 +111,7 @@ function cardMotion(order: number) {
         >
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Student alerts</p>
           <h1 class="mt-2 text-2xl font-bold text-white">Notifications</h1>
-          <p class="mt-2 text-sm leading-6 text-white/85">Choose how academic, schedule, roster, and wellness updates reach you.</p>
+          <p class="mt-2 text-sm leading-6 text-white/85">Choose how academic, schedule, roster, and performance monitoring updates reach you.</p>
         </section>
 
         <section

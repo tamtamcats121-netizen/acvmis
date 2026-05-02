@@ -138,7 +138,7 @@ const footerLinks = [
     { label: 'Dashboard', href: '/StudentAthleteDashboard' },
     { label: 'My Schedule', href: '/MySchedule' },
     { label: 'My Team', href: '/MyTeam' },
-    { label: 'Wellness', href: '/WellnessHistory' },
+    { label: 'Performance', href: '/WellnessHistory' },
     { label: 'Academics', href: '/AcademicSubmissions' },
     { label: 'Announcements', href: '/announcements' },
     { label: 'Profile', href: '/account/profile' },
@@ -951,12 +951,12 @@ watch(mobileMenuOpen, (open) => {
                                             </svg>
                                         </span>
                                         <div class="min-w-0">
-                                            <p class="text-sm font-semibold text-slate-900">Wellness</p>
-                                            <p class="text-xs text-slate-500">Review recent check-ins and keep your readiness record updated.</p>
+                                            <p class="text-sm font-semibold text-slate-900">Performance</p>
+                                            <p class="text-xs text-slate-500">Review recent post-session records and keep your condition history updated.</p>
                                         </div>
                                     </div>
                                     <p class="mt-3 text-[11px] font-semibold text-emerald-700">
-                                        {{ kpis.wellness_logs_30d ?? 0 }} entries in the last 30 days
+                                        {{ kpis.wellness_logs_30d ?? 0 }} performance records in the last 30 days
                                     </p>
                                 </button>
 
@@ -1015,7 +1015,7 @@ watch(mobileMenuOpen, (open) => {
                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 class="text-sm font-bold uppercase tracking-wide text-[#034485]">Status Summary</h3>
-                                        <p class="mt-1 text-sm text-slate-500">Your current academics, wellness, and submission standing.</p>
+                                        <p class="mt-1 text-sm text-slate-500">Your current academics, performance records, and submission standing.</p>
                                     </div>
                                 </div>
 
@@ -1030,9 +1030,9 @@ watch(mobileMenuOpen, (open) => {
                                         <p class="mt-1 text-xs text-slate-500">{{ academicSubmissions.submitted }} of {{ submissionTotal || 0 }} requirements completed.</p>
                                     </div>
                                     <div class="dashboard-card rounded-xl border border-[#034485]/20 bg-[#f8fbff] p-3" :style="cardMotion(16)">
-                                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Wellness Activity</p>
+                                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Performance Activity</p>
                                         <p class="mt-1 text-lg font-semibold text-[#034485]">{{ kpis.wellness_logs_30d ?? 0 }}</p>
-                                        <p class="mt-1 text-xs text-slate-500">Recent post-training condition records from the last 30 days.</p>
+                                        <p class="mt-1 text-xs text-slate-500">Recent post-session performance records from the last 30 days.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1094,11 +1094,11 @@ watch(mobileMenuOpen, (open) => {
                                     <div class="dashboard-card rounded-lg border border-[#034485]/20 bg-[#f8fbff] p-3" :style="cardMotion(20)">
                                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div class="min-w-0">
-                                                <p class="text-sm font-semibold text-slate-900">Wellness Check-In</p>
+                                                <p class="text-sm font-semibold text-slate-900">Performance Check-In</p>
                                                 <p class="mt-1 text-xs text-slate-500">
                                                     {{ Number(kpis.wellness_logs_30d || 0) === 0
-                                                        ? 'No recent post-training condition records are available. Please continue submitting updates as required.'
-                                                        : 'Continue maintaining your post-training condition and recovery updates.' }}
+                                                        ? 'No recent post-session performance records are available. Please continue submitting updates as required.'
+                                                        : 'Continue maintaining your post-session condition and performance updates.' }}
                                                 </p>
                                             </div>
                                             <button
@@ -1178,8 +1178,8 @@ watch(mobileMenuOpen, (open) => {
                             <div class="dashboard-card rounded-xl border border-[#034485]/30 bg-white p-5" :style="cardMotion(24)">
                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
-                                        <h3 class="text-sm font-bold uppercase tracking-wide text-[#034485]">Wellness Trend</h3>
-                                        <p class="mt-1 text-sm text-slate-500">Recent wellness entries over the last seven days.</p>
+                                        <h3 class="text-sm font-bold uppercase tracking-wide text-[#034485]">Performance Trend</h3>
+                                        <p class="mt-1 text-sm text-slate-500">Recent performance records over the last seven days.</p>
                                     </div>
                                     <span class="text-xs font-medium text-slate-500">Last {{ wellnessSeries.length }}</span>
                                 </div>
@@ -1196,7 +1196,7 @@ watch(mobileMenuOpen, (open) => {
                                         v-else
                                         class="rounded-2xl border border-dashed border-[#034485]/22 bg-[#f8fbff] px-4 py-10 text-center text-sm text-slate-500"
                                     >
-                                        No recent wellness trend data is available yet.
+                                        No recent performance trend data is available yet.
                                     </div>
                                 </div>
                             </div>

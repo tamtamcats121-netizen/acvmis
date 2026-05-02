@@ -74,13 +74,13 @@ function cardMotion(order: number) {
 </script>
 
 <template>
-    <Head title="Wellness History" />
+    <Head title="Performance History" />
     <div class="wellness-page-view space-y-5">
         <section class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485] p-5 text-white" :style="cardMotion(1)">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-white">Wellness History</h1>
-                <p class="mt-1 text-sm text-white/80">Review your coach-recorded post-training condition records.</p>
+                <h1 class="text-2xl font-bold text-white">Performance History</h1>
+                <p class="mt-1 text-sm text-white/80">Review your coach-recorded post-session performance records.</p>
             </div>
             <div v-if="!accessLocked" class="flex flex-wrap gap-2">
                 <button
@@ -95,8 +95,8 @@ function cardMotion(order: number) {
         </section>
 
         <div v-if="accessLocked" class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485]/5 p-6 text-slate-700" :style="cardMotion(2)">
-            <h2 class="text-sm font-semibold text-slate-800">Wellness Access Paused</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ lockMessage || 'Wellness access is paused during the academic submission window.' }}</p>
+            <h2 class="text-sm font-semibold text-slate-800">Performance Access Paused</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ lockMessage || 'Performance record access is paused during the academic submission window.' }}</p>
             <div class="mt-3 text-xs text-slate-600">
                 Status:
                 <span class="ml-2 inline-flex rounded-full bg-[#034485] px-2 py-0.5 text-[10px] font-semibold text-white">

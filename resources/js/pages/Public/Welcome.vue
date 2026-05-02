@@ -102,7 +102,7 @@ const faqs = [
     },
     {
         question: 'Why do I need to record my post-training condition?',
-        answer: 'Post-training condition records help the varsity program monitor fatigue, discomfort, and other wellness observations after training or competition.',
+        answer: 'Post-session performance records help the varsity program monitor athlete condition, fatigue level, injury observation, and coach remarks after training or competition.',
     },
     {
         question: 'How does Academic Eligibility work?',
@@ -116,7 +116,7 @@ const faqs = [
 const privacyPolicyItems = [
     'Account and profile details',
     'Team, schedule, and attendance records',
-    'Wellness monitoring submissions',
+    'Performance monitoring submissions',
     'Academic documents and eligibility results',
     'System announcements and notification logs',
 ];

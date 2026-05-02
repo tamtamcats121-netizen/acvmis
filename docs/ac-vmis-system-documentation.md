@@ -2,233 +2,274 @@
 
 ## System Overview
 
-The Asian College Varsity Management Information System (AC-VMIS) is a centralized, web-based information system developed to organize and support the day-to-day operations of varsity programs within Asian College. The system provides a structured environment for managing student-athlete registration, coach assignment, team organization, schedule monitoring, attendance recording, academic compliance, wellness monitoring, announcements, and administrative reporting.
+The Asian College Varsity Management Information System (AC-VMIS) is a web-based, role-based information system developed to centralize the administration of varsity operations at Asian College. The implemented system consolidates student-athlete records, coach assignments, team rosters, schedules, attendance, academic submission review, performance monitoring, announcements, notifications, reports, and audit-oriented administrative records within one controlled platform.
 
-AC-VMIS addresses the operational limitations of fragmented record-keeping practices such as paper files, isolated spreadsheets, and informal messaging. Through a single role-based platform, the system promotes timely record updates, clearer accountability, and more reliable access to varsity information for authorized personnel.
+The current implementation emphasizes institutional control and operational traceability. Student-athletes register through the public registration flow and remain subject to administrative approval. Coach accounts are not publicly self-registered; instead, they are created by administrators and activated through a controlled onboarding process. Administrator accounts are provisioned through invitation links. This structure reflects the present access model of the application and should be treated as the official user lifecycle of AC-VMIS.
 
-The current implementation follows a role-based access model with distinct dashboards and process controls for administrators, coaches, and student-athletes. Each role is restricted to functions that correspond to its institutional responsibilities. Administrative control is emphasized in account lifecycle management, academic review oversight, and operational monitoring, while coaches and student-athletes interact with approved functions relevant to team participation and compliance.
-
-The present system design also incorporates an OCR-assisted academic validation process. Uploaded academic documents are processed through an automated extraction pipeline, after which the system interprets the detected grade data and classifies the result as eligible, ineligible, or pending review. When extracted data is unclear or confidence is low, the document remains subject to administrator review before final academic disposition.
+AC-VMIS also implements schedule-based attendance and OCR-supported academic validation. Attendance is posted by authorized coaches against official team schedules. Academic submissions are uploaded by student-athletes, processed through OCR, summarized by rule-based parsing, and finalized through administrative review when required. These workflows define the current operational design of the system.
 
 ## Problem Statement
 
-Varsity operations require continuous coordination among administrators, coaches, and student-athletes. In conventional practice, these activities are often managed through separate documents, manual attendance sheets, informal follow-ups, and non-standardized submission procedures. This arrangement creates delays in verification, inconsistent record maintenance, and difficulty in monitoring the academic and health compliance of student-athletes.
+Before the implementation of AC-VMIS, varsity operations were vulnerable to fragmented record-keeping, delayed communication, and inconsistent monitoring. Athlete details, coach assignments, schedules, attendance records, and academic compliance documents were difficult to monitor in a unified and accountable manner. As a result, coordination among administrators, coaches, and student-athletes became time-consuming and prone to error.
 
-The absence of a unified system makes it difficult to:
+The institution needed a centralized system that could:
 
-- maintain complete and current student-athlete records;
-- control coach account access through formal administrative procedures;
-- monitor attendance based on actual team schedules;
-- evaluate academic submissions promptly and consistently;
-- track wellness observations and follow-up concerns;
-- distribute role-appropriate notifications and maintain auditable administrative actions; and
-- generate reliable reports for operational review and institutional decision-making.
+- maintain complete and current varsity records in a single platform;
+- formalize account approval and onboarding processes;
+- support coach-led attendance based on actual scheduled activities;
+- streamline academic submission review through automated assistance and administrative oversight;
+- preserve post-session performance observations for follow-up monitoring;
+- distribute internal announcements and notifications to the proper recipients; and
+- generate reliable reports and audit-ready activity records for institutional review.
 
-These issues justify the need for an integrated varsity management information system that formalizes workflows, centralizes records, and improves the accuracy and timeliness of varsity-related decisions.
+The development of AC-VMIS addresses these operational gaps by replacing loosely connected manual practices with standardized, role-specific workflows.
 
 ## Objectives
 
 ### General Objective
 
-To develop a centralized varsity management information system that improves the administration, monitoring, and coordination of Asian College varsity operations through structured, role-based, and data-driven processes.
+To design and implement a centralized, web-based varsity management information system for Asian College that improves the accuracy, efficiency, and coordination of varsity administration.
 
 ### Specific Objectives
 
-- To centralize student-athlete, coach, team, schedule, attendance, academic, and wellness-related records in a single platform.
-- To implement administrator-managed account control, including student approval and coach account provisioning.
-- To support a schedule-based attendance workflow in which authorized coaches record attendance during official team activities.
-- To automate the initial evaluation of academic submissions through OCR-based grade extraction and rule-based classification.
-- To provide role-based dashboards and access control that limit each user to appropriate system functions.
-- To improve communication through in-application announcements and configurable notification settings.
-- To support monitoring, audit review, and reporting for attendance, academics, health, and account actions.
-
-## System Features
-
-### 1. Account and Access Management
-
-The system uses authenticated, role-based access for administrators, coaches, and student-athletes. Student-athlete accounts are created through registration and remain subject to administrative approval. Coach accounts are not self-registered; they are provisioned by administrators and activated through a controlled onboarding process. The system also supports account activation, rejection, deactivation, password management, and forced password change on initial access when applicable.
-
-### 2. Role-Based Dashboards
-
-AC-VMIS provides separate dashboard views for each user role:
-
-- The administrator dashboard presents institutional summaries, approval queues, attendance indicators, academic risk indicators, wellness alerts, and recent activity logs.
-- The coach dashboard presents team-based metrics such as upcoming schedules, roster condition, attendance progress, wellness follow-up needs, and missing academic submissions.
-- The student-athlete dashboard presents upcoming schedules, recent attendance standing, academic eligibility status, and personal participation records.
-
-### 3. Team and Roster Management
-
-Administrators create and maintain teams, assign sports classifications, manage roster membership, and associate coaches with teams through staff assignment records. The current database structure supports head and assistant coach assignments through normalized team staff assignment records rather than fixed coach columns inside the team table, allowing authorized coaching staff to participate in schedule and attendance workflows for the same team.
-
-### 4. Schedule Management
-
-Team schedules are recorded per team and may represent practices, games, or meetings. Schedules include title, type, venue, start time, end time, and notes. These schedule records serve as the operational basis for attendance monitoring and related coaching activities.
-
-### 5. Schedule-Based Attendance Monitoring
-
-Attendance in the current system is schedule-based and coach-led. Attendance is recorded per student-athlete against a specific team schedule. Authorized coaches, including assistant coaches assigned to the team, may record attendance only once the scheduled activity has started. Supported attendance outcomes include present, late, absent, and excused. Administrators may later review attendance records and apply operational updates when necessary.
-
-This workflow replaces earlier legacy attendance approaches and should be treated as the official attendance model of the current system.
-
-### 6. Academic Submission and OCR-Based Validation
-
-Student-athletes submit academic documents within defined academic periods. When a grade report is uploaded, the system stores the file, runs OCR processing, preserves the extracted text, produces a parsed summary, and evaluates the detected grade using academic interpretation rules.
-
-The current logic supports automated classification using the available grade value:
-
-- Higher education scale values from `1.00` to `3.00` are classified as eligible.
-- Higher education scale values of `5.00` and above are classified as ineligible.
-- Basic education values from `75` to `100` are classified as eligible.
-- Basic education values below `75` are classified as ineligible.
-- Ambiguous values or low-confidence OCR results are flagged for manual review.
-
-Academic evaluations are preserved per student and academic period, with support for administrator review, remarks, and final status confirmation.
-
-### 7. Wellness Monitoring
-
-The system maintains wellness logs linked to scheduled activities, allowing authorized personnel to record observed injury concerns, fatigue level, performance condition, and remarks for student-athletes.
-
-### 8. Notifications and User Support Access
-
-AC-VMIS includes an in-application notification mechanism supported by announcement event and recipient records. Notifications may also be sent through email, subject to user preference settings. Notification categories currently support approval, academic, schedule, general, and system-related communication.
-
-The current implementation also provides a role-sensitive help interface and official support contact channels for account, process, and record-related concerns. However, the present production schema does not implement a database-backed support ticket lifecycle. Accordingly, system documentation should refer to support access and contact guidance, not to a full internal ticket-tracking subsystem.
-
-### 9. Reporting and Audit Monitoring
-
-The system supports reporting for attendance, roster, academic, and wellness records. It also preserves administrative and process history through dedicated records such as student approval histories, account action logs, academic OCR runs, and evaluation actions. These records strengthen accountability and provide institutional reference for review and decision-making.
-
-## Current Data Design Notes
-
-The present schema reflects several completed normalization and cleanup decisions that are important to the current system description:
-
-- personal identity fields are centralized in `users`, while role-specific details are stored in `students` and `coaches`;
-- coach-to-team relationships are maintained through `team_staff_assignments` rather than direct legacy coach columns in `teams`;
-- notifications are modeled through `announcement_events` for reusable content and `announcement_recipients` for user-level delivery and read state;
-- attendance is modeled only through `team_schedules` and `schedule_attendances` as part of the official schedule-based workflow; and
-- legacy QR attendance, legacy approval, and deprecated intermediate academic parsing structures are excluded from the active production design.
-
-The current production-oriented schema should therefore be interpreted as the normalized operational model of AC-VMIS rather than as a record of every historical migration step used during development.
-
-## User Roles and Responsibilities
-
-### Administrator
-
-The Administrator is the primary control authority of the system. This role is responsible for:
-
-- reviewing and approving or rejecting student-athlete accounts;
-- provisioning coach accounts and managing onboarding access;
-- managing teams, roster composition, and coach assignments;
-- monitoring schedules, attendance records, and wellness records;
-- managing academic periods, reviewing academic submissions, and finalizing academic evaluations when needed;
-- issuing announcements and overseeing notification-driven communication; and
-- generating reports and reviewing audit-related records.
-
-### Coach
-
-The Coach is responsible for team-level operational management within assigned teams. This role is responsible for:
-
-- viewing assigned teams and roster information;
-- creating and maintaining team schedules;
-- recording attendance during scheduled activities through the official attendance workflow;
-- monitoring athlete participation, wellness conditions, and selected academic submission visibility; and
-- receiving and responding to operational notifications related to team activities.
-
-The current implementation allows both head and assistant coaches assigned to a team to participate in authorized schedule and attendance processes.
-
-### Student-Athlete
-
-The Student-Athlete is the subject of varsity monitoring and compliance workflows. This role is responsible for:
-
-- registering an account and submitting required profile information;
-- maintaining personal and emergency contact details;
-- submitting academic documents during active academic periods;
-- viewing approved team assignment, schedules, announcements, attendance standing, and academic results; and
-- referring to the help and support interface when assistance is required.
-
-## System Workflow
-
-### Administrator Workflow
-
-1. The administrator accesses the administrative dashboard after authentication.
-2. Student-athlete registrations awaiting approval are reviewed together with required supporting records, including academic document presence.
-3. The administrator approves or rejects eligible student-athlete accounts and the decision is preserved in approval history.
-4. The administrator provisions coach accounts and issues onboarding access for coach activation.
-5. The administrator creates and maintains teams, assigns coaches, and manages roster records.
-6. The administrator monitors schedules, attendance outcomes, wellness alerts, and academic submission queues.
-7. The administrator reviews OCR-assisted academic results and performs manual confirmation or override when review is required.
-8. The administrator generates reports and consults audit records for institutional monitoring.
-
-### Coach Workflow
-
-1. The coach signs in and accesses the coach dashboard.
-2. The coach reviews assigned teams, roster status, and the upcoming schedule.
-3. The coach creates or updates team schedules for practices, games, or meetings.
-4. Once a scheduled activity has started, the coach opens the attendance workflow and records attendance for team members using permitted statuses.
-5. The coach reviews attendance progress, follows up on exceptions, and records wellness observations when applicable.
-6. The coach monitors academic submission visibility for team members as allowed by the current role configuration.
-7. The coach receives schedule, attendance, and academic-related notifications relevant to assigned teams.
-
-### Student-Athlete Workflow
-
-1. The student-athlete registers an account and submits the required personal and supporting information.
-2. The account remains pending until reviewed through the administrator approval process.
-3. Once approved, the student-athlete gains access to the student-athlete dashboard and role-authorized features.
-4. During open academic periods, the student-athlete submits grade reports or supporting academic documents.
-5. If a grade report is uploaded, the system processes the file through OCR and evaluates the extracted grade data.
-6. The student-athlete views schedules, attendance records, announcements, and academic eligibility status from within the dashboard and related pages.
-7. The student-athlete may consult the help page and official support channels when account or record concerns arise.
-
-## Data Management and Processing
-
-AC-VMIS uses a normalized relational data structure to preserve operational integrity and reduce redundancy. Core user identity data is stored in the `users` table, while role-specific profile details are separated into `students` and `coaches`. Team participation is represented through `team_players`, and coach-to-team relationships are represented through `team_staff_assignments`.
-
-Schedule data is stored in `team_schedules`, while attendance transactions are stored in `schedule_attendances` per student-athlete and schedule instance. This structure enables schedule-centered attendance monitoring rather than generic or detached attendance recording.
-
-Academic processing follows a layered structure:
-
-- `academic_documents` stores uploaded academic files and review status;
-- `academic_document_ocr_runs` stores OCR output, confidence values, validation results, and processing outcome;
-- `academic_document_parsed_summaries` stores extracted summary values such as general weighted average and total units; and
-- `academic_eligibility_evaluations` stores the resulting academic interpretation per student and academic period.
-
-This design supports both automated processing and administrator review. Clear OCR outcomes may be auto-processed, while low-confidence or ambiguous outcomes remain subject to manual confirmation.
-
-Wellness-related data is stored through `wellness_logs`, allowing the system to preserve post-session observation records. Notification data is stored through `announcement_events` and `announcement_recipients`, while user notification preferences are stored in `user_settings`.
-
-Administrative accountability is reinforced through `student_approval_histories`, `account_action_logs`, and related timestamped records that document important system actions.
-
-Legacy structures such as `account_approvals`, `announcements`, `schedule_qr_tokens`, `academic_evaluation_documents`, and `academic_document_parsed_subjects` do not represent the current operational design and should not be described as active production tables in final system documentation.
+- To centralize student-athlete, coach, team, schedule, attendance, academic, and performance records within one role-based system.
+- To implement a student self-registration workflow subject to administrative approval.
+- To implement administrator-managed coach account creation and onboarding.
+- To implement invitation-based administrator account creation.
+- To support coach-led attendance posting based on official team schedules.
+- To implement OCR-assisted academic document validation with administrator review support.
+- To provide structured announcements, notifications, reports, and audit-oriented monitoring for varsity operations.
+- To provide role-appropriate access for administrators, coaches, and student-athletes.
 
 ## Scope and Limitations
 
 ### Scope
 
-The current scope of AC-VMIS includes:
+The current scope of AC-VMIS includes the following implemented modules and processes:
 
-- student-athlete account registration and administrator approval;
-- administrator-managed coach account provisioning and activation;
-- role-based dashboards and access control for administrators, coaches, and student-athletes;
-- team, roster, and coach assignment management;
-- schedule creation and schedule-based attendance recording;
-- academic period management and academic document submission;
-- OCR-assisted academic validation with rule-based classification and administrator review support;
-- wellness monitoring;
-- in-application announcements, email-capable notifications, and user support guidance; and
-- reporting and audit-oriented monitoring for varsity operations.
+- student-athlete account registration, approval, rejection, activation, and deactivation;
+- administrator invitation and acceptance for new admin accounts;
+- administrator-created coach accounts with onboarding activation;
+- people management for users, students, and coaches;
+- team creation, editing, archiving, reactivation, roster assignment, and coach assignment;
+- coach and admin schedule management for team practices, games, and meetings;
+- coach-led, schedule-based attendance posting and admin attendance review;
+- academic period management, academic document upload, OCR processing, parsed summary generation, and eligibility evaluation;
+- performance monitoring logging and performance review monitoring;
+- announcements, user notifications, and notification preference settings;
+- printable and CSV-exportable reports for attendance, roster, and academics;
+- audit trail and account action history; and
+- profile, settings, notification, preference, and help/support access pages.
 
 ### Limitations
 
-The present system has the following limitations:
+The current implementation has the following limitations:
 
-- It is intended for varsity management within Asian College and is not designed as a public or multi-institution platform.
-- It does not replace the official academic records system of the institution; it only supports varsity-related academic compliance monitoring.
-- It does not provide medical diagnosis or clinical decision support; health records are limited to coach-recorded wellness observations.
-- OCR-based academic interpretation depends on the clarity and quality of uploaded files; unclear or low-confidence outputs still require manual administrative review.
-- Attendance recording is dependent on official schedule entries and is limited to authorized coaching and administrative actions within the implemented workflow.
-- Some wellness observations remain practical rather than fully decomposed for analytical use, particularly free-text injury notes and remarks.
-- The current implementation provides support guidance and contact access, but it does not yet include a full database-backed support ticket tracking subsystem.
+- The system is intended for Asian College varsity operations only and is not designed as a multi-school platform.
+- It does not replace the institution's official registrar or student information system; academic monitoring is limited to varsity compliance workflows.
+- OCR-assisted academic validation depends on document quality and may still require manual administrative confirmation.
+- Performance records are observational and operational in nature; they do not constitute medical diagnosis or clinical health management.
+- Attendance depends on the prior creation of valid team schedules and the availability of authorized coaching staff to encode records.
+- The current implementation provides support guidance and contact information through the help module, but it does not provide a full internal ticketing or case-management subsystem.
+
+### Excluded or Deprecated Features
+
+The following concepts should not be described as active features of the current AC-VMIS implementation:
+
+- QR-dependent attendance workflows;
+- health-clearance management as an active varsity module;
+- academic hold enforcement as an active user-facing process;
+- academic period message publishing as an active user-facing process;
+- public coach self-registration; and
+- deprecated legacy tables retained only as development artifacts or unfinished cleanup targets.
+
+## Features
+
+### 1. Account and Access Management
+
+AC-VMIS implements authentication, email verification support, password reset, forced password change where applicable, and role-based access control. Student-athlete accounts are created through normal registration and remain pending until reviewed by administrators. Coach accounts are created by administrators and activated through a coach onboarding flow. Administrator accounts are created through invitation acceptance.
+
+### 2. People and Approval Management
+
+The administrator may review pending student-athlete registrations, inspect profile and document information, approve or reject applicants, deactivate or reactivate accounts, and manage user records through a dedicated people workspace. Approval outcomes are preserved in approval history records.
+
+### 3. Team and Roster Management
+
+The system supports team creation, editing, archiving, reactivation, roster assignment, and staff assignment. Coaches may be assigned as head coach or assistant coach through normalized staff assignment records. Student-athletes may be added to or removed from team rosters, and archived teams may still be reviewed for historical reference.
+
+### 4. Schedule Management
+
+The system supports the creation, editing, deletion, viewing, printing, and calendar export of team schedules. Schedules may represent practices, games, or meetings and include the title, type, venue, start time, end time, and notes. Coach and admin views provide schedule-centered oversight of varsity activities.
+
+### 5. Attendance Management
+
+Attendance is schedule-based and coach-led. Authorized coaches post attendance for scheduled sessions using the implemented status set: present, late, absent, and excused. Administrators may review attendance records and print attendance summaries through the operations and reports modules. This schedule-centered attendance workflow is the official attendance model of the system.
+
+### 6. Academic Submission and Eligibility Monitoring
+
+Student-athletes submit academic documents during active academic periods. Uploaded files are stored securely, processed through OCR, and evaluated by rule-based logic. Parsed values such as GPA or GWA are summarized, and final eligibility results may be classified as eligible, ineligible, or pending review. Administrators can review documents, revise evaluations, and manage academic periods and submission records through the academics workspace.
+
+### 7. Performance Monitoring
+
+The system stores coach-recorded performance records linked to student-athletes and schedules. Logged values include athlete condition details such as injury observation, injury notes, fatigue level, performance condition, and coach remarks. Coaches record post-session evaluations, and administrators monitor the resulting records through the performance workspace.
+
+### 8. Announcements and Notifications
+
+AC-VMIS provides internal announcements and recipient-level notification delivery. Users may mark announcements as read, review notification history, and configure notification preferences such as approvals, schedule changes, attendance changes, performance monitoring alerts, academic alerts, and injury threshold alerts. Email delivery may also be triggered depending on configured preferences and system processing.
+
+### 9. Reports
+
+The current reporting module supports:
+
+- attendance summary reports;
+- team roster reports; and
+- academic submission and eligibility reports.
+
+Reports may be viewed in-app, exported to CSV, and generated in printable format.
+
+### 10. Audit and Administrative Traceability
+
+The system preserves important administrative activity through account action logs, student approval histories, OCR run records, evaluation timestamps, and announcement recipient read states. These records strengthen accountability and support administrative review.
+
+### 11. Help and Support Access
+
+The system includes a role-sensitive help module accessible from account settings. This module provides workflow guidance, support contact information, and role-specific frequently asked questions for administrators, coaches, and student-athletes.
+
+## User Roles
+
+### Administrator
+
+The Administrator is the principal control role of the system. Administrators can:
+
+- review and approve student-athlete registrations;
+- invite new administrators;
+- create coach accounts and regenerate onboarding access;
+- manage people, teams, rosters, and coach assignments;
+- monitor schedules, attendance, performance monitoring, and academics;
+- review OCR-supported academic outputs and finalize evaluations;
+- publish announcements and monitor notifications;
+- generate reports; and
+- review audit trail and account activity history.
+
+### Coach
+
+The Coach manages assigned team operations. Coaches can:
+
+- access coach dashboard summaries;
+- view assigned teams and rosters;
+- create, edit, print, and export schedules;
+- post attendance for scheduled sessions;
+- encode post-session performance evaluations and review performance records;
+- view academic visibility information for team members; and
+- receive announcements and notifications relevant to team operations.
+
+### Student-Athlete
+
+The Student-Athlete is the primary participant being monitored by the varsity system. Student-athletes can:
+
+- register through the public registration process;
+- wait for administrative approval before accessing the protected student dashboard;
+- view team assignments, schedules, attendance, and performance history;
+- submit academic documents during active periods;
+- review academic status and submission history; and
+- access account settings and help/support guidance.
+
+## System Workflow
+
+### 1. Student Registration and Approval Workflow
+
+1. A student-athlete completes the public registration form.
+2. The system creates the user and student records and stores the required registration-context academic document.
+3. The account remains pending approval.
+4. An administrator reviews the applicant's profile and supporting records.
+5. The administrator approves or rejects the account.
+6. Once approved, the student-athlete gains access to protected student features.
+
+### 2. Administrator Invitation Workflow
+
+1. An existing administrator creates an invitation for a new administrator email address.
+2. The system stores the invitation token and sends the acceptance link.
+3. The invited recipient opens the acceptance page, completes the required credentials, and activates the admin account.
+
+### 3. Coach Provisioning Workflow
+
+1. An administrator creates a coach account from the people management module.
+2. The system generates onboarding credentials or an activation path for the coach.
+3. The coach activates the account through the onboarding interface and sets the password.
+4. The administrator assigns the coach to one or more teams through team staff assignments.
+
+### 4. Team and Schedule Workflow
+
+1. An administrator creates and maintains teams and roster assignments.
+2. Coaches and admins manage schedules for practices, games, or meetings.
+3. Authorized users may print schedules or export calendar files where permitted.
+
+### 5. Attendance Workflow
+
+1. A coach opens a scheduled activity.
+2. The system loads the team roster for that schedule.
+3. The coach records each athlete as present, late, absent, or excused.
+4. Attendance is saved per student and per schedule.
+5. Administrators may later review and report on the resulting attendance records.
+
+### 6. Academic Submission Workflow
+
+1. A student-athlete uploads a grade report or supporting academic document.
+2. The system stores the file and runs OCR processing.
+3. Parsed academic values are extracted where possible.
+4. The system applies rule-based classification to produce an initial eligibility outcome.
+5. When OCR output is unclear or confidence is insufficient, the record remains pending review.
+6. An administrator confirms or updates the academic evaluation.
+
+### 7. Performance Monitoring Workflow
+
+1. A coach selects a completed schedule and athlete for post-session evaluation.
+2. The coach records athlete condition details including injury observation, injury notes, fatigue level, performance condition, and coach remarks.
+3. The system stores the performance record in `wellness_logs`.
+4. Administrators review performance records and filter them by athlete, team, injury, fatigue, or date range.
+
+### 8. Communication and Support Workflow
+
+1. Administrators or system processes create announcement events.
+2. Announcement recipients receive the relevant record in-app and, where applicable, by email.
+3. Users review announcements, mark them as read, and manage notification preferences.
+4. Users may consult the help module for workflow guidance and support contact details.
+
+## Database / ERD
+
+The current logical database design of AC-VMIS is normalized around the following active operational entities:
+
+- `users`, `students`, `coaches`, `user_settings`
+- `admin_invites`, `student_approval_histories`, `account_action_logs`
+- `sports`, `teams`, `team_staff_assignments`, `team_players`
+- `team_schedules`, `schedule_attendances`
+- `wellness_logs`
+- `academic_periods`, `academic_document_types`, `academic_documents`
+- `academic_document_ocr_runs`, `academic_document_parsed_summaries`, `academic_eligibility_evaluations`
+- `announcement_events`, `announcement_recipients`
+
+The operational ERD is documented separately in [`docs/ac-vmis-erd.md`](./ac-vmis-erd.md). Legacy or deprecated structures are intentionally excluded from the final conceptual ERD even if they still appear in the development database.
+
+## Data Dictionary
+
+The active operational data dictionary is documented separately in [`docs/ac-vmis-data-dictionary.md`](./ac-vmis-data-dictionary.md). The dictionary focuses on the implemented production-facing entities and excludes deprecated features from the final thesis narrative.
+
+## Tools and Technologies
+
+The current AC-VMIS implementation is built with the following tools and technologies:
+
+- **Backend Framework:** Laravel (PHP)
+- **Frontend Framework:** Vue 3 with Inertia.js
+- **Language Stack:** PHP, TypeScript, JavaScript, HTML, CSS
+- **Database:** MySQL / MariaDB-compatible relational database
+- **Styling:** Tailwind CSS-based utility styling and component-level CSS
+- **Authentication and Security:** Laravel authentication, password reset, email verification, role-based middleware, secure file access
+- **OCR Processing:** Server-side OCR service with rule-based academic parsing and validation
+- **Reporting:** Blade-based printable reports and CSV export
+- **Mail / Notification Support:** queued or direct email notification handling, in-app announcement delivery, user notification preferences
+- **Calendar Export:** ICS file generation for authorized schedule access
+- **Development Environment:** XAMPP-based local environment with Laravel application structure
 
 ## Concluding Statement
 
-The current AC-VMIS implementation demonstrates a structured and institution-oriented approach to varsity management. Its design reflects formal administrative control, role-based access, schedule-centered attendance procedures, OCR-assisted academic validation, and centralized monitoring of operational records. As a result, the system is suitable for presentation as a practical and defense-ready information system aligned with the present application architecture and database design.
+The current AC-VMIS implementation is a centralized varsity operations platform aligned with the needs of Asian College. Its implemented workflows now revolve around student self-registration with admin approval, admin-managed coach onboarding, invitation-based admin provisioning, schedule-centered attendance, OCR-assisted academic validation, performance monitoring, structured communication, reporting, and audit-oriented monitoring. This documentation reflects the actual implemented system and is intended to serve as the formal capstone or thesis-ready description of the present AC-VMIS application.

@@ -768,7 +768,7 @@ onBeforeUnmount(() => {
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Team scheduling</p>
             <h1 class="mt-2 text-2xl font-bold text-white">Schedule</h1>
             <p class="mt-2 max-w-3xl text-sm leading-6 text-white/85">
-                Plan sessions, review upcoming and completed fixtures, and connect attendance and wellness actions from one coaching calendar.
+                Plan sessions, review upcoming and completed fixtures, and connect attendance and performance monitoring actions from one coaching calendar.
             </p>
         </section>
 
@@ -915,7 +915,7 @@ onBeforeUnmount(() => {
                                     @click="openWellness(item)"
                                     class="rounded-md border border-[#034485]/25 bg-white px-3 py-1.5 text-xs font-semibold text-[#034485] hover:border-[#034485]/45 hover:bg-[#f7fbff]"
                                 >
-                                    Open Wellness
+                                    Open Performance
                                 </button>
                                 <button
                                     v-if="item.is_owner && !isLocked(item)"
