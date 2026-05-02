@@ -60,6 +60,16 @@ return new class extends Migration
 
     private function hasIndex(string $table, string $index): bool
     {
+        $driver = Schema::getConnection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            return DB::table('pg_indexes')
+                ->where('schemaname', 'public')
+                ->where('tablename', $table)
+                ->where('indexname', $index)
+                ->exists();
+        }
+
         return DB::table('information_schema.statistics')
             ->where('table_schema', DB::raw('DATABASE()'))
             ->where('table_name', $table)
