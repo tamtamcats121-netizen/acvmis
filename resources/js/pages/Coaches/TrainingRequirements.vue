@@ -364,7 +364,6 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                             </table>
                         </div>
                     </div>
-                    </div>
                 </div>
             </div>
         </section>
