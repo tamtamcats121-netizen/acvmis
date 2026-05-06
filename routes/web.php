@@ -274,8 +274,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.reports.academics.csv');
     Route::get('/reports/academics/print', [ReportsController::class, 'printAcademicSummary'])
         ->name('admin.reports.academics.print');
-    Route::get('/academics/submissions', [AcademicEligibilityController::class, 'submissions'])
-        ->name('admin.academics.submissions');
+    Route::get('/academics/evaluations', [AcademicEligibilityController::class, 'evaluations'])
+        ->name('admin.academics.evaluations');
     Route::get('/academics/past-periods', [AcademicEligibilityController::class, 'pastPeriods'])
         ->name('admin.academics.past-periods');
     Route::post('/academics/periods', [AcademicEligibilityController::class, 'storePeriod'])
@@ -313,6 +313,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/AcademicEligibility/evaluate', [AcademicEligibilityController::class, 'evaluate']);
     Route::get('/AcademicEligibility/submissions/records', [AcademicEligibilityController::class, 'submissionsRecords']);
     Route::get('/AcademicEligibility/evaluations/records', [AcademicEligibilityController::class, 'evaluationsRecords']);
+    Route::redirect('/AcademicEligibility/evaluations', '/academics/evaluations');
     Route::get('/AcademicEligibility/exceptions', [AcademicEligibilityController::class, 'exceptions']);
     Route::put('/AcademicEligibility/evaluations/{student}/{period}', [AcademicEligibilityController::class, 'updateEvaluation']);
     // CSV export removed in favor of print-only reports.

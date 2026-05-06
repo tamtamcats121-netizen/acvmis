@@ -87,7 +87,7 @@ it('marks a scanned grade report valid when gpa or gwa is extracted', function (
 
     expect($result['validation_status'])->toBe('valid')
         ->and($result['validation_flags'])->toBe([])
-        ->and($result['validation_summary'])->toContain('GPA/GWA was extracted successfully');
+        ->and($result['validation_summary'])->toContain('GPA or general average was extracted successfully');
 });
 
 it('flags a scanned grade report for manual review when gpa extraction fails', function () {
@@ -109,5 +109,7 @@ it('flags a scanned grade report for manual review when gpa extraction fails', f
     );
 
     expect($result['validation_status'])->toBe('manual_review')
-        ->and(collect($result['validation_flags'])->pluck('code')->all())->toContain('gpa_missing');
+        ->and(collect($result['validation_flags'])->pluck('code')->all())->toContain('gpa_missing')
+        ->and($result['validation_summary'])->toContain('GPA or general average could not be extracted automatically.')
+        ->and(collect($result['validation_flags'])->pluck('message')->implode(' '))->toContain('No GPA or general average was detected');
 });

@@ -26,11 +26,22 @@ class AcademicEligibilityController extends Controller
 
     public function index(Request $request)
     {
-        $periods = AcademicPeriod::query()
+        $allPeriods = AcademicPeriod::query()
             ->orderByDesc('starts_on')
             ->get();
 
+        $periods = $allPeriods
+            ->filter(fn (AcademicPeriod $period) => $this->resolveStatus($period) !== 'closed')
+            ->values();
+
         $selectedPeriodId = (int) $request->query('period_id', 0);
+        if (
+            $selectedPeriodId
+            && !$periods->contains(fn (AcademicPeriod $period) => (int) $period->id === $selectedPeriodId)
+        ) {
+            $selectedPeriodId = 0;
+        }
+
         if (!$selectedPeriodId) {
             $selectedPeriodId = (int) ($periods->first()->id ?? 0);
         }
@@ -48,7 +59,7 @@ class AcademicEligibilityController extends Controller
         ]);
     }
 
-    public function submissions(Request $request)
+    public function evaluations(Request $request)
     {
         $periods = AcademicPeriod::query()
             ->orderByDesc('starts_on')
@@ -59,51 +70,7 @@ class AcademicEligibilityController extends Controller
             $selectedPeriodId = (int) ($periods->first()->id ?? 0);
         }
 
-        $docs = collect();
-        if ($selectedPeriodId) {
-            $docs = AcademicDocument::query()
-                ->periodSubmission()
-                ->with([
-                    'student.user',
-                    'latestOcrRun.parsedSummary',
-                ])
-                ->where('academic_period_id', $selectedPeriodId)
-                ->latest('uploaded_at')
-                ->get();
-        }
-
-        $evalByStudent = AcademicEligibilityEvaluation::query()
-            ->when($selectedPeriodId, fn ($q) => $q->where('academic_period_id', $selectedPeriodId))
-            ->get()
-            ->keyBy('student_id');
-
-        $rows = $docs->map(function ($doc) use ($evalByStudent) {
-            $student = $doc->student;
-            $evaluation = $evalByStudent->get($doc->student_id);
-
-            return [
-                'document_id' => $doc->id,
-                'student_id' => $doc->student_id,
-                'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
-                'student_id_number' => $student->student_id_number ?? null,
-                'uploaded_at' => optional($doc->uploaded_at)->toDateTimeString(),
-                'document_type' => $doc->document_type,
-                'notes' => $doc->notes,
-                'file_url' => $doc->id ? route('files.academic', $doc->id) : null,
-                'ocr' => $this->ocrPayload($doc->latestOcrRun),
-                'evaluation' => $evaluation ? [
-                    'id' => $evaluation->id,
-                    'gpa' => $evaluation->gpa,
-                    'status' => $evaluation->status,
-                    'remarks' => $evaluation->remarks,
-                    'evaluated_at' => optional($evaluation->evaluated_at)->toDateTimeString(),
-                    'evaluation_source' => $evaluation->evaluation_source,
-                    'review_required' => (bool) $evaluation->review_required,
-                ] : null,
-            ];
-        })->values();
-
-        return Inertia::render('Admin/AcademicSubmissions', [
+        return Inertia::render('Admin/AcademicEvaluations', [
             'periods' => $periods->map(fn ($p) => [
                 'id' => $p->id,
                 'school_year' => $p->school_year,
@@ -113,7 +80,7 @@ class AcademicEligibilityController extends Controller
                 'status' => $this->resolveStatus($p),
             ]),
             'selectedPeriodId' => $selectedPeriodId ?: null,
-            'rows' => $rows,
+            'selectedDocumentId' => (int) $request->query('document_id', 0) ?: null,
         ]);
     }
 
@@ -123,8 +90,10 @@ class AcademicEligibilityController extends Controller
             ->orderByDesc('starts_on')
             ->get();
 
-        $active = $periods->first();
-        $past = $periods->skip(1);
+        $active = $periods->first(fn (AcademicPeriod $period) => $this->resolveStatus($period) !== 'closed');
+        $past = $periods
+            ->filter(fn (AcademicPeriod $period) => $this->resolveStatus($period) === 'closed')
+            ->values();
         $pastIds = $past->pluck('id')->filter()->all();
         $submissionCounts = !empty($pastIds)
             ? AcademicDocument::query()
@@ -212,6 +181,7 @@ class AcademicEligibilityController extends Controller
             'student_id' => 'required|exists:students,id',
             'document_id' => 'required|exists:academic_documents,id',
             'gpa' => 'nullable|numeric|min:0|max:100',
+            'status' => 'nullable|in:eligible,pending_review,ineligible',
             'remarks' => 'nullable|string',
         ]);
 
@@ -224,6 +194,9 @@ class AcademicEligibilityController extends Controller
         );
 
         $period = AcademicPeriod::find((int) $validated['period_id']);
+        $finalStatus = $validated['status']
+            ?? AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null);
+        $reviewRequired = $finalStatus === 'pending_review';
 
         AcademicEligibilityEvaluation::updateOrCreate(
             [
@@ -234,10 +207,8 @@ class AcademicEligibilityController extends Controller
                 'document_id' => $doc->id,
                 'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
                 'evaluation_source' => 'manual',
-                'final_status' => AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null),
-                'review_required' => AcademicEligibilityEvaluation::interpretGrade(
-                    $validated['gpa'] !== null ? (float) $validated['gpa'] : null
-                )['review_required'],
+                'final_status' => $finalStatus,
+                'review_required' => $reviewRequired,
                 'remarks' => $validated['remarks'] ?? null,
                 'evaluated_by' => Auth::id(),
                 'evaluated_at' => now(),
@@ -257,17 +228,16 @@ class AcademicEligibilityController extends Controller
 
         $student = Student::find((int) $validated['student_id']);
         $studentUserId = (int) ($student?->user_id ?? 0);
-        $computedStatus = AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null);
-        $status = strtoupper((string) ($computedStatus ?? 'pending'));
+        $status = strtoupper((string) ($finalStatus ?? 'pending'));
         $periodLabel = $period
             ? "{$period->school_year} {$this->termLabel((string) $period->term)}"
             : 'selected period';
 
         if ($studentUserId > 0) {
             $message = "Your academic status for {$periodLabel} is {$status}.";
-            if (($computedStatus ?? '') === 'eligible') {
+            if (($finalStatus ?? '') === 'eligible') {
                 $message .= ' You are now eligible; further submissions for this period are locked.';
-            } elseif (($computedStatus ?? '') === 'pending_review') {
+            } elseif (($finalStatus ?? '') === 'pending_review') {
                 $message .= ' Your record needs additional review before a final eligibility decision.';
             }
             $this->notifications->announce(
@@ -282,7 +252,10 @@ class AcademicEligibilityController extends Controller
 
         $coachUserIds = Team::query()
             ->whereHas('players', fn ($q) => $q->where('student_id', (int) $validated['student_id']))
-            ->with(['coach:id,user_id', 'assistantCoach:id,user_id'])
+            ->with([
+                'coach' => fn ($query) => $query->select('coaches.id', 'coaches.user_id'),
+                'assistantCoach' => fn ($query) => $query->select('coaches.id', 'coaches.user_id'),
+            ])
             ->get()
             ->flatMap(function ($team) {
                 return [
@@ -624,6 +597,7 @@ class AcademicEligibilityController extends Controller
         $validated = $request->validate([
             'document_id' => 'required|exists:academic_documents,id',
             'gpa' => 'nullable|numeric|min:0|max:100',
+            'status' => 'nullable|in:eligible,pending_review,ineligible',
             'remarks' => 'nullable|string|max:1000',
             'audit_note' => 'nullable|string|max:1000',
         ]);
@@ -643,6 +617,8 @@ class AcademicEligibilityController extends Controller
         if (!empty($validated['audit_note'])) {
             $remarkParts[] = '[Admin Note] ' . trim((string) $validated['audit_note']);
         }
+        $finalStatus = $validated['status']
+            ?? AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null);
 
         $evaluation = AcademicEligibilityEvaluation::query()->updateOrCreate(
             [
@@ -653,10 +629,8 @@ class AcademicEligibilityController extends Controller
                 'document_id' => $document->id,
                 'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
                 'evaluation_source' => 'manual',
-                'final_status' => AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null),
-                'review_required' => AcademicEligibilityEvaluation::interpretGrade(
-                    $validated['gpa'] !== null ? (float) $validated['gpa'] : null
-                )['review_required'],
+                'final_status' => $finalStatus,
+                'review_required' => $finalStatus === 'pending_review',
                 'remarks' => !empty($remarkParts) ? implode("\n\n", $remarkParts) : null,
                 'evaluated_by' => Auth::id(),
                 'evaluated_at' => now(),

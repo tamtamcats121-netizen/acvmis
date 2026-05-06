@@ -52,7 +52,7 @@ const featureCards = [
     },
     {
         title: 'Schedule Management',
-        description: 'Publishes practices, competitions, meetings, and other approved team activities with role-appropriate schedule updates.',
+        description: 'Publishes practices, competitions, and other approved team activities with role-appropriate schedule updates.',
     },
     {
         title: 'Attendance Confirmation',

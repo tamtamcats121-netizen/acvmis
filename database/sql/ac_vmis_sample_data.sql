@@ -124,10 +124,10 @@ INSERT INTO team_schedules (
     (1, 1, 'Blue Hawks Conditioning Practice', 'practice', 'AC Gymnasium', '2026-04-28 16:00:00', '2026-04-28 18:00:00', 'Focus on transition drills and conditioning.', '2026-04-20 09:00:00', '2026-04-20 09:00:00'),
     (2, 1, 'Blue Hawks Scrimmage vs Alumni', 'game', 'Main Covered Court', '2026-04-29 17:00:00', '2026-04-29 19:00:00', 'Internal tune-up game before regional qualifiers.', '2026-04-20 09:10:00', '2026-04-20 09:10:00'),
     (3, 1, 'Blue Hawks Tactical Session', 'practice', 'AC Gymnasium', '2026-05-02 15:30:00', '2026-05-02 17:30:00', 'Half-court offensive sets and defensive rotations.', '2026-04-20 09:15:00', '2026-04-20 09:15:00'),
-    (4, 1, 'Blue Hawks Team Meeting', 'meeting', 'Room 204', '2026-05-04 16:00:00', '2026-05-04 17:00:00', 'Travel and eligibility reminders for the next week.', '2026-04-20 09:20:00', '2026-04-20 09:20:00'),
+    (4, 1, 'Blue Hawks Travel Walkthrough', 'practice', 'Room 204', '2026-05-04 16:00:00', '2026-05-04 17:00:00', 'Travel and eligibility reminders for the next week.', '2026-04-20 09:20:00', '2026-04-20 09:20:00'),
     (5, 2, 'Lady Falcons Serve Receive Practice', 'practice', 'Volleyball Court A', '2026-04-27 15:00:00', '2026-04-27 17:00:00', 'Passing patterns and libero coverage.', '2026-04-18 08:30:00', '2026-04-18 08:30:00'),
-    (6, 2, 'Lady Falcons Match Prep', 'meeting', 'Athletics Office', '2026-05-01 14:00:00', '2026-05-01 15:00:00', 'Opponent scouting review and rotation plan.', '2026-04-18 08:35:00', '2026-04-18 08:35:00'),
-    (7, 3, 'Red Comets Season Wrap-Up', 'meeting', 'Club Room', '2025-11-20 14:00:00', '2025-11-20 15:30:00', 'Archived team closeout and equipment turnover.', '2025-11-10 09:00:00', '2025-11-10 09:00:00');
+    (6, 2, 'Lady Falcons Match Prep', 'practice', 'Athletics Office', '2026-05-01 14:00:00', '2026-05-01 15:00:00', 'Opponent scouting review and rotation plan.', '2026-04-18 08:35:00', '2026-04-18 08:35:00'),
+    (7, 3, 'Red Comets Season Wrap-Up', 'practice', 'Club Room', '2025-11-20 14:00:00', '2025-11-20 15:30:00', 'Archived team closeout and equipment turnover.', '2025-11-10 09:00:00', '2025-11-10 09:00:00');
 
 INSERT INTO schedule_attendances (
     id, schedule_id, student_id, status, verification_method, recorded_by,

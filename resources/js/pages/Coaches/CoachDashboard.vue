@@ -391,7 +391,7 @@ function formatScheduleDateTime(value?: string | null) {
             class="rounded-2xl border border-[#034485]/18 bg-slate-50 px-4 py-4 transition hover:border-[#034485]/35 hover:bg-[#034485]/5"
           >
             <p class="text-sm font-semibold text-slate-900">Open Schedule</p>
-            <p class="mt-1 text-xs text-slate-500">Review upcoming practices, games, and meetings.</p>
+            <p class="mt-1 text-xs text-slate-500">Review upcoming practices and games.</p>
           </Link>
 
           <Link

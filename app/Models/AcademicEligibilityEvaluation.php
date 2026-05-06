@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class AcademicEligibilityEvaluation extends Model
 {
     use HasFactory;
+
+    private static ?bool $hasLegacyStatusColumn = null;
 
     public const GPA_ELIGIBLE_MAX = 3.0;
     public const GPA_PROBATION_MAX = 4.99;
@@ -49,10 +52,19 @@ class AcademicEligibilityEvaluation extends Model
             $resolvedStatus = $evaluation->final_status
                 ?: self::statusForGpa($evaluation->gpa !== null ? (float) $evaluation->gpa : null);
 
-            if ($resolvedStatus !== null) {
+            if ($resolvedStatus !== null && self::usesLegacyStatusColumn()) {
                 $evaluation->setAttribute('status', self::legacyStatusValue($resolvedStatus));
             }
         });
+    }
+
+    private static function usesLegacyStatusColumn(): bool
+    {
+        if (self::$hasLegacyStatusColumn === null) {
+            self::$hasLegacyStatusColumn = Schema::hasColumn('academic_eligibility_evaluations', 'status');
+        }
+
+        return self::$hasLegacyStatusColumn;
     }
 
     public static function statusForGpa(?float $gpa): ?string

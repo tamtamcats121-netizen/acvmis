@@ -128,13 +128,9 @@ const props = defineProps<{
 
 const { sportColor, sportTextColor, sportLabel, normalizeSport } = useSportColors()
 
-const activeTab = ref<'calendar' | 'attendance' | 'exceptions'>(props.tabs.active)
+const activeTab = ref<'calendar' | 'attendance'>(props.tabs.active === 'exceptions' ? 'attendance' : props.tabs.active)
 const showFilters = ref(false)
 const isLoadingRecords = ref(false)
-const isSavingOverride = ref(false)
-const showExcuseDialog = ref(false)
-const excuseReason = ref('')
-const pendingExcuse = ref<{ scheduleId: number; studentId: number } | null>(null)
 const noticeDialog = ref<{ open: boolean; title: string; description: string }>({
     open: false,
     title: '',
@@ -142,12 +138,8 @@ const noticeDialog = ref<{ open: boolean; title: string; description: string }>(
 })
 
 const attendanceState = ref<PaginatedPayload>(props.attendanceRecords)
-const exceptionsState = ref<PaginatedPayload>(props.exceptionsRecords)
 
 const selectedScheduleId = ref<number | null>(props.filters.selected.schedule_id)
-const drilldownLoading = ref(false)
-const scheduleDrawerOpen = ref(false)
-const drilldown = ref<any>(null)
 
 const filterForm = reactive({
     search: props.filters.selected.search ?? '',
@@ -214,18 +206,14 @@ const calendarEvents = computed(() =>
     })),
 )
 
-const visibleTable = computed(() => (activeTab.value === 'exceptions' ? exceptionsState.value : attendanceState.value))
+const visibleTable = computed(() => attendanceState.value)
 
 watch(() => props.attendanceRecords, (value) => {
     attendanceState.value = value
 })
 
-watch(() => props.exceptionsRecords, (value) => {
-    exceptionsState.value = value
-})
-
 watch(() => props.tabs.active, (value) => {
-    activeTab.value = value
+    activeTab.value = value === 'exceptions' ? 'attendance' : value
 })
 
 function buildQuery(extra: Record<string, string | number | undefined> = {}) {
@@ -282,11 +270,8 @@ function setPeriod(period: '' | 'today' | 'week' | 'month') {
     applyFilters()
 }
 
-function setTab(tab: 'calendar' | 'attendance' | 'exceptions') {
+function setTab(tab: 'calendar' | 'attendance') {
     activeTab.value = tab
-    if (tab === 'exceptions' && !filterForm.status) {
-        filterForm.status = ''
-    }
     applyFilters()
 }
 
@@ -340,10 +325,6 @@ async function fetchRecords(page = 1) {
         params.set(key, String(value))
     })
 
-    if (activeTab.value === 'exceptions') {
-        params.set('exception_only', '1')
-    }
-
     const response = await fetch(`/operations/attendance/records?${params.toString()}`, {
         credentials: 'same-origin',
         headers: {
@@ -358,132 +339,11 @@ async function fetchRecords(page = 1) {
     }
 
     const payload = await response.json() as PaginatedPayload
-    if (activeTab.value === 'exceptions') {
-        exceptionsState.value = payload
-    } else {
-        attendanceState.value = payload
-    }
-}
-
-async function openScheduleDrawer(scheduleId: number) {
-    selectedScheduleId.value = scheduleId
-    drilldownLoading.value = true
-    scheduleDrawerOpen.value = true
-
-    const response = await fetch(`/operations/schedules/${scheduleId}/drilldown`, {
-        credentials: 'same-origin',
-        headers: {
-            Accept: 'application/json',
-        },
-    })
-
-    drilldownLoading.value = false
-
-    if (!response.ok) {
-        drilldown.value = null
-        return
-    }
-
-    drilldown.value = await response.json()
-}
-
-function onCalendarEventClick(payload: any) {
-    const event = payload?.event ?? payload
-    if (!event?.id) return
-    openScheduleDrawer(Number(event.id))
-}
-
-function openAttendanceFromDrawer() {
-    if (!drilldown.value?.schedule?.id) return
-    activeTab.value = 'attendance'
-    selectedScheduleId.value = drilldown.value.schedule.id
-    filterForm.status = ''
-    applyFilters()
-}
-
-function openNoResponseFromDrawer() {
-    if (!drilldown.value?.schedule?.id) return
-    activeTab.value = 'exceptions'
-    selectedScheduleId.value = drilldown.value.schedule.id
-    filterForm.status = 'no_response'
-    applyFilters()
-}
-
-function closeDrawer() {
-    scheduleDrawerOpen.value = false
+    attendanceState.value = payload
 }
 
 function showNotice(title: string, description: string) {
     noticeDialog.value = { open: true, title, description }
-}
-
-function markExcused(scheduleId: number, studentId: number, currentStatus: AttendanceRow['status']) {
-    if (currentStatus === 'excused') return
-    pendingExcuse.value = { scheduleId, studentId }
-    excuseReason.value = ''
-    showExcuseDialog.value = true
-}
-
-async function confirmMarkExcused() {
-    if (!pendingExcuse.value || !excuseReason.value.trim()) return
-
-    isSavingOverride.value = true
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-
-    const response = await fetch(`/operations/attendance/${pendingExcuse.value.scheduleId}/${pendingExcuse.value.studentId}`, {
-        method: 'PUT',
-        credentials: 'same-origin',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-CSRF-TOKEN': csrfToken ?? '',
-        },
-        body: JSON.stringify({
-            status: 'excused',
-            reason: excuseReason.value.trim(),
-        }),
-    })
-
-    isSavingOverride.value = false
-
-    if (!response.ok) {
-        showNotice('Save Failed', 'Unable to save attendance override.')
-        return
-    }
-
-    showExcuseDialog.value = false
-    pendingExcuse.value = null
-
-    if (scheduleDrawerOpen.value && selectedScheduleId.value) {
-        await openScheduleDrawer(selectedScheduleId.value)
-    }
-
-    await fetchRecords(visibleTable.value.meta.current_page)
-}
-
-function printReport() {
-    const params = new URLSearchParams()
-    const query = buildQuery()
-    Object.entries(query).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') return
-        params.set(key, String(value))
-    })
-
-    window.open(`/operations/attendance/print?${params.toString()}`, '_blank')
-}
-
-function printCalendarSchedules() {
-    const params = new URLSearchParams()
-    if (filterForm.team_id) params.set('team_id', filterForm.team_id)
-    if (filterForm.schedule_type) params.set('schedule_type', filterForm.schedule_type)
-    if (filterForm.period) params.set('period', filterForm.period)
-    if (filterForm.start_date) params.set('start_date', filterForm.start_date)
-    if (filterForm.end_date) params.set('end_date', filterForm.end_date)
-    if (calendarSportFilter.value !== 'all') params.set('sport', calendarSportFilter.value)
-
-    const query = params.toString()
-    window.open(`/operations/schedules/print${query ? `?${query}` : ''}`, '_blank')
 }
 </script>
 
@@ -493,7 +353,7 @@ function printCalendarSchedules() {
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Operations Workspace</p>
             <h1 class="mt-2 text-2xl font-bold">Attendance And Schedule Monitoring</h1>
             <p class="mt-2 max-w-3xl text-sm text-white/85">
-                Review team schedules, monitor attendance activity, follow up on unresolved records, and open schedule drilldowns from one shared operations workspace.
+                Review team schedules and monitor attendance activity from one shared operations workspace.
             </p>
         </section>
 
@@ -524,13 +384,6 @@ function printCalendarSchedules() {
                     @click="setPeriod(period.key)"
                 >
                     {{ period.label }}
-                </button>
-                <button
-                    type="button"
-                    class="ml-auto rounded-md border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    @click="printReport"
-                >
-                    Print
                 </button>
             </div>
 
@@ -598,21 +451,6 @@ function printCalendarSchedules() {
                 >
                     Attendance
                 </button>
-                <button
-                    type="button"
-                    class="rounded-md px-3 py-2 text-sm font-medium"
-                    :class="activeTab === 'exceptions' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    @click="setTab('exceptions')"
-                >
-                    Needs Attention
-                </button>
-            </div>
-
-            <div v-if="activeTab === 'exceptions'" class="mb-4 rounded-2xl border border-[#034485]/20 bg-[#f8fbff] px-4 py-3">
-                <p class="text-sm font-semibold text-[#034485]">Attendance Follow-Up Queue</p>
-                <p class="mt-1 text-sm text-slate-600">
-                    Review late, absent, no-response, or manually adjusted attendance records that still need admin follow-up.
-                </p>
             </div>
 
             <div v-if="activeTab === 'calendar'" class="grid grid-cols-1 gap-4 xl:grid-cols-4">
@@ -661,44 +499,52 @@ function printCalendarSchedules() {
                         :twelve-hour="true"
                         time-format="h:mm {am}"
                         events-on-month-view
-                        @event-click="onCalendarEventClick"
                     />
                 </section>
 
                 <aside class="max-h-[660px] overflow-y-auto rounded-2xl border border-[#034485]/25 bg-[#034485]/5 p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
                         <h2 class="text-sm font-semibold text-slate-800">Schedules</h2>
-                        <button
-                            type="button"
-                            class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-slate-300"
-                            @click="printCalendarSchedules"
-                        >
-                            {{ calendarSportFilter === 'all' ? 'Print All' : `Print ${sportLabel(calendarSportFilter)}` }}
-                        </button>
                     </div>
                     <div v-if="filteredCalendarSchedules.length === 0" class="text-sm text-slate-500">No schedules found.</div>
-                    <button
+                    <div
                         v-for="item in filteredCalendarSchedules"
                         :key="item.id"
-                        type="button"
-                        class="mb-2 w-full rounded-lg border p-3 text-left"
-                        :style="scheduleCardStyle(item.sport)"
-                        @click="openScheduleDrawer(item.id)"
+                        class="page-card relative overflow-hidden rounded-3xl border border-[#034485]/45 bg-white p-5 shadow-[0_18px_40px_-28px_rgba(3,68,133,0.45)] transition"
                     >
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="truncate text-base font-semibold">{{ item.title }}</p>
-                            <span
-                                class="rounded border border-white/70 bg-white px-2 py-0.5 text-[11px] font-semibold"
-                                :style="{ color: sportColor(item.sport) }"
-                            >
-                                {{ sportLabel(item.sport) }}
-                            </span>
+                        <div class="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-[#034485] via-[#0b5aa6] to-[#034485]/85 opacity-100"></div>
+                        <div class="pointer-events-none absolute inset-x-0 top-16 h-16 bg-gradient-to-b from-[#034485]/18 to-transparent"></div>
+                        <div class="relative z-10">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0">
+                                    <div class="truncate font-semibold leading-tight text-white">{{ item.title }}</div>
+                                    <div class="mt-1 inline-flex max-w-full rounded-full border border-white bg-white px-2.5 py-1 text-[11px] font-semibold text-[#034485] shadow-[0_10px_24px_-18px_rgba(15,23,42,0.7)]">
+                                        {{ item.type }} • {{ item.venue || '-' }}
+                                    </div>
+                                </div>
+                                <span
+                                    class="rounded border border-white/20 bg-[#023463] px-2.5 py-1 text-xs font-semibold text-white"
+                                >
+                                    {{ sportLabel(item.sport) }}
+                                </span>
+                            </div>
+
+                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                <div class="rounded-2xl border border-[#034485]/18 bg-[#edf4ff] px-3 py-2 shadow-sm">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-[#034485]">Team</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ item.team_name }}</p>
+                                </div>
+                                <div class="rounded-2xl border border-[#034485]/18 bg-[#edf4ff] px-3 py-2 shadow-sm">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-[#034485]">Start Time</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatDateTime(item.start) }}</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                No response: {{ item.counts.no_response }}
+                            </div>
                         </div>
-                        <p class="mt-1 text-sm font-semibold" :class="scheduleSubTextClass(item.sport)">{{ item.team_name }}</p>
-                        <p class="text-xs" :class="scheduleSubTextClass(item.sport)">{{ item.type }}</p>
-                        <p class="text-xs" :class="scheduleSubTextClass(item.sport)">{{ formatDateTime(item.start) }}</p>
-                        <p class="mt-1 text-xs" :class="scheduleAlertTextClass(item.sport)">No response: {{ item.counts.no_response }}</p>
-                    </button>
+                    </div>
                 </aside>
             </div>
 
@@ -712,13 +558,13 @@ function printCalendarSchedules() {
                                 <th class="px-3 py-2 text-left">Student</th>
                                 <th class="px-3 py-2 text-left">Status</th>
                                 <th class="px-3 py-2 text-left">Recorded</th>
-                                <th class="px-3 py-2 text-left">Actions</th>
+                                <th class="px-3 py-2 text-left">Recorded By</th>
                             </tr>
                         </thead>
                         <transition-group name="table-fade" tag="tbody">
                             <tr v-if="visibleTable.data.length === 0" key="empty">
                                 <td colspan="6" class="px-3 py-4 text-center text-slate-500">
-                                    {{ activeTab === 'exceptions' ? 'No follow-up attendance records were found.' : 'No attendance records were found.' }}
+                                    No attendance records were found.
                                 </td>
                             </tr>
                             <tr v-for="row in visibleTable.data" :key="`${row.schedule_id}-${row.student_id}`" class="border-t border-slate-200">
@@ -737,16 +583,7 @@ function printCalendarSchedules() {
                                     </span>
                                 </td>
                                 <td class="px-3 py-2 text-slate-600">{{ formatDateTime(row.recorded_at) }}</td>
-                                <td class="px-3 py-2">
-                                    <button
-                                        type="button"
-                                        class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100"
-                                        :disabled="isSavingOverride"
-                                        @click="markExcused(row.schedule_id, row.student_id, row.status)"
-                                    >
-                                        Resolve as Excused
-                                    </button>
-                                </td>
+                                <td class="px-3 py-2 text-slate-600">{{ row.recorded_by || '-' }}</td>
                             </tr>
                         </transition-group>
                     </table>
@@ -777,98 +614,6 @@ function printCalendarSchedules() {
                 </div>
             </div>
         </section>
-
-        <div v-if="scheduleDrawerOpen" class="fixed inset-0 z-40 bg-black/20" @click="closeDrawer"></div>
-        <aside
-            v-if="scheduleDrawerOpen"
-            class="fixed inset-y-0 right-0 z-50 w-full max-w-xl border-l border-[#034485]/25 bg-white p-5"
-        >
-            <div class="mb-4 flex items-start justify-between gap-3">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-900">Schedule Attendance Drilldown</h2>
-                    <p class="text-xs text-slate-500">Click roster row actions for admin overrides.</p>
-                </div>
-                <button type="button" class="rounded border border-slate-300 px-2 py-1 text-sm" @click="closeDrawer">Close</button>
-            </div>
-
-            <div v-if="drilldownLoading" class="text-sm text-slate-500">Loading schedule details...</div>
-
-            <div v-else-if="drilldown" class="space-y-4">
-                <div class="rounded-2xl border border-[#034485]/30 bg-[#034485]/5 p-4">
-                    <p class="text-base font-semibold text-slate-900">{{ drilldown.schedule.title }}</p>
-                    <p class="text-xs text-slate-600">{{ drilldown.schedule.team_name }} • {{ drilldown.schedule.sport_name }}</p>
-                    <p class="text-xs text-slate-600">{{ formatDateTime(drilldown.schedule.start_time) }}</p>
-
-                    <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
-                        <div class="rounded border border-slate-200 bg-white p-2">Present: <strong>{{ drilldown.counts.present }}</strong></div>
-                        <div class="rounded border border-slate-200 bg-white p-2">Late: <strong>{{ drilldown.counts.late }}</strong></div>
-                        <div class="rounded border border-slate-200 bg-white p-2">Absent: <strong>{{ drilldown.counts.absent }}</strong></div>
-                        <div class="rounded border border-slate-200 bg-white p-2">Excused: <strong>{{ drilldown.counts.excused }}</strong></div>
-                        <div class="rounded border border-slate-200 bg-white p-2">No Response: <strong>{{ drilldown.counts.no_response }}</strong></div>
-                        <div class="rounded border border-slate-200 bg-white p-2">Roster: <strong>{{ drilldown.counts.total }}</strong></div>
-                    </div>
-
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        <button type="button" class="rounded-md bg-[#1f2937] px-3 py-2 text-xs font-semibold text-white" @click="openAttendanceFromDrawer">
-                            Open Attendance
-                        </button>
-                        <button type="button" class="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white" @click="openNoResponseFromDrawer">
-                            View No Response
-                        </button>
-                    </div>
-                </div>
-
-                <div class="max-h-[55vh] overflow-y-auto rounded-2xl border border-[#034485]/25">
-                    <table class="w-full text-xs">
-                        <thead class="sticky top-0 bg-[#034485] text-white">
-                            <tr>
-                                <th class="px-2 py-2 text-left">Student</th>
-                                <th class="px-2 py-2 text-left">Status</th>
-                                <th class="px-2 py-2 text-left">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in drilldown.roster" :key="row.student_id" class="border-t border-slate-200">
-                                <td class="px-2 py-2">{{ row.student_name }}</td>
-                                <td class="px-2 py-2">
-                                    <span class="rounded-full px-2 py-0.5" :class="tableStatusClass(row.attendance_status)">
-                                        {{ row.attendance_status.replaceAll('_', ' ') }}
-                                    </span>
-                                </td>
-                                <td class="px-2 py-2">
-                                    <button
-                                        type="button"
-                                        class="rounded border border-slate-300 px-2 py-1 text-slate-700 hover:bg-slate-100"
-                                        @click="markExcused(drilldown.schedule.id, row.student_id, row.attendance_status)"
-                                    >
-                                        Mark Excused
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </aside>
-
-        <ConfirmDialog
-            :open="showExcuseDialog"
-            title="Mark Attendance as Excused"
-            description="Provide an admin audit reason before applying this override."
-            confirm-text="Save Override"
-            :loading="isSavingOverride"
-            @update:open="showExcuseDialog = $event"
-            @confirm="confirmMarkExcused"
-        >
-            <label class="mb-1 block text-xs font-medium text-slate-600">Override Reason</label>
-            <textarea
-                v-model="excuseReason"
-                rows="3"
-                class="w-full rounded-md border border-slate-300 px-2.5 py-2 text-sm"
-                placeholder="Required reason"
-            />
-            <p v-if="!excuseReason.trim()" class="mt-1 text-xs text-red-600">Reason is required.</p>
-        </ConfirmDialog>
 
         <ConfirmDialog
             :open="noticeDialog.open"

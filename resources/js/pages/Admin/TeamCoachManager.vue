@@ -144,6 +144,28 @@ function removeAssistantCoach() {
         },
     })
 }
+
+function removeHeadCoach() {
+    router.delete(`/teams/${props.team.id}/coaches/head`, {
+        preserveScroll: true,
+        onStart: () => {
+            removingRole.value = 'head'
+        },
+        onSuccess: () => {
+            showAppToast('Head coach removed successfully.', 'success', {
+                summary: 'Coach Assignment',
+            })
+        },
+        onError: () => {
+            showAppToast('Unable to remove the head coach right now.', 'error', {
+                summary: 'Coach Assignment',
+            })
+        },
+        onFinish: () => {
+            removingRole.value = null
+        },
+    })
+}
 </script>
 
 <template>
@@ -190,7 +212,20 @@ function removeAssistantCoach() {
 
                 <div class="mt-5 space-y-4">
                     <article class="page-card rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="inline-flex rounded-full bg-[#034485] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">Head Coach</p>
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="inline-flex rounded-full bg-[#034485] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">Head Coach</p>
+                            </div>
+                            <button
+                                v-if="!readOnly && team.coach"
+                                type="button"
+                                class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                                :disabled="removingRole === 'head'"
+                                @click="removeHeadCoach"
+                            >
+                                {{ removingRole === 'head' ? 'Removing...' : 'Remove Head' }}
+                            </button>
+                        </div>
                         <div class="mt-3 flex items-center gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700">
                                 <img v-if="team.coach?.avatar" :src="userAvatarUrl(team.coach.avatar)" alt="Head coach photo" class="h-full w-full object-cover" />

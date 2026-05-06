@@ -200,7 +200,7 @@ class CoachScheduleController extends Controller
         $validated = $request->validate([
             'team_id'    => 'nullable|integer',
             'title'      => 'required|string|max:255',
-            'type'       => ['required', 'string', 'max:50', Rule::in(['practice', 'game', 'meeting', 'Practice', 'Game', 'Meeting'])],
+            'type'       => ['required', 'string', 'max:50', Rule::in(['practice', 'game', 'Practice', 'Game'])],
             'venue'      => 'required|string|max:255',
             'start_time' => 'required|date',
             'end_time'   => 'required|date|after:start_time',
@@ -268,7 +268,7 @@ class CoachScheduleController extends Controller
         $validated = $request->validate([
             'team_id' => 'nullable|integer',
             'title' => 'sometimes|string|max:255',
-            'type' => ['sometimes', 'string', 'max:50', Rule::in(['practice', 'game', 'meeting', 'Practice', 'Game', 'Meeting'])],
+            'type' => ['sometimes', 'string', 'max:50', Rule::in(['practice', 'game', 'Practice', 'Game'])],
             'venue' => 'sometimes|string|max:255',
             'start_time' => 'sometimes|date',
             'end_time' => 'sometimes|date|after:start_time',

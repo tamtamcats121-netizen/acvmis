@@ -184,6 +184,22 @@ it('extracts general average from noisy k-12 OCR output', function () {
         ->and($parsed['parser_status'])->toBe('parsed');
 });
 
+it('extracts a split general average footer from semester table OCR output', function () {
+    $parsed = app(GradeParsingService::class)->parseText(implode("\n", [
+        'Table 9. Grade 11, 2nd Semester of ABM strand',
+        'Reading and Writing Skills 80 83 82',
+        'Pagbasa at Pagsusuri ng Iba\'t Ibang Teksto tungo sa Pananaliksik 86 85 86',
+        'Statistics and Probability 82 87 85',
+        'Physical Science 88 87 88',
+        'General Average for the',
+        'Semester',
+        '85',
+    ]));
+
+    expect($parsed['gwa'])->toBe(85.0)
+        ->and($parsed['parser_status'])->toBe('parsed');
+});
+
 it('fails cleanly for invalid formats with multiple unrelated numeric values', function () {
     $parsed = app(GradeParsingService::class)->parseText(implode("\n", [
         'Student ID: 2026-0001',

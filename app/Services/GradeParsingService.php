@@ -190,7 +190,7 @@ class GradeParsingService
 
     private function extractNearbySummaryValue(array $lines, int $index): ?float
     {
-        for ($offset = 1; $offset <= 2; $offset++) {
+        for ($offset = 1; $offset <= 3; $offset++) {
             $candidateLine = $lines[$index + $offset] ?? null;
             if (!is_string($candidateLine)) {
                 continue;
@@ -206,10 +206,22 @@ class GradeParsingService
                 return $values[0];
             }
 
+            if (count($values) === 0 && $this->isSummaryContinuationLine($sanitized)) {
+                continue;
+            }
+
             break;
         }
 
         return null;
+    }
+
+    private function isSummaryContinuationLine(string $line): bool
+    {
+        return preg_match(
+            '/\b(?:semester|trimester|term|grading period|school year|sy|for the|finals?)\b/i',
+            $line
+        ) === 1;
     }
 
     private function summaryLineScore(string $line, int $numericCount): int
@@ -382,8 +394,8 @@ class GradeParsingService
         if (
             $gwa !== null
             && $parserConfidence >= 75.0
-            && $subjectRows->isEmpty()
             && $this->hasStrongSummaryLabel($text)
+            && ($subjectRows->isEmpty() || $subjectRows->count() >= 4)
         ) {
             return 'parsed';
         }

@@ -10,7 +10,6 @@ use App\Models\Sport;
 use App\Models\Student;
 use App\Models\Team;
 use App\Models\TeamPlayer;
-use App\Models\TeamSchedule;
 use App\Services\SystemNotificationService;
 use App\Services\SecureUploadService;
 use App\Services\TeamPlayerStatusService;
@@ -211,9 +210,8 @@ class CreateTeamController extends Controller
 
         $teams = $baseQuery->get();
 
-        $coachConflictData = $this->detectCoachConflicts();
         $playerConflictData = $this->detectPlayerConflicts();
-        $teamIssueCounts = $this->buildTeamIssueCounts($coachConflictData, $playerConflictData);
+        $teamIssueCounts = $this->buildTeamIssueCounts($playerConflictData);
 
         $teams = $teams->map(
             fn (Team $team) => $this->serializeTeamSummary($team, $sportMaxMap, $teamIssueCounts)
@@ -272,10 +270,6 @@ class CreateTeamController extends Controller
             'options' => [
                 'sports' => Sport::supported()->orderBy('name')->get(['id', 'name']),
                 'years' => Team::query()->select('year')->whereNotNull('year')->distinct()->orderByDesc('year')->pluck('year'),
-            ],
-            'conflicts' => [
-                'coach' => $coachConflictData,
-                'player' => $playerConflictData,
             ],
             'readOnly' => auth()->user()?->role !== 'admin',
             'teamChangeRequests' => $teamChangeRequests,
@@ -526,22 +520,31 @@ class CreateTeamController extends Controller
             abort(404);
         }
 
-        if ($role === 'head') {
-            return back()->with('error', 'Head coach removal is not supported here. Assign a replacement head coach instead.');
-        }
-
         $headCoachId = $team->coach_id ? (int) $team->coach_id : null;
         $assistantCoachId = $team->assistant_coach_id ? (int) $team->assistant_coach_id : null;
 
-        if (!$assistantCoachId) {
+        if ($role === 'head' && !$headCoachId) {
+            return back()->with('warning', 'No head coach is currently assigned.');
+        }
+
+        if ($role === 'assistant' && !$assistantCoachId) {
             return back()->with('warning', 'No assistant coach is currently assigned.');
         }
 
-        DB::transaction(function () use ($team, $headCoachId) {
-            $team->syncStaffAssignments($headCoachId, null, auth()->id());
+        DB::transaction(function () use ($team, $role, $headCoachId, $assistantCoachId) {
+            $team->syncStaffAssignments(
+                $role === 'head' ? null : $headCoachId,
+                $role === 'assistant' ? null : $assistantCoachId,
+                auth()->id()
+            );
         });
 
         $team->refresh()->load('sport');
+        if ($role === 'head') {
+            $this->notifyTeamAssignmentRemoved($team, $headCoachId, 'head coach');
+            return back()->with('success', 'Head coach removed from the team.');
+        }
+
         $this->notifyTeamAssignmentRemoved($team, $assistantCoachId, 'assistant coach');
 
         return back()->with('success', 'Assistant coach removed from the team.');
@@ -1582,90 +1585,6 @@ class CreateTeamController extends Controller
         ];
     }
 
-    private function detectCoachConflicts(): array
-    {
-        $schedules = TeamSchedule::query()
-            ->with(['team.activeStaffAssignments'])
-            ->whereHas('team', fn ($query) => $query->whereNull('archived_at'))
-            ->whereNotNull('team_schedules.start_time')
-            ->whereNotNull('team_schedules.end_time')
-            ->get([
-                'team_schedules.team_id',
-                'team_schedules.start_time',
-                'team_schedules.end_time',
-            ]);
-
-        $byCoach = [];
-        foreach ($schedules as $schedule) {
-            $start = $schedule->start_time;
-            $end = $schedule->end_time;
-            if (!$start || !$end) {
-                continue;
-            }
-
-            $team = $schedule->team;
-            if (!$team) {
-                continue;
-            }
-
-            foreach ($team->activeStaffAssignments as $assignment) {
-                if (!$assignment->coach_id) {
-                    continue;
-                }
-
-                $roleLabel = $assignment->role === 'head' ? 'Head Coach' : 'Assistant Coach';
-                $byCoach[$assignment->coach_id][] = [
-                    'team_id' => (int) $schedule->team_id,
-                    'team_name' => $team->team_name,
-                    'role' => $roleLabel,
-                    'start_time' => $start,
-                    'end_time' => $end,
-                ];
-            }
-        }
-
-        $coachNames = Coach::query()
-            ->join('users', 'users.id', '=', 'coaches.user_id')
-            ->whereIn('coaches.id', array_keys($byCoach))
-            ->get(['coaches.id', 'users.first_name', 'users.last_name'])
-            ->mapWithKeys(fn ($coach) => [$coach->id => trim($coach->first_name . ' ' . $coach->last_name)]);
-
-        $conflicts = [];
-        foreach ($byCoach as $coachId => $slots) {
-            $count = count($slots);
-            if ($count < 2) {
-                continue;
-            }
-
-            for ($i = 0; $i < $count - 1; $i++) {
-                for ($j = $i + 1; $j < $count; $j++) {
-                    $a = $slots[$i];
-                    $b = $slots[$j];
-                    if ($a['team_id'] === $b['team_id']) {
-                        continue;
-                    }
-
-                    if ($a['start_time'] < $b['end_time'] && $b['start_time'] < $a['end_time']) {
-                        $conflicts[] = [
-                            'coach_id' => (int) $coachId,
-                            'coach_name' => $coachNames[$coachId] ?? 'Unknown Coach',
-                            'team_a_id' => $a['team_id'],
-                            'team_a_name' => $a['team_name'],
-                            'team_b_id' => $b['team_id'],
-                            'team_b_name' => $b['team_name'],
-                            'window' => date('M d, Y h:i A', strtotime((string) $a['start_time'])) . ' - ' . date('M d, Y h:i A', strtotime((string) $a['end_time'])),
-                        ];
-                    }
-                }
-            }
-        }
-
-        return collect($conflicts)
-            ->unique(fn ($item) => $item['coach_id'] . '-' . min($item['team_a_id'], $item['team_b_id']) . '-' . max($item['team_a_id'], $item['team_b_id']) . '-' . $item['window'])
-            ->values()
-            ->all();
-    }
-
     private function detectPlayerConflicts(): array
     {
         $duplicates = TeamPlayer::query()
@@ -1731,14 +1650,9 @@ class CreateTeamController extends Controller
             ->all();
     }
 
-    private function buildTeamIssueCounts(array $coachConflicts, array $playerConflicts): array
+    private function buildTeamIssueCounts(array $playerConflicts): array
     {
         $issueCounts = [];
-
-        foreach ($coachConflicts as $item) {
-            $issueCounts[$item['team_a_id']] = ($issueCounts[$item['team_a_id']] ?? 0) + 1;
-            $issueCounts[$item['team_b_id']] = ($issueCounts[$item['team_b_id']] ?? 0) + 1;
-        }
 
         foreach ($playerConflicts as $item) {
             foreach ($item['teams'] as $team) {

@@ -32,15 +32,15 @@ function termLabel(termCode: string) {
 </script>
 
 <template>
-    <Head title="Past Periods" />
+    <Head title="Period History" />
 
     <div class="space-y-5">
         <section class="page-card rounded-xl border border-[#034485]/45 bg-[#034485] p-5 text-white">
             <div class="flex flex-wrap items-center gap-3">
                 <BackLinkButton href="/academics" label="Back to Academics" />
                 <div>
-                    <h1 class="text-2xl font-bold text-white">Past Periods</h1>
-                    <p class="text-sm text-white/80">Archived academic periods for reference.</p>
+                    <h1 class="text-2xl font-bold text-white">Period History</h1>
+                    <p class="text-sm text-white/80">Closed academic periods kept for reference and archived evaluation access.</p>
                 </div>
             </div>
 
@@ -88,15 +88,15 @@ function termLabel(termCode: string) {
                                     v-if="period.submissions_count > 0"
                                     type="button"
                                     class="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                                    @click="router.get('/academics/submissions', { period_id: period.id })"
+                                    @click="router.get('/academics/evaluations', { period_id: period.id })"
                                 >
-                                    View ({{ period.submissions_count }})
+                                    Open Evaluations ({{ period.submissions_count }})
                                 </button>
                                 <span v-else class="text-xs text-slate-400">None</span>
                             </td>
                         </tr>
                         <tr v-if="props.periods.length === 0" key="empty">
-                            <td colspan="4" class="px-4 py-8 text-center text-slate-500">No past periods found.</td>
+                            <td colspan="4" class="px-4 py-8 text-center text-slate-500">No closed periods found.</td>
                         </tr>
                     </transition-group>
                 </table>

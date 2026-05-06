@@ -1241,7 +1241,6 @@ onBeforeUnmount(() => {
                             >
                                 <option value="practice">Practice</option>
                                 <option value="game">Game</option>
-                                <option value="meeting">Meeting</option>
                             </select>
                         </div>
 

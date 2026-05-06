@@ -28,10 +28,10 @@ class AcademicDocumentValidationService
         if ($summary?->gwa === null) {
             return $this->result(
                 status: 'manual_review',
-                summary: 'The scan completed, but GPA/GWA could not be extracted automatically.',
+                summary: 'The scan completed, but GPA or general average could not be extracted automatically.',
                 flags: [[
                     'code' => 'gpa_missing',
-                    'message' => 'No GPA or general weighted average was detected in the document.',
+                    'message' => 'No GPA or general average was detected in the document.',
                 ]],
             );
         }
@@ -48,8 +48,8 @@ class AcademicDocumentValidationService
         return $this->result(
             status: empty($flags) ? 'valid' : 'manual_review',
             summary: empty($flags)
-                ? 'GPA/GWA was extracted successfully from the uploaded document.'
-                : 'GPA/GWA was extracted, but the OCR confidence was low and should be reviewed.',
+                ? 'GPA or general average was extracted successfully from the uploaded document.'
+                : 'GPA or general average was extracted, but the OCR confidence was low and should be reviewed.',
             flags: $flags,
         );
     }

@@ -44,10 +44,6 @@ const props = defineProps<{
         sports: { id: number; name: string }[]
         years: (string | number)[]
     }
-    conflicts: {
-        coach: any[]
-        player: any[]
-    }
     readOnly: boolean
     teamChangeRequests: Array<{
         id: number
@@ -483,18 +479,6 @@ function formatTimestamp(value: string | null) {
                 </div>
             </section>
 
-            <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
-                <h3 class="text-base font-semibold text-slate-900">Coach Time Conflicts</h3>
-                <p class="text-xs text-slate-500">Same coach assigned to overlapping team schedule windows.</p>
-                <ul v-if="conflicts.coach?.length" class="mt-3 space-y-2 text-sm">
-                    <li v-for="item in conflicts.coach" :key="`${item.coach_id}-${item.team_a_id}-${item.team_b_id}-${item.window}`" class="rounded-md border border-slate-200 bg-slate-50 p-2">
-                        <p class="font-medium text-slate-900">{{ item.coach_name }}</p>
-                        <p class="text-xs text-slate-600">{{ item.team_a_name }} vs {{ item.team_b_name }}</p>
-                        <p class="text-xs text-amber-700">{{ item.window }}</p>
-                    </li>
-                </ul>
-                <p v-else class="mt-3 text-sm text-slate-500">No coach conflicts detected.</p>
-            </section>
         </section>
 
         <section class="page-card rounded-xl border border-[#034485]/45 bg-white">

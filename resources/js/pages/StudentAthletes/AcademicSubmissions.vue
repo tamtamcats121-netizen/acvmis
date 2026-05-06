@@ -348,6 +348,48 @@ function selectedResultLabel(row: Submission | null) {
         : row.ocr?.interpretation?.label || 'Pending Review'
 }
 
+function nextActionLabel(row: Submission | null) {
+    if (!row) return 'Submit your current grade report during an active academic period.'
+
+    const evaluationStatus = String(row.evaluation?.status ?? '').toLowerCase()
+    const validationStatus = String(row.ocr?.validation?.status ?? '').toLowerCase()
+
+    if (evaluationStatus.includes('eligible')) {
+        return 'No further action is required for this period.'
+    }
+
+    if (evaluationStatus.includes('ineligible')) {
+        return 'Review the evaluation remarks and resubmit an updated academic file if needed.'
+    }
+
+    if (validationStatus === 'manual_review') {
+        return 'Wait for the academic evaluation. Your submission needs manual review.'
+    }
+
+    if (validationStatus === 'pending') {
+        return 'Please wait while the system completes scanning and evaluation.'
+    }
+
+    if (validationStatus && validationStatus !== 'valid') {
+        return 'Review the file quality and resubmit if the result stays incomplete.'
+    }
+
+    return 'Wait for the final academic evaluation to confirm your eligibility.'
+}
+
+function summaryStatusLabel(row: Submission | null) {
+    if (!row) return 'No submission yet'
+    if (row.evaluation?.status) {
+        return row.evaluation.status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    }
+
+    const validationStatus = String(row.ocr?.validation?.status ?? '').toLowerCase()
+    if (validationStatus === 'valid') return 'Awaiting final evaluation'
+    if (validationStatus === 'manual_review') return 'Needs manual review'
+    if (validationStatus === 'pending') return 'Scanning in progress'
+    return 'Pending review'
+}
+
 function cardMotion(order: number) {
     return { '--card-order': String(order) }
 }
@@ -446,14 +488,14 @@ function cardMotion(order: number) {
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div class="space-y-2">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="text-xs text-slate-500">Latest Scan Result</span>
+                                    <span class="text-xs text-slate-500">Latest Academic Record</span>
                                     <span class="rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="statusPill(latestSubmission).class">
                                         {{ statusPill(latestSubmission).label }}
                                     </span>
                                 </div>
                                 <h2 class="text-lg font-semibold text-slate-900">{{ latestSubmission.period_label || 'Submitted period' }}</h2>
                                 <p class="text-sm text-slate-600">
-                                    {{ latestSubmission.ocr?.validation?.summary || latestSubmission.evaluation?.remarks || 'Your uploaded document has been scanned and saved to your academic record.' }}
+                                    Your uploaded file is saved under this academic period. Review the evaluation result below to confirm whether your submission is already eligible or still needs action.
                                 </p>
                             </div>
                             <a
@@ -468,26 +510,36 @@ function cardMotion(order: number) {
 
                         <div class="mt-4 grid gap-3 md:grid-cols-3">
                             <div class="page-card rounded-3xl border border-slate-200 bg-slate-50/60 p-4" :style="cardMotion(6)">
-                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Extracted GPA / Average</p>
-                                <p class="mt-2 text-3xl font-bold text-slate-900">{{ selectedResultValue(latestSubmission) }}</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Submitted File</p>
+                                <p class="mt-2 text-sm font-semibold text-slate-900">{{ docLabel(latestSubmission.document_type) }}</p>
+                                <p class="mt-1 text-xs text-slate-500">Uploaded {{ formatDateTime(latestSubmission.uploaded_at) }}</p>
+                                <p class="mt-3 text-xs text-slate-600">
+                                    {{ latestSubmission.notes || 'No additional notes were attached to this submission.' }}
+                                </p>
                             </div>
                             <div class="page-card rounded-3xl border border-slate-200 bg-slate-50/60 p-4" :style="cardMotion(7)">
-                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">System interpretation</p>
-                                <p class="mt-2 text-lg font-semibold text-slate-900">{{ selectedResultLabel(latestSubmission) }}</p>
-                                <p class="mt-1 text-xs text-slate-500">{{ latestSubmission.ocr?.interpretation?.value_label || 'Average' }}</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Evaluation Result</p>
+                                <p class="mt-2 text-lg font-semibold text-slate-900">{{ summaryStatusLabel(latestSubmission) }}</p>
+                                <p class="mt-1 text-xs text-slate-500">
+                                    GPA / Average: <span class="font-semibold text-slate-700">{{ selectedResultValue(latestSubmission) }}</span>
+                                </p>
+                                <p class="mt-3 text-xs text-slate-600">
+                                    {{ latestSubmission.evaluation?.remarks || latestSubmission.ocr?.validation?.summary || 'Your submission is waiting for the final evaluation result.' }}
+                                </p>
                             </div>
                             <div class="page-card rounded-3xl border border-slate-200 bg-slate-50/60 p-4" :style="cardMotion(8)">
-                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Processing status</p>
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
                                 <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(latestSubmission.ocr?.validation?.status)">
                                     {{ validationLabel(latestSubmission.ocr?.validation?.status) }}
                                 </span>
-                                <p class="mt-2 text-xs text-slate-500">Processed: {{ formatDateTime(latestSubmission.ocr?.processed_at || latestSubmission.uploaded_at) }}</p>
+                                <p class="mt-3 text-xs leading-5 text-slate-600">{{ nextActionLabel(latestSubmission) }}</p>
+                                <p class="mt-2 text-xs text-slate-500">Last update: {{ formatDateTime(latestSubmission.evaluation?.evaluated_at || latestSubmission.ocr?.processed_at || latestSubmission.uploaded_at) }}</p>
                             </div>
                         </div>
                     </template>
                     <template v-else>
-                        <p class="text-xs text-slate-500">Latest Scan Result</p>
-                        <p class="mt-2 text-sm text-slate-600">No scanned academic submission is available yet. Upload your first document during an active period to see the result here.</p>
+                        <p class="text-xs text-slate-500">Latest Academic Record</p>
+                        <p class="mt-2 text-sm text-slate-600">No academic submission is on file yet. Upload your first document during an active period to start evaluation.</p>
                     </template>
                 </div>
             </section>
@@ -550,7 +602,7 @@ function cardMotion(order: number) {
                     <div class="space-y-2">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="rounded-full bg-[#034485] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
-                                Latest Scan Result
+                                Latest Academic Record
                             </span>
                             <span class="rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="statusPill(resultSubmission).class">
                                 {{ statusPill(resultSubmission).label }}
@@ -558,7 +610,7 @@ function cardMotion(order: number) {
                         </div>
                         <h2 class="text-lg font-semibold text-slate-900">{{ resultSubmission.period_label || 'Submitted period' }}</h2>
                         <p class="text-sm text-slate-600">
-                            {{ resultSubmission.ocr?.validation?.summary || resultSubmission.evaluation?.remarks || 'Your uploaded document has been scanned and saved to your academic record.' }}
+                            Your submission was received for this period. Review the evaluation result and next action below.
                         </p>
                     </div>
                     <a
@@ -573,20 +625,30 @@ function cardMotion(order: number) {
 
                 <div class="mt-4 grid gap-3 md:grid-cols-3">
                     <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(15)">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Extracted GPA / Average</p>
-                        <p class="mt-2 text-3xl font-bold text-slate-900">{{ selectedResultValue(resultSubmission) }}</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Submitted File</p>
+                        <p class="mt-2 text-sm font-semibold text-slate-900">{{ docLabel(resultSubmission.document_type) }}</p>
+                        <p class="mt-1 text-xs text-slate-500">Uploaded {{ formatDateTime(resultSubmission.uploaded_at) }}</p>
+                        <p class="mt-3 text-xs text-slate-600">
+                            {{ resultSubmission.notes || 'No additional notes were attached to this submission.' }}
+                        </p>
                     </div>
                     <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(16)">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">System interpretation</p>
-                        <p class="mt-2 text-lg font-semibold text-slate-900">{{ selectedResultLabel(resultSubmission) }}</p>
-                        <p class="mt-1 text-xs text-slate-500">{{ resultSubmission.ocr?.interpretation?.value_label || 'Grade value' }}</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Evaluation Result</p>
+                        <p class="mt-2 text-lg font-semibold text-slate-900">{{ summaryStatusLabel(resultSubmission) }}</p>
+                        <p class="mt-1 text-xs text-slate-500">
+                            GPA / Average: <span class="font-semibold text-slate-700">{{ selectedResultValue(resultSubmission) }}</span>
+                        </p>
+                        <p class="mt-3 text-xs text-slate-600">
+                            {{ resultSubmission.evaluation?.remarks || resultSubmission.ocr?.validation?.summary || 'Your submission is waiting for the final evaluation result.' }}
+                        </p>
                     </div>
                     <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(17)">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Processing status</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
                         <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(resultSubmission.ocr?.validation?.status)">
                             {{ validationLabel(resultSubmission.ocr?.validation?.status) }}
                         </span>
-                        <p class="mt-2 text-xs text-slate-500">Processed: {{ formatDateTime(resultSubmission.ocr?.processed_at || resultSubmission.uploaded_at) }}</p>
+                        <p class="mt-3 text-xs leading-5 text-slate-600">{{ nextActionLabel(resultSubmission) }}</p>
+                        <p class="mt-2 text-xs text-slate-500">Last update: {{ formatDateTime(resultSubmission.evaluation?.evaluated_at || resultSubmission.ocr?.processed_at || resultSubmission.uploaded_at) }}</p>
                     </div>
                 </div>
             </section>
@@ -673,16 +735,25 @@ function cardMotion(order: number) {
                             {{ statusPill(row).label }}
                         </span>
                     </div>
-                    <div class="mt-3 space-y-1 text-xs text-slate-500">
-                        <div>Document: <span class="font-semibold text-slate-700">{{ docLabel(row.document_type) }}</span></div>
-                        <div>Extracted GPA / Average: <span class="font-semibold text-slate-700">{{ selectedResultValue(row) }}</span></div>
-                        <div>System interpretation: <span class="font-semibold text-slate-700">{{ selectedResultLabel(row) }}</span></div>
-                        <div>
+                    <div class="mt-3 grid gap-3 text-xs text-slate-500">
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Submitted File</p>
+                            <div class="mt-2">Document: <span class="font-semibold text-slate-700">{{ docLabel(row.document_type) }}</span></div>
+                            <div class="mt-1">{{ row.notes || 'No notes attached.' }}</div>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Evaluation Result</p>
+                            <div class="mt-2">Status: <span class="font-semibold text-slate-700">{{ summaryStatusLabel(row) }}</span></div>
+                            <div class="mt-1">GPA / Average: <span class="font-semibold text-slate-700">{{ selectedResultValue(row) }}</span></div>
+                            <div class="mt-1">{{ row.evaluation?.remarks || row.ocr?.validation?.summary || 'Waiting for evaluation remarks.' }}</div>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
                             <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr?.validation?.status)">
                                 {{ validationLabel(row.ocr?.validation?.status) }}
                             </span>
+                            <div class="mt-2 leading-5">{{ nextActionLabel(row) }}</div>
                         </div>
-                        <div>{{ row.ocr?.validation?.summary || row.evaluation?.remarks || row.notes || 'No notes.' }}</div>
                         <a v-if="row.file_url" :href="row.file_url" target="_blank" class="inline-flex pt-1 font-semibold text-[#034485] hover:underline">
                             View submitted file
                         </a>
@@ -704,9 +775,9 @@ function cardMotion(order: number) {
                         <tr>
                             <th class="px-3 py-2 text-left">Period</th>
                             <th class="px-3 py-2 text-left">Uploaded</th>
-                            <th class="px-3 py-2 text-left">Document</th>
-                            <th class="px-3 py-2 text-left">Scan Result</th>
-                            <th class="px-3 py-2 text-left">Status</th>
+                            <th class="px-3 py-2 text-left">Submitted File</th>
+                            <th class="px-3 py-2 text-left">Evaluation</th>
+                            <th class="px-3 py-2 text-left">Next Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -718,24 +789,28 @@ function cardMotion(order: number) {
                             </td>
                             <td class="px-3 py-3">
                                 <div class="text-xs font-semibold uppercase text-slate-700">{{ docLabel(row.document_type) }}</div>
+                                <div class="mt-1 text-xs text-slate-500">{{ row.notes || 'No notes attached.' }}</div>
                                 <a v-if="row.file_url" :href="row.file_url" target="_blank" class="text-xs font-semibold text-[#034485] hover:underline">View file</a>
                             </td>
                             <td class="px-3 py-3">
                                 <div class="space-y-1 text-xs text-slate-500">
-                                    <div>Extracted GPA / Average: <span class="font-semibold text-slate-700">{{ selectedResultValue(row) }}</span></div>
-                                    <div>Interpretation: <span class="font-semibold text-slate-700">{{ selectedResultLabel(row) }}</span></div>
+                                    <div>Status: <span class="font-semibold text-slate-700">{{ summaryStatusLabel(row) }}</span></div>
+                                    <div>GPA / Average: <span class="font-semibold text-slate-700">{{ selectedResultValue(row) }}</span></div>
                                     <div>
                                         <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr?.validation?.status)">
                                             {{ validationLabel(row.ocr?.validation?.status) }}
                                         </span>
                                     </div>
-                                    <div>{{ row.ocr?.validation?.summary || row.evaluation?.remarks || '-' }}</div>
+                                    <div>{{ row.evaluation?.remarks || row.ocr?.validation?.summary || '-' }}</div>
                                 </div>
                             </td>
                             <td class="px-3 py-3">
-                                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="statusPill(row).class">
-                                    {{ statusPill(row).label }}
-                                </span>
+                                <div class="space-y-2 text-xs text-slate-500">
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="statusPill(row).class">
+                                        {{ statusPill(row).label }}
+                                    </span>
+                                    <div>{{ nextActionLabel(row) }}</div>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
