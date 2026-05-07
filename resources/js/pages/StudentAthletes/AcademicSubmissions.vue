@@ -83,9 +83,17 @@ const page = usePage()
 const academicAccess = computed(() => (page.props.auth as any)?.academic_access ?? null)
 const isAcademicallyRestricted = computed(() => Boolean(academicAccess.value?.is_restricted))
 const restrictionEvaluation = computed(() => academicAccess.value?.evaluation ?? null)
-const studentMetricLabel = computed(() =>
-    String(props.student?.current_grade_level ?? '').match(/^(11|12)$/) ? 'GWA' : 'GPA'
-)
+function isSeniorHighStudent() {
+    const academicLevelLabel = String(props.student?.academic_level_label ?? '').toLowerCase()
+    if (academicLevelLabel.includes('senior high')) {
+        return true
+    }
+
+    const gradeLevel = String(props.student?.current_grade_level ?? '').trim()
+    return /(^|[^0-9])(11|12)([^0-9]|$)/.test(gradeLevel)
+}
+
+const studentMetricLabel = computed(() => (isSeniorHighStudent() ? 'GWA' : 'GPA'))
 
 const isSubmissionModalOpen = ref(false)
 const activePeriodId = ref<number | null>(null)
