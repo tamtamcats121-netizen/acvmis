@@ -48,3 +48,14 @@ it('classifies basic education averages without manual review when clear', funct
             'review_required' => false,
         ]);
 });
+
+it('flags education-level scale mismatches for manual review', function () {
+    $interpretation = AcademicEligibilityEvaluation::interpretGrade(88.0, 'College');
+
+    expect($interpretation['scale'])->toBe(AcademicEligibilityEvaluation::SCALE_HIGHER_EDUCATION)
+        ->and($interpretation['value_label'])->toBe('GPA')
+        ->and($interpretation['status'])->toBe('pending_review')
+        ->and($interpretation['review_required'])->toBeTrue()
+        ->and($interpretation['scale_mismatch'])->toBeTrue()
+        ->and($interpretation['mismatch_message'])->toContain('expected GPA scale');
+});

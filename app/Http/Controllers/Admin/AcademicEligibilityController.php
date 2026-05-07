@@ -194,8 +194,26 @@ class AcademicEligibilityController extends Controller
         );
 
         $period = AcademicPeriod::find((int) $validated['period_id']);
+        $student = Student::find((int) $validated['student_id']);
+        $educationLevel = $student?->education_level;
+
+        if (
+            $validated['gpa'] !== null
+            && AcademicEligibilityEvaluation::hasEducationLevelScaleMismatch(
+                (float) $validated['gpa'],
+                $educationLevel
+            )
+        ) {
+            return back()->withErrors([
+                'gpa' => AcademicEligibilityEvaluation::scaleMismatchMessage($educationLevel, (float) $validated['gpa']),
+            ]);
+        }
+
         $finalStatus = $validated['status']
-            ?? AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null);
+            ?? AcademicEligibilityEvaluation::statusForGpa(
+                $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
+                $educationLevel
+            );
         $reviewRequired = $finalStatus === 'pending_review';
 
         AcademicEligibilityEvaluation::updateOrCreate(
@@ -226,7 +244,6 @@ class AcademicEligibilityController extends Controller
             ->where('academic_period_id', (int) $validated['period_id'])
             ->firstOrFail();
 
-        $student = Student::find((int) $validated['student_id']);
         $studentUserId = (int) ($student?->user_id ?? 0);
         $status = strtoupper((string) ($finalStatus ?? 'pending'));
         $periodLabel = $period
@@ -352,13 +369,22 @@ class AcademicEligibilityController extends Controller
         return response()->json([
             'data' => collect($paginator->items())->map(function ($row) use ($ocrRunsByDocument) {
                 $document = $row->document_id ? $ocrRunsByDocument->get((int) $row->document_id) : null;
+                $studentEducationLevel = $this->educationLevelFromGradeLevel($row->current_grade_level);
+                $presentedEvaluation = $row->evaluation_id
+                    ? AcademicEligibilityEvaluation::presentStoredEvaluation(
+                        $row->evaluation_gpa !== null ? (float) $row->evaluation_gpa : null,
+                        $row->evaluation_final_status,
+                        $studentEducationLevel,
+                        $row->evaluation_remarks,
+                    )
+                    : null;
 
                 return [
                     'document_id' => (int) $row->document_id,
                     'student_id' => (int) $row->student_id,
                     'student_name' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
                     'student_id_number' => $row->student_id_number,
-                    'student_education_level' => $this->educationLevelFromGradeLevel($row->current_grade_level),
+                    'student_education_level' => $studentEducationLevel,
                     'team_id' => $row->team_id ? (int) $row->team_id : null,
                     'team_name' => $row->team_name,
                     'document_type' => $row->document_type,
@@ -377,14 +403,14 @@ class AcademicEligibilityController extends Controller
                     'evaluation' => $row->evaluation_id ? [
                         'id' => (int) $row->evaluation_id,
                         'gpa' => $row->evaluation_gpa !== null ? (float) $row->evaluation_gpa : null,
-                        'status' => $row->evaluation_final_status ?: AcademicEligibilityEvaluation::statusForGpa(
-                            $row->evaluation_gpa !== null ? (float) $row->evaluation_gpa : null
-                        ),
-                        'remarks' => $row->evaluation_remarks,
+                        'status' => $presentedEvaluation['status'],
+                        'remarks' => $presentedEvaluation['remarks'],
                         'evaluated_at' => $row->evaluated_at,
                         'evaluator_name' => $row->evaluator_name,
                         'evaluation_source' => $row->evaluation_source,
-                        'review_required' => (bool) ($row->review_required ?? false),
+                        'review_required' => $presentedEvaluation['review_required'],
+                        'scale_mismatch' => $presentedEvaluation['scale_mismatch'],
+                        'mismatch_message' => $presentedEvaluation['mismatch_message'],
                     ] : null,
                 ];
             })->values(),
@@ -417,6 +443,7 @@ class AcademicEligibilityController extends Controller
                 'e.id as evaluation_id',
                 'e.student_id',
                 's.student_id_number',
+                's.current_grade_level',
                 'su.first_name',
                 'su.last_name',
                 'e.academic_period_id as period_id',
@@ -443,11 +470,20 @@ class AcademicEligibilityController extends Controller
 
         return response()->json([
             'data' => collect($paginator->items())->map(function ($row) {
+                $studentEducationLevel = $this->educationLevelFromGradeLevel($row->current_grade_level);
+                $presentedEvaluation = AcademicEligibilityEvaluation::presentStoredEvaluation(
+                    $row->gpa !== null ? (float) $row->gpa : null,
+                    $row->final_status,
+                    $studentEducationLevel,
+                    $row->remarks,
+                );
+
                 return [
                     'evaluation_id' => (int) $row->evaluation_id,
                     'student_id' => (int) $row->student_id,
                     'student_name' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
                     'student_id_number' => $row->student_id_number,
+                    'student_education_level' => $studentEducationLevel,
                     'team_id' => $row->team_id ? (int) $row->team_id : null,
                     'team_name' => $row->team_name,
                     'period' => $row->period_id ? [
@@ -458,10 +494,11 @@ class AcademicEligibilityController extends Controller
                     'document_id' => $row->document_id ? (int) $row->document_id : null,
                     'document_type' => $row->document_type,
                     'gpa' => $row->gpa !== null ? (float) $row->gpa : null,
-                    'status' => $row->final_status ?: AcademicEligibilityEvaluation::statusForGpa(
-                        $row->gpa !== null ? (float) $row->gpa : null
-                    ),
-                    'remarks' => $row->remarks,
+                    'status' => $presentedEvaluation['status'],
+                    'remarks' => $presentedEvaluation['remarks'],
+                    'review_required' => $presentedEvaluation['review_required'],
+                    'scale_mismatch' => $presentedEvaluation['scale_mismatch'],
+                    'mismatch_message' => $presentedEvaluation['mismatch_message'],
                     'evaluated_at' => $row->evaluated_at,
                     'evaluator_name' => $row->evaluator_name,
                 ];
@@ -555,6 +592,7 @@ class AcademicEligibilityController extends Controller
             ->select([
                 'd.student_id',
                 's.student_id_number',
+                's.current_grade_level',
                 'su.first_name',
                 'su.last_name',
                 'd.id as document_id',
@@ -568,6 +606,16 @@ class AcademicEligibilityController extends Controller
             ->limit(100)
             ->get()
             ->map(function ($row) {
+                $studentEducationLevel = $this->educationLevelFromGradeLevel($row->current_grade_level);
+                $presentedEvaluation = $row->evaluation_id
+                    ? AcademicEligibilityEvaluation::presentStoredEvaluation(
+                        $row->gpa !== null ? (float) $row->gpa : null,
+                        $row->final_status,
+                        $studentEducationLevel,
+                        null,
+                    )
+                    : null;
+
                 return [
                     'student_id' => (int) $row->student_id,
                     'student_name' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
@@ -575,9 +623,7 @@ class AcademicEligibilityController extends Controller
                     'document_id' => (int) $row->document_id,
                     'uploaded_at' => $row->uploaded_at,
                     'evaluation_id' => $row->evaluation_id ? (int) $row->evaluation_id : null,
-                    'evaluation_status' => $row->final_status ?: AcademicEligibilityEvaluation::statusForGpa(
-                        $row->gpa !== null ? (float) $row->gpa : null
-                    ),
+                    'evaluation_status' => $presentedEvaluation['status'] ?? null,
                     'gpa' => $row->gpa !== null ? (float) $row->gpa : null,
                     'evaluated_at' => $row->evaluated_at,
                     'exception_type' => $row->evaluation_id ? 'at_risk' : 'pending_evaluation',
@@ -614,6 +660,23 @@ class AcademicEligibilityController extends Controller
             ->where('student_id', $studentId)
             ->where('academic_period_id', $periodId)
             ->firstOrFail();
+        $student = Student::findOrFail($studentId);
+        $educationLevel = $student->education_level;
+
+        if (
+            $validated['gpa'] !== null
+            && AcademicEligibilityEvaluation::hasEducationLevelScaleMismatch(
+                (float) $validated['gpa'],
+                $educationLevel
+            )
+        ) {
+            return response()->json([
+                'message' => AcademicEligibilityEvaluation::scaleMismatchMessage($educationLevel, (float) $validated['gpa']),
+                'errors' => [
+                    'gpa' => [AcademicEligibilityEvaluation::scaleMismatchMessage($educationLevel, (float) $validated['gpa'])],
+                ],
+            ], 422);
+        }
 
         $remarkParts = [];
         if (!empty($validated['remarks'])) {
@@ -623,7 +686,10 @@ class AcademicEligibilityController extends Controller
             $remarkParts[] = '[Admin Note] ' . trim((string) $validated['audit_note']);
         }
         $finalStatus = $validated['status']
-            ?? AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null);
+            ?? AcademicEligibilityEvaluation::statusForGpa(
+                $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
+                $educationLevel
+            );
 
         $evaluation = AcademicEligibilityEvaluation::query()->updateOrCreate(
             [
@@ -831,6 +897,8 @@ class AcademicEligibilityController extends Controller
                 'value_label' => $interpretation['value_label'],
                 'status' => $interpretation['status'],
                 'label' => $interpretation['interpretation_label'],
+                'scale_mismatch' => (bool) ($interpretation['scale_mismatch'] ?? false),
+                'mismatch_message' => $interpretation['mismatch_message'] ?? null,
             ],
         ];
     }

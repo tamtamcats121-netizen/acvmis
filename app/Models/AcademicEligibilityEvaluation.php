@@ -109,6 +109,18 @@ class AcademicEligibilityEvaluation extends Model
             ];
         }
 
+        if (self::hasEducationLevelScaleMismatch($grade, $expectedEducationLevel)) {
+            return [
+                'scale' => $expectedScale ?? self::SCALE_UNKNOWN,
+                'value_label' => self::valueLabelForScale($expectedScale),
+                'status' => 'pending_review',
+                'interpretation_label' => 'Pending Review',
+                'review_required' => true,
+                'scale_mismatch' => true,
+                'mismatch_message' => self::scaleMismatchMessage($expectedEducationLevel, $grade),
+            ];
+        }
+
         $scale = $expectedScale ?? self::detectGradingScale($grade);
 
         if ($scale === self::SCALE_BASIC_EDUCATION) {
@@ -118,6 +130,8 @@ class AcademicEligibilityEvaluation extends Model
                 'status' => $grade >= 75 ? 'eligible' : 'ineligible',
                 'interpretation_label' => $grade >= 75 ? 'Eligible' : 'Ineligible',
                 'review_required' => false,
+                'scale_mismatch' => false,
+                'mismatch_message' => null,
             ];
         }
 
@@ -129,6 +143,8 @@ class AcademicEligibilityEvaluation extends Model
                     'status' => 'eligible',
                     'interpretation_label' => 'Eligible',
                     'review_required' => false,
+                    'scale_mismatch' => false,
+                    'mismatch_message' => null,
                 ];
             }
 
@@ -139,6 +155,8 @@ class AcademicEligibilityEvaluation extends Model
                     'status' => 'ineligible',
                     'interpretation_label' => 'Ineligible',
                     'review_required' => false,
+                    'scale_mismatch' => false,
+                    'mismatch_message' => null,
                 ];
             }
 
@@ -148,6 +166,8 @@ class AcademicEligibilityEvaluation extends Model
                 'status' => 'pending_review',
                 'interpretation_label' => 'Pending Review',
                 'review_required' => true,
+                'scale_mismatch' => false,
+                'mismatch_message' => null,
             ];
         }
 
@@ -157,6 +177,73 @@ class AcademicEligibilityEvaluation extends Model
             'status' => 'pending_review',
             'interpretation_label' => 'Pending Review',
             'review_required' => true,
+            'scale_mismatch' => false,
+            'mismatch_message' => null,
+        ];
+    }
+
+    public static function hasEducationLevelScaleMismatch(?float $grade, ?string $expectedEducationLevel): bool
+    {
+        if ($grade === null) {
+            return false;
+        }
+
+        $expectedScale = self::expectedScaleForEducationLevel($expectedEducationLevel);
+        if ($expectedScale === null) {
+            return false;
+        }
+
+        $detectedScale = self::detectGradingScale($grade);
+
+        return $detectedScale !== self::SCALE_UNKNOWN && $detectedScale !== $expectedScale;
+    }
+
+    public static function scaleMismatchMessage(?string $expectedEducationLevel, ?float $grade = null): string
+    {
+        $expectedScale = self::expectedScaleForEducationLevel($expectedEducationLevel);
+        $expectedLabel = self::valueLabelForScale($expectedScale);
+        $valuePart = $grade !== null ? " ({$grade})" : '';
+
+        return "The recorded academic value{$valuePart} does not match the expected {$expectedLabel} scale for this student's academic level. Manual review is required.";
+    }
+
+    /**
+     * @return array{
+     *     status: string|null,
+     *     review_required: bool,
+     *     scale_mismatch: bool,
+     *     mismatch_message: string|null,
+     *     remarks: string|null
+     * }
+     */
+    public static function presentStoredEvaluation(
+        ?float $grade,
+        ?string $storedStatus,
+        ?string $expectedEducationLevel,
+        ?string $storedRemarks = null
+    ): array {
+        $scaleMismatch = self::hasEducationLevelScaleMismatch($grade, $expectedEducationLevel);
+        $mismatchMessage = $scaleMismatch
+            ? self::scaleMismatchMessage($expectedEducationLevel, $grade)
+            : null;
+
+        $status = $scaleMismatch
+            ? 'pending_review'
+            : ($storedStatus ?: self::statusForGpa($grade, $expectedEducationLevel));
+
+        $remarks = $storedRemarks;
+        if ($scaleMismatch && $mismatchMessage !== null) {
+            $remarks = $storedRemarks
+                ? trim($storedRemarks . "\n\n" . $mismatchMessage)
+                : $mismatchMessage;
+        }
+
+        return [
+            'status' => $status,
+            'review_required' => $scaleMismatch ? true : $status === 'pending_review',
+            'scale_mismatch' => $scaleMismatch,
+            'mismatch_message' => $mismatchMessage,
+            'remarks' => $remarks,
         ];
     }
 

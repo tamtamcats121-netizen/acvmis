@@ -57,6 +57,9 @@ type Submission = {
         gpa: number | null
         status: string
         remarks: string | null
+        review_required?: boolean
+        scale_mismatch?: boolean
+        mismatch_message?: string | null
         evaluated_at: string | null
     } | null
 }
@@ -326,6 +329,12 @@ function validationLabel(status: string | null | undefined) {
     return status || 'Not yet processed'
 }
 
+function actionPillStatus(row: Submission | null) {
+    if (!row) return 'pending'
+    if (row.evaluation?.scale_mismatch || row.evaluation?.review_required) return 'manual_review'
+    return row.ocr?.validation?.status ?? 'pending'
+}
+
 function termLabel(termCode: string) {
     if (termCode === '1st_sem') return '1st Semester'
     if (termCode === '2nd_sem') return '2nd Semester'
@@ -366,6 +375,10 @@ function selectedResultLabel(row: Submission | null) {
 function nextActionLabel(row: Submission | null) {
     if (!row) return 'Submit your current grade report during an active academic period.'
 
+    if (row.evaluation?.scale_mismatch) {
+        return row.evaluation.mismatch_message || 'This academic result does not match the expected scale for your academic level. Please request manual review.'
+    }
+
     const evaluationStatus = String(row.evaluation?.status ?? '').toLowerCase()
     const validationStatus = String(row.ocr?.validation?.status ?? '').toLowerCase()
 
@@ -403,6 +416,16 @@ function summaryStatusLabel(row: Submission | null) {
     if (validationStatus === 'manual_review') return 'Needs manual review'
     if (validationStatus === 'pending') return 'Scanning in progress'
     return 'Pending review'
+}
+
+function evaluationSummaryText(row: Submission | null) {
+    if (!row) return '-'
+
+    if (row.evaluation?.mismatch_message) {
+        return row.evaluation.mismatch_message
+    }
+
+    return row.evaluation?.remarks || row.ocr?.validation?.summary || 'Your submission is waiting for the final evaluation result.'
 }
 
 function cardMotion(order: number) {
@@ -538,16 +561,16 @@ function cardMotion(order: number) {
                                 <p class="mt-1 text-xs text-slate-500">
                                     {{ metricWithFallback() }}: <span class="font-semibold text-slate-700">{{ selectedResultValue(latestSubmission) }}</span>
                                 </p>
-                                <p class="mt-3 text-xs text-slate-600">
-                                    {{ latestSubmission.evaluation?.remarks || latestSubmission.ocr?.validation?.summary || 'Your submission is waiting for the final evaluation result.' }}
-                                </p>
-                            </div>
-                            <div class="page-card rounded-3xl border border-slate-200 bg-slate-50/60 p-4" :style="cardMotion(8)">
-                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
-                                <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(latestSubmission.ocr?.validation?.status)">
-                                    {{ validationLabel(latestSubmission.ocr?.validation?.status) }}
-                                </span>
-                                <p class="mt-3 text-xs leading-5 text-slate-600">{{ nextActionLabel(latestSubmission) }}</p>
+                        <p class="mt-3 text-xs text-slate-600">
+                            {{ evaluationSummaryText(latestSubmission) }}
+                        </p>
+                    </div>
+                    <div class="page-card rounded-3xl border border-slate-200 bg-slate-50/60 p-4" :style="cardMotion(8)">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
+                        <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(actionPillStatus(latestSubmission))">
+                            {{ validationLabel(actionPillStatus(latestSubmission)) }}
+                        </span>
+                        <p class="mt-3 text-xs leading-5 text-slate-600">{{ nextActionLabel(latestSubmission) }}</p>
                                 <p class="mt-2 text-xs text-slate-500">Last update: {{ formatDateTime(latestSubmission.evaluation?.evaluated_at || latestSubmission.ocr?.processed_at || latestSubmission.uploaded_at) }}</p>
                             </div>
                         </div>
@@ -654,13 +677,13 @@ function cardMotion(order: number) {
                             {{ metricWithFallback() }}: <span class="font-semibold text-slate-700">{{ selectedResultValue(resultSubmission) }}</span>
                         </p>
                         <p class="mt-3 text-xs text-slate-600">
-                            {{ resultSubmission.evaluation?.remarks || resultSubmission.ocr?.validation?.summary || 'Your submission is waiting for the final evaluation result.' }}
+                            {{ evaluationSummaryText(resultSubmission) }}
                         </p>
                     </div>
                     <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(17)">
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
-                        <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(resultSubmission.ocr?.validation?.status)">
-                            {{ validationLabel(resultSubmission.ocr?.validation?.status) }}
+                        <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(actionPillStatus(resultSubmission))">
+                            {{ validationLabel(actionPillStatus(resultSubmission)) }}
                         </span>
                         <p class="mt-3 text-xs leading-5 text-slate-600">{{ nextActionLabel(resultSubmission) }}</p>
                         <p class="mt-2 text-xs text-slate-500">Last update: {{ formatDateTime(resultSubmission.evaluation?.evaluated_at || resultSubmission.ocr?.processed_at || resultSubmission.uploaded_at) }}</p>
@@ -760,12 +783,12 @@ function cardMotion(order: number) {
                             <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Evaluation Result</p>
                             <div class="mt-2">Status: <span class="font-semibold text-slate-700">{{ summaryStatusLabel(row) }}</span></div>
                             <div class="mt-1">{{ metricWithFallback() }}: <span class="font-semibold text-slate-700">{{ selectedResultValue(row) }}</span></div>
-                            <div class="mt-1">{{ row.evaluation?.remarks || row.ocr?.validation?.summary || 'Waiting for evaluation remarks.' }}</div>
+                            <div class="mt-1">{{ evaluationSummaryText(row) }}</div>
                         </div>
                         <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
                             <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
-                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr?.validation?.status)">
-                                {{ validationLabel(row.ocr?.validation?.status) }}
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(actionPillStatus(row))">
+                                {{ validationLabel(actionPillStatus(row)) }}
                             </span>
                             <div class="mt-2 leading-5">{{ nextActionLabel(row) }}</div>
                         </div>
@@ -812,11 +835,11 @@ function cardMotion(order: number) {
                                     <div>Status: <span class="font-semibold text-slate-700">{{ summaryStatusLabel(row) }}</span></div>
                                     <div>{{ metricWithFallback() }}: <span class="font-semibold text-slate-700">{{ selectedResultValue(row) }}</span></div>
                                     <div>
-                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr?.validation?.status)">
-                                            {{ validationLabel(row.ocr?.validation?.status) }}
+                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(actionPillStatus(row))">
+                                            {{ validationLabel(actionPillStatus(row)) }}
                                         </span>
                                     </div>
-                                    <div>{{ row.evaluation?.remarks || row.ocr?.validation?.summary || '-' }}</div>
+                                    <div>{{ evaluationSummaryText(row) }}</div>
                                 </div>
                             </td>
                             <td class="px-3 py-3">

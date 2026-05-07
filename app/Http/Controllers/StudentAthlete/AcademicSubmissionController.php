@@ -128,6 +128,15 @@ class AcademicSubmissionController extends Controller
             }),
             'submissions' => $submissions->map(function ($doc) use ($evalByPeriod, $student) {
                 $evaluation = $doc->academic_period_id ? $evalByPeriod->get($doc->academic_period_id) : null;
+                $presentedEvaluation = $evaluation
+                    ? AcademicEligibilityEvaluation::presentStoredEvaluation(
+                        $evaluation->gpa !== null ? (float) $evaluation->gpa : null,
+                        $evaluation->status,
+                        $student->education_level,
+                        $evaluation->remarks,
+                    )
+                    : null;
+
                 return [
                     'id' => $doc->id,
                     'period_id' => $doc->academic_period_id,
@@ -141,8 +150,11 @@ class AcademicSubmissionController extends Controller
                     'ocr' => $this->ocrPayload($doc->latestOcrRun, $student->education_level),
                     'evaluation' => $evaluation ? [
                         'gpa' => $evaluation->gpa,
-                        'status' => $evaluation->status,
-                        'remarks' => $evaluation->remarks,
+                        'status' => $presentedEvaluation['status'],
+                        'remarks' => $presentedEvaluation['remarks'],
+                        'review_required' => $presentedEvaluation['review_required'],
+                        'scale_mismatch' => $presentedEvaluation['scale_mismatch'],
+                        'mismatch_message' => $presentedEvaluation['mismatch_message'],
                         'evaluated_at' => optional($evaluation->evaluated_at)->toDateTimeString(),
                     ] : null,
                 ];
@@ -388,6 +400,8 @@ class AcademicSubmissionController extends Controller
                 'value_label' => $interpretation['value_label'],
                 'status' => $interpretation['status'],
                 'label' => $interpretation['interpretation_label'],
+                'scale_mismatch' => (bool) ($interpretation['scale_mismatch'] ?? false),
+                'mismatch_message' => $interpretation['mismatch_message'] ?? null,
             ],
             'validation' => [
                 'status' => $this->ocrValidationColumnsReady() ? $ocrRun->validation_status : null,

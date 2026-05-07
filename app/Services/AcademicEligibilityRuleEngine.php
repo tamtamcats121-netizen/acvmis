@@ -53,6 +53,10 @@ class AcademicEligibilityRuleEngine
 
     private function buildRemarks(float $grade, array $interpretation): string
     {
+        if (!empty($interpretation['scale_mismatch']) && !empty($interpretation['mismatch_message'])) {
+            return $interpretation['mismatch_message'];
+        }
+
         $scaleLabel = match ($interpretation['scale']) {
             AcademicEligibilityEvaluation::SCALE_BASIC_EDUCATION => 'Basic Education percentage scale',
             AcademicEligibilityEvaluation::SCALE_HIGHER_EDUCATION => 'Higher Education numerical scale',
