@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 import { computed, reactive } from 'vue'
+import DatePicker from 'primevue/datepicker'
 
+import { useTheme } from '@/composables/useTheme'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
@@ -62,11 +64,42 @@ const props = defineProps<{
     }
 }>()
 
+const { isDarkMode } = useTheme()
 const form = reactive({
     team_id: props.filters.selected.team_id ? String(props.filters.selected.team_id) : '',
     status: props.filters.selected.status ?? '',
     start_date: props.filters.selected.start_date ?? '',
     end_date: props.filters.selected.end_date ?? '',
+})
+
+function parseFilterDate(value: string): Date | null {
+    if (!value) return null
+
+    const date = new Date(`${value}T00:00:00`)
+    return Number.isNaN(date.getTime()) ? null : date
+}
+
+function formatFilterDate(value: Date | null): string {
+    if (!value) return ''
+
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
+const startDateModel = computed<Date | null>({
+    get: () => parseFilterDate(form.start_date),
+    set: (value) => {
+        form.start_date = formatFilterDate(value)
+    },
+})
+
+const endDateModel = computed<Date | null>({
+    get: () => parseFilterDate(form.end_date),
+    set: (value) => {
+        form.end_date = formatFilterDate(value)
+    },
 })
 
 const queryString = computed(() => {
@@ -157,12 +190,44 @@ function formatPercent(value: number) {
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Start Date</label>
-                    <input v-model="form.start_date" type="date" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                    <DatePicker
+                        v-model="startDateModel"
+                        showIcon
+                        iconDisplay="input"
+                        inputClass="w-full rounded-md border px-3 py-2 text-sm"
+                        :pt="{
+                            pcInputText: {
+                                root: {
+                                    class: isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-300 bg-white text-slate-900',
+                                },
+                            },
+                        }"
+                        panelClass="text-sm"
+                        placeholder="Start date"
+                        dateFormat="yy-mm-dd"
+                        :manualInput="false"
+                    />
                 </div>
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">End Date</label>
-                    <input v-model="form.end_date" type="date" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                    <DatePicker
+                        v-model="endDateModel"
+                        showIcon
+                        iconDisplay="input"
+                        inputClass="w-full rounded-md border px-3 py-2 text-sm"
+                        :pt="{
+                            pcInputText: {
+                                root: {
+                                    class: isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-300 bg-white text-slate-900',
+                                },
+                            },
+                        }"
+                        panelClass="text-sm"
+                        placeholder="End date"
+                        dateFormat="yy-mm-dd"
+                        :manualInput="false"
+                    />
                 </div>
             </div>
 

@@ -81,7 +81,7 @@ class StudentDocumentController extends Controller
         $documents = $documentsQuery->paginate(9)->withQueryString();
 
         $evaluations = AcademicEligibilityEvaluation::query()
-            ->select(['student_id', 'academic_period_id', 'gpa', 'status', 'remarks', 'evaluated_at'])
+            ->select(['student_id', 'academic_period_id', 'gpa', 'final_status', 'remarks', 'evaluated_at'])
             ->where('student_id', $student->id)
             ->whereNotNull('academic_period_id')
             ->get()
@@ -121,7 +121,7 @@ class StudentDocumentController extends Controller
                     $presentedEvaluation = $evaluation
                         ? AcademicEligibilityEvaluation::presentStoredEvaluation(
                             $evaluation->gpa !== null ? (float) $evaluation->gpa : null,
-                            $evaluation->status,
+                            $evaluation->final_status,
                             $student->education_level,
                             $evaluation->remarks,
                         )

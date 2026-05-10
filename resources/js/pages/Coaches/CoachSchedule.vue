@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import DatePicker from 'primevue/datepicker'
 import { VueCal } from 'vue-cal'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
@@ -101,6 +102,36 @@ function toLocalInput(dt: string | null) {
     if (!dt) return ''
     return dt.replace(' ', 'T').slice(0, 16)
 }
+
+function parseLocalInputDate(value: string) {
+    if (!value) return null
+
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date
+}
+
+function toLocalInputFromDate(value: Date | null) {
+    if (!value) return ''
+
+    const pad = (n: number) => String(n).padStart(2, '0')
+
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
+        + `T${pad(value.getHours())}:${pad(value.getMinutes())}`
+}
+
+const startDateTimeModel = computed<Date | null>({
+    get: () => parseLocalInputDate(form.value.start_time),
+    set: (value) => {
+        form.value.start_time = toLocalInputFromDate(value)
+    },
+})
+
+const endDateTimeModel = computed<Date | null>({
+    get: () => parseLocalInputDate(form.value.end_time),
+    set: (value) => {
+        form.value.end_time = toLocalInputFromDate(value)
+    },
+})
 
 /**
  * Calendar events
@@ -1258,18 +1289,48 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] p-4 shadow-sm">
                             <label class="text-xs font-semibold uppercase tracking-wide text-[#034485]">Start</label>
-                            <input
-                                v-model="form.start_time"
-                                type="datetime-local"
-                                class="mt-2 w-full rounded-xl border border-[#034485]/20 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#034485] focus:outline-none focus:ring-2 focus:ring-[#034485]/10"
+                            <DatePicker
+                                v-model="startDateTimeModel"
+                                showIcon
+                                iconDisplay="input"
+                                showTime
+                                hourFormat="12"
+                                fluid
+                                inputClass="mt-2 w-full rounded-xl border border-[#034485]/20 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#034485] focus:outline-none focus:ring-2 focus:ring-[#034485]/10"
+                                :pt="{
+                                    pcInputText: {
+                                        root: {
+                                            class: isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-[#034485]/20 bg-white text-slate-900',
+                                        },
+                                    },
+                                }"
+                                panelClass="text-sm"
+                                placeholder="Select start date and time"
+                                dateFormat="yy-mm-dd"
+                                :manualInput="false"
                             />
                         </div>
                         <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] p-4 shadow-sm">
                             <label class="text-xs font-semibold uppercase tracking-wide text-[#034485]">End</label>
-                            <input
-                                v-model="form.end_time"
-                                type="datetime-local"
-                                class="mt-2 w-full rounded-xl border border-[#034485]/20 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#034485] focus:outline-none focus:ring-2 focus:ring-[#034485]/10"
+                            <DatePicker
+                                v-model="endDateTimeModel"
+                                showIcon
+                                iconDisplay="input"
+                                showTime
+                                hourFormat="12"
+                                fluid
+                                inputClass="mt-2 w-full rounded-xl border border-[#034485]/20 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#034485] focus:outline-none focus:ring-2 focus:ring-[#034485]/10"
+                                :pt="{
+                                    pcInputText: {
+                                        root: {
+                                            class: isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-[#034485]/20 bg-white text-slate-900',
+                                        },
+                                    },
+                                }"
+                                panelClass="text-sm"
+                                placeholder="Select end date and time"
+                                dateFormat="yy-mm-dd"
+                                :manualInput="false"
                             />
                         </div>
                     </div>

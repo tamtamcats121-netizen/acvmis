@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
+import DatePicker from 'primevue/datepicker';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 import PublicLayout from '@/components/Public/PublicLayout.vue';
@@ -112,6 +113,7 @@ const cropY = ref(0);
 const cropError = ref('');
 const showPassword = ref(false);
 const showPasswordConfirm = ref(false);
+const today = new Date();
 
 let cropDragActive = false;
 let cropDragStartX = 0;
@@ -123,6 +125,30 @@ const maxCropScale = computed(() => Math.max(cropMinScale.value * 4, cropMinScal
 const cropImageStyle = computed(() => ({
     transform: `translate(calc(-50% + ${cropX.value}px), calc(-50% + ${cropY.value}px)) scale(${cropScale.value})`,
 }));
+
+function parseDateString(value: string): Date | null {
+    if (!value) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+}
+
+function formatDateString(value: Date | null): string {
+    if (!value) return '';
+
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+const dateOfBirthModel = computed<Date | null>({
+    get: () => parseDateString(form.date_of_birth),
+    set: (value) => {
+        form.date_of_birth = formatDateString(value);
+    },
+});
 
 function handleEnter(event: KeyboardEvent) {
     if (isSubmitting.value) return;
@@ -964,7 +990,25 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Date of Birth</label>
-                            <input v-model="form.date_of_birth" type="date" :class="['field', { 'is-error': shouldShowError('date_of_birth') }]" @blur="touchAndValidate('date_of_birth')" />
+                            <DatePicker
+                                v-model="dateOfBirthModel"
+                                showIcon
+                                iconDisplay="input"
+                                inputClass="field"
+                                :maxDate="today"
+                                panelClass="text-sm"
+                                placeholder="Select date of birth"
+                                dateFormat="yy-mm-dd"
+                                :manualInput="false"
+                                :pt="{
+                                    pcInputText: {
+                                        root: {
+                                            class: shouldShowError('date_of_birth') ? 'field is-error' : 'field',
+                                        },
+                                    },
+                                }"
+                                @hide="touchAndValidate('date_of_birth')"
+                            />
                             <FieldError :message="shouldShowError('date_of_birth') ? fieldErrors.date_of_birth : ''" />
                         </div>
                         <div>

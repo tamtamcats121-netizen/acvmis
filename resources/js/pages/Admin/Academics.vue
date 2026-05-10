@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
+import DatePicker from 'primevue/datepicker'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { showAppToast } from '@/composables/useAppToast'
+import { useTheme } from '@/composables/useTheme'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
@@ -28,6 +30,7 @@ const selectedPeriodId = ref<number | null>(props.selectedPeriodId)
 const periodSaving = ref(false)
 const deletePeriodDialogOpen = ref(false)
 const periodErrors = ref<Record<string, string>>({})
+const { isDarkMode } = useTheme()
 const noticeDialog = ref<{ open: boolean; title: string; description: string }>({
     open: false,
     title: '',
@@ -37,6 +40,36 @@ const schoolYear = ref('')
 const term = ref<'1st_sem' | '2nd_sem' | 'summer'>('1st_sem')
 const startsOn = ref('')
 const endsOn = ref('')
+
+function parseFilterDate(value: string): Date | null {
+    if (!value) return null
+
+    const date = new Date(`${value}T00:00:00`)
+    return Number.isNaN(date.getTime()) ? null : date
+}
+
+function formatFilterDate(value: Date | null): string {
+    if (!value) return ''
+
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
+const startsOnModel = computed<Date | null>({
+    get: () => parseFilterDate(startsOn.value),
+    set: (value) => {
+        startsOn.value = formatFilterDate(value)
+    },
+})
+
+const endsOnModel = computed<Date | null>({
+    get: () => parseFilterDate(endsOn.value),
+    set: (value) => {
+        endsOn.value = formatFilterDate(value)
+    },
+})
 
 const selectedPeriod = computed(() =>
     (props.periods || []).find((p) => p.id === selectedPeriodId.value) || null,
@@ -287,11 +320,43 @@ function openEvaluationsWorkspace() {
                             <p v-if="periodErrors.term" class="mt-1 text-xs text-rose-600">{{ periodErrors.term }}</p>
                         </div>
                         <div>
-                            <input v-model="startsOn" type="date" class="w-full rounded-md border border-slate-300 px-2 py-2 text-sm" />
+                            <DatePicker
+                                v-model="startsOnModel"
+                                showIcon
+                                iconDisplay="input"
+                                inputClass="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+                                :pt="{
+                                    pcInputText: {
+                                        root: {
+                                            class: isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-300 bg-white text-slate-900',
+                                        },
+                                    },
+                                }"
+                                panelClass="text-sm"
+                                placeholder="Start date"
+                                dateFormat="yy-mm-dd"
+                                :manualInput="false"
+                            />
                             <p v-if="periodErrors.starts_on" class="mt-1 text-xs text-rose-600">{{ periodErrors.starts_on }}</p>
                         </div>
                         <div>
-                            <input v-model="endsOn" type="date" class="w-full rounded-md border border-slate-300 px-2 py-2 text-sm" />
+                            <DatePicker
+                                v-model="endsOnModel"
+                                showIcon
+                                iconDisplay="input"
+                                inputClass="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+                                :pt="{
+                                    pcInputText: {
+                                        root: {
+                                            class: isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-300 bg-white text-slate-900',
+                                        },
+                                    },
+                                }"
+                                panelClass="text-sm"
+                                placeholder="End date"
+                                dateFormat="yy-mm-dd"
+                                :manualInput="false"
+                            />
                             <p v-if="periodErrors.ends_on" class="mt-1 text-xs text-rose-600">{{ periodErrors.ends_on }}</p>
                         </div>
                         <button

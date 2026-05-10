@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 import { computed, reactive } from 'vue'
+import DatePicker from 'primevue/datepicker'
 
 import { useTheme } from '@/composables/useTheme'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
@@ -58,6 +59,29 @@ const props = defineProps<{
 const { isDarkMode } = useTheme()
 const filters = reactive({ ...props.filters })
 const selectedPreview = computed(() => props.documents.data[0] ?? null)
+
+function parseFilterDate(value: string): Date | null {
+    if (!value) return null
+
+    const date = new Date(`${value}T00:00:00`)
+    return Number.isNaN(date.getTime()) ? null : date
+}
+
+function formatFilterDate(value: Date | null): string {
+    if (!value) return ''
+
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
+const uploadDateModel = computed<Date | null>({
+    get: () => parseFilterDate(filters.upload_date),
+    set: (value) => {
+        filters.upload_date = formatFilterDate(value)
+    },
+})
 
 function applyFilters() {
     router.get('/documents', filters, {
@@ -124,7 +148,23 @@ function formatDateTime(value: string | null) {
                     <option :value="0">All periods</option>
                     <option v-for="period in periods" :key="period.id" :value="period.id">{{ period.label }}</option>
                 </select>
-                <input v-model="filters.upload_date" type="date" class="rounded-2xl border px-4 py-3 text-sm" :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-900'" />
+                <DatePicker
+                    v-model="uploadDateModel"
+                    showIcon
+                    iconDisplay="input"
+                    inputClass="w-full rounded-2xl border px-4 py-3 text-sm"
+                    :pt="{
+                        pcInputText: {
+                            root: {
+                                class: isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-900',
+                            },
+                        },
+                    }"
+                    panelClass="text-sm"
+                    placeholder="Upload date"
+                    dateFormat="yy-mm-dd"
+                    :manualInput="false"
+                />
             </div>
             <div class="mt-3 flex justify-end">
                 <button class="rounded-2xl bg-[#034485] px-4 py-2 text-sm font-semibold text-white" @click="applyFilters">Apply Filters</button>

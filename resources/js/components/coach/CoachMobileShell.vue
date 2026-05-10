@@ -103,6 +103,13 @@ function openNotifications() {
     notificationsOpen.value = true;
 }
 
+function handleNotificationsBellClick() {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+        notificationsOpen.value = false;
+        go('/account/notifications');
+    }
+}
+
 function scheduleNotificationsClose() {
     if (notificationsCloseTimer.value) {
         window.clearTimeout(notificationsCloseTimer.value);
@@ -254,6 +261,7 @@ watch(isNavCollapsed, (collapsed) => {
                             type="button"
                             class="announcement-bell relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
                             aria-label="Open announcements"
+                            @click="handleNotificationsBellClick"
                         >
                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                 <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />

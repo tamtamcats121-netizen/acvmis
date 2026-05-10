@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
 import { computed, reactive, ref, watch } from 'vue'
+import DatePicker from 'primevue/datepicker'
 import { VueCal } from 'vue-cal'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { supportedSports, useSportColors } from '@/composables/useSportColors'
+import { useTheme } from '@/composables/useTheme'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import 'vue-cal/style'
 
@@ -127,6 +129,7 @@ const props = defineProps<{
 }>()
 
 const { sportColor, sportTextColor, sportLabel, normalizeSport } = useSportColors()
+const { isDarkMode } = useTheme()
 
 const activeTab = ref<'calendar' | 'attendance'>(props.tabs.active === 'exceptions' ? 'attendance' : props.tabs.active)
 const showFilters = ref(false)
@@ -207,6 +210,38 @@ const calendarEvents = computed(() =>
 )
 
 const visibleTable = computed(() => attendanceState.value)
+
+function parseFilterDate(value: string): Date | null {
+    if (!value) return null
+
+    const date = new Date(`${value}T00:00:00`)
+    return Number.isNaN(date.getTime()) ? null : date
+}
+
+function formatFilterDate(value: Date | null): string {
+    if (!value) return ''
+
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
+const startDateModel = computed<Date | null>({
+    get: () => parseFilterDate(filterForm.start_date),
+    set: (value) => {
+        filterForm.start_date = formatFilterDate(value)
+        if (value) filterForm.period = ''
+    },
+})
+
+const endDateModel = computed<Date | null>({
+    get: () => parseFilterDate(filterForm.end_date),
+    set: (value) => {
+        filterForm.end_date = formatFilterDate(value)
+        if (value) filterForm.period = ''
+    },
+})
 
 watch(() => props.attendanceRecords, (value) => {
     attendanceState.value = value
@@ -405,8 +440,40 @@ function showNotice(title: string, description: string) {
                     <option v-for="status in filters.options.statuses" :key="status.value" :value="status.value">{{ status.label }}</option>
                 </select>
 
-                <input v-model="filterForm.start_date" type="date" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-                <input v-model="filterForm.end_date" type="date" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                <DatePicker
+                    v-model="startDateModel"
+                    showIcon
+                    iconDisplay="input"
+                    inputClass="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    :pt="{
+                        pcInputText: {
+                            root: {
+                                class: isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-300 bg-white text-slate-900',
+                            },
+                        },
+                    }"
+                    panelClass="text-sm"
+                    placeholder="Start date"
+                    dateFormat="yy-mm-dd"
+                    :manualInput="false"
+                />
+                <DatePicker
+                    v-model="endDateModel"
+                    showIcon
+                    iconDisplay="input"
+                    inputClass="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    :pt="{
+                        pcInputText: {
+                            root: {
+                                class: isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-300 bg-white text-slate-900',
+                            },
+                        },
+                    }"
+                    panelClass="text-sm"
+                    placeholder="End date"
+                    dateFormat="yy-mm-dd"
+                    :manualInput="false"
+                />
 
                 <div class="grid grid-cols-3 gap-2">
                     <select v-model="filterForm.sort" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
