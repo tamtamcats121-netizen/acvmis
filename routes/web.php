@@ -12,6 +12,10 @@ use App\Http\Controllers\Admin\AcademicEligibilityController;
 use App\Http\Controllers\Admin\DocumentReviewController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Coaches\CoachTeamController;
+use App\Http\Controllers\Coaches\CoachApplicationsController;
+use App\Http\Controllers\Coaches\CoachTeamManagementController;
+use App\Http\Controllers\Coaches\TeamInviteController;
+use App\Http\Controllers\StudentAthlete\TeamInviteJoinController;
 use App\Http\Controllers\StudentAthlete\StudentAthleteController;
 use App\Http\Controllers\Coaches\CoachScheduleController;
 use App\Http\Controllers\TrainingRequirementController;
@@ -120,9 +124,7 @@ Route::middleware('guest')->group(function () {
         ->name('password.reset');
     Route::post('/reset-password', [ForgotPasswordController::class, 'reset'])
         ->name('password.update');
-    Route::get('/Register', function () {
-        return Inertia::render('Auth/Student-AthleteRegister');
-    })->name('Register');
+    Route::get('/Register', [RegisterController::class, 'showStudentAthleteRegistration'])->name('Register');
     Route::redirect('/register', '/Register');
     Route::redirect('/Student-AthleteRegister', '/Register')->name('Student-AthleteRegister');
     Route::get('/RegisterStudent-AthleteData/check-student-id', [RegisterController::class, 'checkStudentIdAvailability'])
@@ -135,6 +137,13 @@ Route::middleware('guest')->group(function () {
     Route::redirect('/CoachRegister', '/Register');
     Route::get('/coach/onboarding/activate', [CoachOnboardingController::class, 'show'])->name('coach.onboarding.activate');
     Route::post('/coach/onboarding/activate', [CoachOnboardingController::class, 'activate'])->name('coach.onboarding.activate.submit');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/join-team/{code?}', [TeamInviteJoinController::class, 'show'])
+        ->name('student.team_invites.show');
+    Route::post('/join-team', [TeamInviteJoinController::class, 'join'])
+        ->name('student.team_invites.join');
 });
 
 Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
@@ -176,50 +185,32 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/AdminDashboard', [AdminController::class, 'dashboard'])
         ->name('AdminDashboard');
 
-    Route::get('/people/queue', [AdminController::class, 'approvalManagement'])
-        ->name('admin.people.queue');
-    Route::post('/admin/users/{user}/approve', [AdminController::class, 'approve'])->name('admin.users.approve');
-    Route::post('/admin/users/{user}/reject', [AdminController::class, 'reject'])->name('admin.users.reject');
     Route::post('/admin/users/{user}/deactivate', [AdminController::class, 'deactivate'])->name('admin.users.deactivate');
     Route::post('/admin/users/{user}/reactivate', [AdminController::class, 'reactivate'])->name('admin.users.reactivate');
 
     Route::get('/people', [AdminController::class, 'userManagement'])
         ->name('admin.people.index');
+    Route::get('/people/{user}', [AdminController::class, 'showUserProfile'])
+        ->name('admin.people.show');
     Route::post('/admin/invites', [AdminController::class, 'storeAdminInvite'])
         ->name('admin.invites.store');
     Route::post('/admin/coaches', [AdminController::class, 'storeCoach'])
         ->name('admin.coaches.store');
     Route::post('/admin/coaches/{user}/regenerate-onboarding', [AdminController::class, 'regenerateCoachOnboarding'])
         ->name('admin.coaches.regenerate-onboarding');
+    Route::delete('/admin/users/{user}', [AdminController::class, 'destroyUser'])
+        ->name('admin.users.destroy');
 
     Route::get('/teams', [CreateTeamController::class, 'teamSetup'])
         ->name('admin.teams.index');
-    Route::get('/teams/archived', [CreateTeamController::class, 'archivedTeams'])
+    Route::redirect('/teams/archived', '/teams')
         ->name('admin.teams.archived');
-    Route::get('/teams/create', [CreateTeamController::class, 'create'])
-        ->name('admin.teams.create');
-    Route::post('/teams/create', [CreateTeamController::class, 'store'])
-        ->name('admin.teams.store');
-    Route::get('/teams/{team}/edit', [CreateTeamController::class, 'edit'])
-        ->name('admin.teams.edit');
-    Route::put('/teams/{team}', [CreateTeamController::class, 'update'])
-        ->name('admin.teams.update');
     Route::get('/teams/{team}/view-roster', [CreateTeamController::class, 'showRosterPage'])
         ->name('admin.teams.roster.page');
     Route::get('/teams/{team}/manage-coaches', [CreateTeamController::class, 'showCoachManagerPage'])
         ->name('admin.teams.coaches.page');
     Route::get('/teams/{team}/manage-players', [CreateTeamController::class, 'showPlayerManagerPage'])
         ->name('admin.teams.players.page');
-    Route::put('/teams/{team}/view-roster', [CreateTeamController::class, 'updateRosterMembership'])
-        ->name('admin.teams.roster.membership');
-    Route::post('/teams/{team}/coaches/{coach}', [CreateTeamController::class, 'assignCoach'])
-        ->name('admin.teams.coaches.assign');
-    Route::delete('/teams/{team}/coaches/{role}', [CreateTeamController::class, 'removeCoach'])
-        ->name('admin.teams.coaches.remove');
-    Route::post('/teams/{team}/players/{student}', [CreateTeamController::class, 'addPlayerToRoster'])
-        ->name('admin.teams.players.add');
-    Route::delete('/teams/{team}/players/{student}', [CreateTeamController::class, 'removePlayerFromRoster'])
-        ->name('admin.teams.players.remove');
     Route::get('/teams/{team}/roster', [CreateTeamController::class, 'roster'])
         ->name('admin.teams.roster');
     Route::get('/teams/{team}/print', [CreateTeamController::class, 'printRoster'])
@@ -228,16 +219,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.teams.archive');
     Route::post('/teams/{team}/reactivate', [CreateTeamController::class, 'reactivate'])
         ->name('admin.teams.reactivate');
-    Route::post('/teams/team-players/{teamPlayer}/deactivate', [CreateTeamController::class, 'deactivatePlayer'])
-        ->name('admin.teams.players.deactivate');
-    Route::post('/teams/team-players/{teamPlayer}/reactivate', [CreateTeamController::class, 'reactivatePlayer'])
-        ->name('admin.teams.players.reactivate');
-    Route::put('/teams/team-players/{teamPlayer}/details', [CreateTeamController::class, 'updatePlayerDetails'])
-        ->name('admin.teams.players.details');
-    Route::post('/teams/requests/{announcement}/approve', [CreateTeamController::class, 'approveRequest'])
-        ->name('admin.teams.requests.approve');
-    Route::post('/teams/requests/{announcement}/reject', [CreateTeamController::class, 'rejectRequest'])
-        ->name('admin.teams.requests.reject');
 
     Route::get('/operations', [OperationsWorkspaceController::class, 'index'])
         ->name('admin.operations.index');
@@ -305,13 +286,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/academics/documents/{document}', [AcademicEligibilityController::class, 'destroyDocument'])
         ->name('academic.documents.destroy');
     // Legacy admin routes kept for backwards compatibility.
-    Route::redirect('/ApprovalManagement', '/people/queue');
+    Route::redirect('/ApprovalManagement', '/people');
     Route::redirect('/UserManagement', '/people');
     Route::redirect('/TeamSetup', '/teams');
-    Route::redirect('/CreateTeam', '/teams/create');
-    Route::post('/CreateTeam', [CreateTeamController::class, 'store']);
-    Route::get('/CreateTeam/{team}/edit', [CreateTeamController::class, 'edit']);
-    Route::put('/CreateTeam/{team}', [CreateTeamController::class, 'update']);
+    Route::redirect('/CreateTeam', '/teams');
     Route::redirect('/ScheduleOverview', '/operations');
     Route::redirect('/AttendanceInsights', '/operations?tab=attendance');
     Route::redirect('/AcademicEligibility', '/academics');
@@ -331,6 +309,13 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
     Route::get('/coach/dashboard', [CoachDashboardController::class, 'index'])
         ->name('coach.dashboard.index');
 
+    Route::get('/coach/applications', [CoachApplicationsController::class, 'index'])
+        ->name('coach.applications.index');
+    Route::post('/coach/applications/{user}/approve', [CoachApplicationsController::class, 'approve'])
+        ->name('coach.applications.approve');
+    Route::post('/coach/applications/{user}/reject', [CoachApplicationsController::class, 'reject'])
+        ->name('coach.applications.reject');
+
     Route::get('/coach/operations', function (Request $request) {
         $query = $request->query();
         $tab = (string) ($query['tab'] ?? 'attendance');
@@ -340,16 +325,34 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
         return redirect()->route('coach.schedule.index', $query);
     })->name('coach.operations.index');
     Route::get('/coach/team', [CoachTeamController::class, 'index'])->name('coach.team.index');
+    Route::get('/coach/teams/manage', [CoachTeamManagementController::class, 'index'])
+        ->name('coach.teams.manage.index');
+    Route::post('/coach/teams', [CoachTeamManagementController::class, 'store'])
+        ->name('coach.teams.store');
+    Route::put('/coach/teams/{team}', [CoachTeamManagementController::class, 'update'])
+        ->name('coach.teams.update');
+    Route::put('/coach/teams/{team}/roster', [CoachTeamManagementController::class, 'updateRoster'])
+        ->name('coach.teams.roster.update');
+    Route::post('/coach/teams/{team}/invite-code', [TeamInviteController::class, 'generate'])
+        ->name('coach.teams.invite.generate');
+    Route::post('/coach/teams/{team}/invite-code/regenerate', [TeamInviteController::class, 'regenerate'])
+        ->name('coach.teams.invite.regenerate');
+    Route::delete('/coach/teams/{team}/invite-code', [TeamInviteController::class, 'disable'])
+        ->name('coach.teams.invite.disable');
+    Route::post('/coach/teams/{team}/assistant-coaches/{assistantCoach}', [CoachTeamManagementController::class, 'assignAssistantCoach'])
+        ->name('coach.teams.assistant.assign');
+    Route::delete('/coach/teams/{team}/assistant-coach', [CoachTeamManagementController::class, 'removeAssistantCoach'])
+        ->name('coach.teams.assistant.remove');
+    Route::post('/coach/teams/{team}/archive', [CoachTeamManagementController::class, 'archive'])
+        ->name('coach.teams.archive');
+    Route::post('/coach/teams/{team}/reactivate', [CoachTeamManagementController::class, 'reactivate'])
+        ->name('coach.teams.reactivate');
     Route::get('/coach/team/print', [CoachTeamController::class, 'printRoster'])
         ->name('coach.team.print');
     Route::put('/coach/team-players/{teamPlayer}/position', [CoachTeamController::class, 'updatePlayerPosition'])
         ->name('coach.team_players.position');
     Route::put('/coach/team-players/{teamPlayer}/status', [CoachTeamController::class, 'updatePlayerStatus'])
         ->name('coach.team_players.status');
-    Route::post('/coach/team/requests', [CoachTeamController::class, 'requestChange'])
-        ->middleware('throttle:coach-requests')
-        ->name('coach.team.request');
-
     Route::get('/coach/schedule', [CoachScheduleController::class, 'index'])
         ->name('coach.schedule.index');
     Route::get('/coach/schedule/print', [CoachScheduleController::class, 'print'])

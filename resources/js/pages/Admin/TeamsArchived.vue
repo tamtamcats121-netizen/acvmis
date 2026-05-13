@@ -45,6 +45,7 @@ const props = defineProps<{
         years: (string | number)[]
     }
     readOnly: boolean
+    canArchive?: boolean
 }>()
 
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
@@ -177,7 +178,7 @@ async function toggleTeamExpanded(teamId: number) {
 }
 
 function promptRestore(team: TeamRow) {
-    if (props.readOnly) return
+    if (!props.canArchive) return
     pendingRestoreTeam.value = team
     restoreDialogOpen.value = true
 }

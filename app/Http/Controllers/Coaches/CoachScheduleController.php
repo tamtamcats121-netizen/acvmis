@@ -16,11 +16,45 @@ use App\Models\Student;
 use App\Services\SystemNotificationService;
 use Carbon\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CoachScheduleController extends Controller
 {
     public function __construct(private SystemNotificationService $notifications)
     {
+    }
+
+    private function ensureScheduleTimingAllowed(
+        int $teamId,
+        string $startTime,
+        string $endTime,
+        ?int $ignoreScheduleId = null
+    ): void {
+        $tz = config('app.timezone');
+        $start = Carbon::parse($startTime, $tz);
+        $end = Carbon::parse($endTime, $tz);
+        $today = Carbon::now($tz)->startOfDay();
+
+        if ($start->copy()->startOfDay()->lt($today)) {
+            throw ValidationException::withMessages([
+                'start_time' => 'Creating schedules for prior dates is not allowed.',
+            ]);
+        }
+
+        $overlapExists = TeamSchedule::query()
+            ->where('team_id', $teamId)
+            ->when($ignoreScheduleId, fn ($query, $id) => $query->where('id', '!=', $id))
+            ->where(function ($query) use ($start, $end) {
+                $query->where('start_time', '<', $end->format('Y-m-d H:i:s'))
+                    ->where('end_time', '>', $start->format('Y-m-d H:i:s'));
+            })
+            ->exists();
+
+        if ($overlapExists) {
+            throw ValidationException::withMessages([
+                'start_time' => 'This schedule overlaps with an existing team schedule. Choose a different date or time.',
+            ]);
+        }
     }
 
     private function authorizedTeamIdsForCurrentCoach(Request $request): array
@@ -239,15 +273,18 @@ class CoachScheduleController extends Controller
         }
 
         $tz = config('app.timezone');
+        $startTime = Carbon::parse($validated['start_time'], $tz)->format('Y-m-d H:i:s');
+        $endTime = Carbon::parse($validated['end_time'], $tz)->format('Y-m-d H:i:s');
+
+        $this->ensureScheduleTimingAllowed($ownerTeam->id, $startTime, $endTime);
+
         $created = TeamSchedule::create([
             'team_id'    => $ownerTeam->id,
             'title'      => $validated['title'],
             'type'       => $validated['type'],
             'venue'      => $validated['venue'],
-            'start_time' => Carbon::parse($validated['start_time'], $tz)
-                ->format('Y-m-d H:i:s'),
-            'end_time'   => Carbon::parse($validated['end_time'], $tz)
-                ->format('Y-m-d H:i:s'),
+            'start_time' => $startTime,
+            'end_time'   => $endTime,
             'notes'      => $validated['notes'] ?? null,
         ]);
 
@@ -307,6 +344,11 @@ class CoachScheduleController extends Controller
                 $tz
             )->format('Y-m-d H:i:s');
         }
+
+        $nextStart = $validated['start_time'] ?? $schedule->start_time;
+        $nextEnd = $validated['end_time'] ?? $schedule->end_time;
+
+        $this->ensureScheduleTimingAllowed($schedule->team_id, $nextStart, $nextEnd, $schedule->id);
 
         unset($validated['team_id']);
         $schedule->update($validated);

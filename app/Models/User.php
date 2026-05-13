@@ -150,9 +150,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 ->forCoach($coachId)
                 ->get();
         } elseif ($this->role === 'student' || $this->role === 'student-athlete') {
-            return Team::whereHas('players', function ($q) {
-                $q->where('student_id', $this->student->id);
-            })->get();
+            return Team::query()
+                ->active()
+                ->whereHas('players', function ($q) {
+                    $q->where('student_id', $this->student->id);
+                })
+                ->get();
         } else {
             return collect(); // empty collection for admin or other roles
         }

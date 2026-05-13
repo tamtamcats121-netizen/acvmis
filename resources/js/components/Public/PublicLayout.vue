@@ -299,28 +299,6 @@ watch(mobileMenuOpen, (open) => {
                         </div>
                     </nav>
 
-                    <section class="footer-col" aria-label="Institution">
-                        <p class="footer-heading"><span class="title-chip">Institution</span></p>
-                        <div class="footer-info">
-                            <div>
-                                <p class="footer-info-title"><span class="title-chip">Vision</span></p>
-                                <p class="footer-info-text">
-                                    To be a transformative educational institution committed to the success of its graduates through quality
-                                    instruction, relevant research, and strong community engagement.
-                                </p>
-                            </div>
-                            <div>
-                                <p class="footer-info-title"><span class="title-chip">Mission</span></p>
-                                <p class="footer-info-text">To educate and develop globally competitive future leaders.</p>
-                            </div>
-                            <div>
-                                <p class="footer-info-title"><span class="title-chip">Core Values</span></p>
-                                <p class="footer-info-text">Academic Excellence</p>
-                                <p class="footer-info-text">Integrity</p>
-                                <p class="footer-info-text">Self-Leadership</p>
-                            </div>
-                        </div>
-                    </section>
                 </div>
 
                 <div class="footer-bottom-row">
@@ -451,7 +429,7 @@ watch(mobileMenuOpen, (open) => {
 
 .footer-grid {
     display: grid;
-    grid-template-columns: 1.35fr 1fr 1fr 1fr 1.1fr;
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 0.8fr));
     gap: 1.2rem;
 }
 
@@ -558,27 +536,6 @@ watch(mobileMenuOpen, (open) => {
     cursor: pointer;
 }
 
-.footer-info {
-    margin-top: 0.65rem;
-    display: grid;
-    gap: 0.7rem;
-    color: var(--footer-text-soft);
-    font-size: var(--text-sm);
-    line-height: 1.5;
-}
-
-.footer-info-title {
-    color: var(--footer-text-strong);
-    font-weight: 700;
-    font-size: var(--text-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.footer-info-text {
-    margin-top: 0.25rem;
-}
-
 .footer-bottom-row {
     margin-top: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -593,9 +550,6 @@ watch(mobileMenuOpen, (open) => {
 .site-footer-auth .contact-icon,
 .site-footer-auth .footer-heading,
 .site-footer-auth .footer-link,
-.site-footer-auth .footer-info,
-.site-footer-auth .footer-info-title,
-.site-footer-auth .footer-info-text,
 .site-footer-auth .footer-bottom-row {
     color: var(--footer-text-strong) !important;
 }

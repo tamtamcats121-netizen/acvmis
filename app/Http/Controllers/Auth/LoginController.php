@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class LoginController extends Controller
 {
@@ -40,6 +41,12 @@ class LoginController extends Controller
         if ($user->must_change_password) {
             return redirect('/account/account-settings?force=1')
                 ->with('error', 'Please update your password before accessing the rest of the system.');
+        }
+
+        $intendedUrl = $request->session()->pull('url.intended');
+        $intendedPath = is_string($intendedUrl) ? (parse_url($intendedUrl, PHP_URL_PATH) ?: '') : '';
+        if ($intendedUrl && Str::startsWith($intendedPath, '/join-team')) {
+            return redirect()->to($intendedUrl)->with('login_success', 'Sign-in successful.');
         }
 
         // Redirect by role

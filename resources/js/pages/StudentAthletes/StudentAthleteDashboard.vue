@@ -7,8 +7,8 @@ import VueApexCharts from 'vue3-apexcharts'
 import StudentBottomNav from '@/components/student/StudentBottomNav.vue'
 import RoleFooter from '@/components/ui/RoleFooter.vue'
 import UserAccountMenu from '@/components/UserAccountMenu.vue'
-import { studentPrimaryNav, studentSecondaryNav } from '@/config/studentNav'
 import { useTheme } from '@/composables/useTheme'
+import { studentPrimaryNav, studentSecondaryNav } from '@/config/studentNav'
 
 const SIDEBAR_PREF_KEY = 'ac-vmis-student-sidebar-collapsed'
 
@@ -22,15 +22,8 @@ const currentPath = computed(() => {
     const base = raw.split('#')[0].split('?')[0]
     return base || '/'
 })
-const userName = computed(() => String(page.props.auth?.user?.name ?? 'Athlete'))
 const academicAccess = computed(() => (page.props.auth as any)?.academic_access ?? null)
 const isAcademicallyRestricted = computed(() => Boolean(academicAccess.value?.is_restricted))
-const academicRestrictionMessage = computed(() =>
-    String(
-        academicAccess.value?.message
-        ?? 'Your varsity access is temporarily limited. Please review your Academics module for your current status.'
-    )
-)
 const dashboard = computed(() => (page.props as any)?.dashboard ?? {})
 const kpis = computed(() => dashboard.value.kpis ?? {})
 const hasTeamAssignment = computed(() => Boolean(kpis.value.has_team_assignment))
@@ -138,6 +131,7 @@ const footerLinks = [
     { label: 'Dashboard', href: '/StudentAthleteDashboard' },
     { label: 'My Schedule', href: '/MySchedule' },
     { label: 'My Team', href: '/MyTeam' },
+    { label: 'Join Team', href: '/join-team' },
     { label: 'Academics', href: '/AcademicSubmissions' },
     { label: 'My Documents', href: '/documents/my' },
     { label: 'Announcements', href: '/announcements' },
@@ -882,20 +876,21 @@ watch(mobileMenuOpen, (open) => {
                                     type="button"
                                     @click="go('/MySchedule')"
                                     class="action-tile group flex h-full min-h-[11rem] flex-col justify-between p-4 text-left ui-focus-ring"
+                                    :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : ''"
                                     :style="cardMotion(8)"
                                 >
                                     <div class="flex items-start gap-3">
-                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl text-[#034485]" :class="isDarkMode ? 'bg-slate-800' : 'bg-[#034485]/10'">
                                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <path d="M8 2v3M16 2v3M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
                                             </svg>
                                         </span>
                                         <div class="min-w-0">
-                                            <p class="text-sm font-semibold text-slate-900">My Schedule</p>
-                                            <p class="text-xs text-slate-500">View activities, times, venues, and posted attendance results.</p>
+                                            <p class="text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">My Schedule</p>
+                                            <p class="text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">View activities, times, venues, and posted attendance results.</p>
                                         </div>
                                     </div>
-                                    <p class="mt-3 text-[11px] font-semibold" :class="Number(kpis.pending_responses || 0) > 0 ? 'text-amber-700' : 'text-slate-500'">
+                                    <p class="mt-3 text-[11px] font-semibold" :class="Number(kpis.pending_responses || 0) > 0 ? (isDarkMode ? 'text-amber-300' : 'text-amber-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-500')">
                                         {{ Number(kpis.pending_responses || 0) > 0 ? `${kpis.pending_responses} sessions still waiting for coach attendance` : 'Coach-posted attendance is up to date' }}
                                     </p>
                                 </button>
@@ -904,20 +899,21 @@ watch(mobileMenuOpen, (open) => {
                                     type="button"
                                     @click="go('/AcademicSubmissions')"
                                     class="action-tile group flex h-full min-h-[11rem] flex-col justify-between p-4 text-left ui-focus-ring"
+                                    :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : ''"
                                     :style="cardMotion(9)"
                                 >
                                     <div class="flex items-start gap-3">
-                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl text-[#034485]" :class="isDarkMode ? 'bg-slate-800' : 'bg-[#034485]/10'">
                                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <path d="M2 9l10-5 10 5-10 5-10-5zM6 11v5c0 1.6 2.7 3 6 3s6-1.4 6-3v-5" />
                                             </svg>
                                         </span>
                                         <div class="min-w-0">
-                                            <p class="text-sm font-semibold text-slate-900">Academics</p>
-                                            <p class="text-xs text-slate-500">Submit academic requirements and review your current standing.</p>
+                                            <p class="text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Academics</p>
+                                            <p class="text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">Submit academic requirements and review your current standing.</p>
                                         </div>
                                     </div>
-                                    <p class="mt-3 text-[11px] font-semibold" :class="Number(academicSubmissions.pending || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'">
+                                    <p class="mt-3 text-[11px] font-semibold" :class="Number(academicSubmissions.pending || 0) > 0 ? (isDarkMode ? 'text-amber-300' : 'text-amber-700') : (isDarkMode ? 'text-emerald-300' : 'text-emerald-700')">
                                         {{ Number(academicSubmissions.pending || 0) > 0
                                             ? `${academicSubmissions.pending} pending submissions`
                                             : 'All open requirements completed' }}
@@ -928,10 +924,11 @@ watch(mobileMenuOpen, (open) => {
                                     type="button"
                                     @click="go('/MyTeam')"
                                     class="action-tile group flex h-full min-h-[11rem] flex-col justify-between p-4 text-left ui-focus-ring"
+                                    :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : ''"
                                     :style="cardMotion(11)"
                                 >
                                     <div class="flex items-start gap-3">
-                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl text-[#034485]" :class="isDarkMode ? 'bg-slate-800' : 'bg-[#034485]/10'">
                                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                                                 <path d="M8.5 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8" />
@@ -940,11 +937,11 @@ watch(mobileMenuOpen, (open) => {
                                             </svg>
                                         </span>
                                         <div class="min-w-0">
-                                            <p class="text-sm font-semibold text-slate-900">My Team</p>
-                                            <p class="text-xs text-slate-500">Check roster details, jersey status, and team information.</p>
+                                            <p class="text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">My Team</p>
+                                            <p class="text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">Check roster details, jersey status, and team information.</p>
                                         </div>
                                     </div>
-                                    <p class="mt-3 text-[11px] font-semibold text-slate-500">Open your team workspace</p>
+                                    <p class="mt-3 text-[11px] font-semibold" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">Open your team workspace</p>
                                 </button>
                             </div>
                         </section>
@@ -989,11 +986,11 @@ watch(mobileMenuOpen, (open) => {
                                 </div>
 
                                 <div class="mt-4 space-y-3">
-                                    <div class="surface-inset p-3">
+                                    <div class="surface-inset p-3" :class="isDarkMode ? 'border border-slate-700 bg-slate-900' : ''">
                                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div class="min-w-0">
-                                                <p class="text-sm font-semibold text-slate-900">Attendance Posting</p>
-                                                <p class="mt-1 text-xs text-slate-500">
+                                                <p class="text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Attendance Posting</p>
+                                                <p class="mt-1 text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">
                                                     {{ Number(kpis.pending_responses || 0) > 0
                                                         ? 'Some schedules are still waiting for the coach or assistant coach to post attendance.'
                                                         : 'Attendance has been posted for all current coach-managed sessions.' }}
@@ -1009,11 +1006,11 @@ watch(mobileMenuOpen, (open) => {
                                         </div>
                                     </div>
 
-                                    <div class="surface-inset p-3">
+                                    <div class="surface-inset p-3" :class="isDarkMode ? 'border border-slate-700 bg-slate-900' : ''">
                                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div class="min-w-0">
-                                                <p class="text-sm font-semibold text-slate-900">Academic Submission Status</p>
-                                                <p class="mt-1 text-xs text-slate-500">
+                                                <p class="text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Academic Submission Status</p>
+                                                <p class="mt-1 text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">
                                                     {{ Number(academicSubmissions.pending || 0) > 0
                                                         ? `${academicSubmissions.pending} submission${Number(academicSubmissions.pending) === 1 ? ' is' : 's are'} still pending in the current period.`
                                                         : 'All currently open academic submission requirements are complete.' }}
@@ -1056,7 +1053,7 @@ watch(mobileMenuOpen, (open) => {
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 class="text-sm font-bold uppercase tracking-wide text-[#034485]">Academic Submission Progress</h3>
-                                        <p class="mt-1 text-sm text-slate-500">Track how many active academic requirements you have already completed.</p>
+                                        <p class="mt-1 text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">Track how many active academic requirements you have already completed.</p>
                                     </div>
                                     <button
                                         type="button"
@@ -1067,7 +1064,7 @@ watch(mobileMenuOpen, (open) => {
                                     </button>
                                 </div>
 
-                                <div class="surface-inset mt-4 p-4">
+                                <div class="surface-inset mt-4 p-4" :class="isDarkMode ? 'border border-slate-700 bg-slate-900' : ''">
                                     <div class="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-center">
                                         <div>
                                             <VueApexCharts
@@ -1078,14 +1075,14 @@ watch(mobileMenuOpen, (open) => {
                                             />
                                         </div>
                                         <div>
-                                            <p class="mt-1 text-sm text-slate-500">
+                                            <p class="mt-1 text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">
                                                 You have completed {{ academicSubmissions.submitted }} of {{ submissionTotal || 0 }} required submissions.
                                             </p>
-                                            <div class="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-600">
-                                                <div class="data-chip px-3 py-3">
+                                            <div class="mt-4 grid grid-cols-2 gap-3 text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
+                                                <div class="data-chip px-3 py-3" :class="isDarkMode ? 'border border-slate-700 bg-slate-950' : ''">
                                                     <span class="font-semibold text-[#034485]">Submitted:</span> {{ academicSubmissions.submitted }}
                                                 </div>
-                                                <div class="data-chip px-3 py-3">
+                                                <div class="data-chip px-3 py-3" :class="isDarkMode ? 'border border-slate-700 bg-slate-950' : ''">
                                                     <span class="font-semibold text-[#034485]">Pending:</span> {{ academicSubmissions.pending }}
                                                 </div>
                                             </div>

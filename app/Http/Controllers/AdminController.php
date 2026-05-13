@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
@@ -73,7 +74,6 @@ class AdminController extends Controller
                         'attendance_present' => $attendanceSummary['present'],
                         'attendance_total' => $attendanceSummary['total'],
                         'no_response' => $attendanceSummary['no_response'],
-                        'pending_approvals' => $this->pendingStudentApprovalUsers()->count(),
                         'active_teams' => $activeTeamsCount,
                         'pending_academic_review' => $academicByTeam['totals']['pending_review'],
                     ],
@@ -95,10 +95,7 @@ class AdminController extends Controller
     public function auditTrail()
     {
         $approvalHistory = StudentApprovalHistory::query()
-            ->with([
-                'student.user:id,first_name,middle_name,last_name',
-                'admin:id,first_name,middle_name,last_name',
-            ])
+            ->with($this->studentApprovalHistoryRelations(['id', 'first_name', 'middle_name', 'last_name']))
             ->latest()
             ->limit(20)
             ->get()
@@ -108,7 +105,7 @@ class AdminController extends Controller
                     'student_name' => $history->student?->user?->name ?? 'Unknown student',
                     'decision' => $history->decision,
                     'remarks' => $history->remarks,
-                    'admin_name' => $history->admin?->name ?? 'System',
+                    'admin_name' => $this->studentApprovalActorName($history),
                     'created_at' => optional($history->created_at)?->toIso8601String(),
                 ];
             })
@@ -198,11 +195,12 @@ class AdminController extends Controller
                 'approval_status' => 'approved',
             ]);
 
-            StudentApprovalHistory::create([
-                'student_id' => $user->student->id,
-                'admin_id' => Auth::id(),
-                'decision' => 'approved',
-            ]);
+            StudentApprovalHistory::create($this->studentApprovalHistoryAttributes(
+                $user->student,
+                'approved',
+                null,
+                Auth::user()?->coach?->id
+            ));
         });
 
         $this->notifications->announce(
@@ -237,12 +235,12 @@ class AdminController extends Controller
                 'approval_status' => 'rejected',
             ]);
 
-            StudentApprovalHistory::create([
-                'student_id' => $user->student->id,
-                'admin_id' => Auth::id(),
-                'decision' => 'rejected',
-                'remarks' => $request->remarks,
-            ]);
+            StudentApprovalHistory::create($this->studentApprovalHistoryAttributes(
+                $user->student,
+                'rejected',
+                $request->remarks,
+                Auth::user()?->coach?->id
+            ));
         });
 
         $this->notifications->announce(
@@ -595,32 +593,56 @@ class AdminController extends Controller
 
         $baseQuery = User::query()
             ->where('account_state', $status)
-            ->whereIn('role', ['student-athlete', 'coach'])
-            ->where(function ($query) {
-                $query->where('role', 'coach')
-                    ->orWhere(function ($studentQuery) {
-                        $studentQuery->whereIn('role', ['student-athlete', 'student'])
-                            ->whereHas('student', fn ($q) => $q->where('approval_status', 'approved'));
-                    });
-            });
+            ->whereIn('role', ['student-athlete', 'student', 'coach']);
 
         if ($role !== 'all') {
-            $baseQuery->where('role', $role);
+            if ($role === 'student-athlete') {
+                $baseQuery->whereIn('role', ['student-athlete', 'student']);
+            } else {
+                $baseQuery->where('role', $role);
+            }
         }
 
         if ($search !== '') {
             $baseQuery->where(function ($query) use ($search) {
                 $query->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('middle_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereHas('student', function ($studentQuery) use ($search) {
+                        $studentQuery->where('student_id_number', 'like', "%{$search}%")
+                            ->orWhere('course_or_strand', 'like', "%{$search}%")
+                            ->orWhere('current_grade_level', 'like', "%{$search}%")
+                            ->orWhereHas('appliedSport', fn ($sportQuery) => $sportQuery->where('name', 'like', "%{$search}%"))
+                            ->orWhereHas('teams.team', function ($teamQuery) use ($search) {
+                                $teamQuery->where('team_name', 'like', "%{$search}%")
+                                    ->orWhereHas('sport', fn ($sportQuery) => $sportQuery->where('name', 'like', "%{$search}%"));
+                            });
+                    })
+                    ->orWhereHas('coach', function ($coachQuery) use ($search) {
+                        $coachQuery->where('coach_status', 'like', "%{$search}%")
+                            ->orWhereHas('sport', fn ($sportQuery) => $sportQuery->where('name', 'like', "%{$search}%"))
+                            ->orWhereHas('staffAssignments.team', function ($teamQuery) use ($search) {
+                                $teamQuery->where('team_name', 'like', "%{$search}%")
+                                    ->orWhereHas('sport', fn ($sportQuery) => $sportQuery->where('name', 'like', "%{$search}%"));
+                            });
+                    });
             });
         }
 
         $users = (clone $baseQuery)
             ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'account_state', 'avatar', 'created_at'])
             ->with([
-                'student:id,user_id,student_id_number,course_or_strand,current_grade_level,approval_status,student_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
-                'coach:id,user_id,coach_status,phone_number,date_of_birth,gender',
+                'student:id,user_id,student_id_number,course_or_strand,current_grade_level,approval_status,applied_sport_id,student_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
+                'student.appliedSport:id,name',
+                'student.teams:id,team_id,student_id,athlete_position,player_status',
+                'student.teams.team:id,team_name,sport_id,year,archived_at',
+                'student.teams.team.sport:id,name',
+                'coach:id,user_id,coach_status,sport_id,phone_number,date_of_birth,gender',
+                'coach.sport:id,name',
+                'coach.staffAssignments:id,team_id,coach_id,role,starts_at,ends_at',
+                'coach.staffAssignments.team:id,team_name,sport_id,year,archived_at',
+                'coach.staffAssignments.team.sport:id,name',
             ])
             ->when($sort === 'name', function ($query) use ($direction) {
                 $query->orderBy('last_name', $direction)->orderBy('first_name', $direction);
@@ -629,62 +651,19 @@ class AdminController extends Controller
             })
             ->paginate(10)
             ->withQueryString()
-            ->through(function (User $user) {
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'status' => $user->account_state,
-                    'avatar' => $user->avatar,
-                    'created_at' => optional($user->created_at)->toDateTimeString(),
-                    'student' => $user->student ? [
-                        'student_id_number' => $user->student->student_id_number,
-                        'course_or_strand' => $user->student->course_or_strand,
-                        'current_grade_level' => $user->student->current_grade_level,
-                        'academic_level_label' => $user->student->academic_level_label,
-                        'student_status' => $user->student->student_status,
-                        'approval_status' => $user->student->approval_status,
-                        'phone_number' => $user->student->phone_number,
-                        'emergency_contact_name' => $user->student->emergency_contact_name,
-                        'emergency_contact_relationship' => $user->student->emergency_contact_relationship,
-                        'emergency_contact_phone' => $user->student->emergency_contact_phone,
-                        'date_of_birth' => $user->student->date_of_birth ? (string) $user->student->date_of_birth : null,
-                        'gender' => $user->student->gender,
-                        'height' => $user->student->height,
-                        'weight' => $user->student->weight,
-                    ] : null,
-                    'coach' => $user->coach ? [
-                        'first_name' => $user->coach->first_name,
-                        'middle_name' => $user->coach->middle_name,
-                        'last_name' => $user->coach->last_name,
-                        'coach_status' => $user->coach->coach_status,
-                        'phone_number' => $user->coach->phone_number,
-                        'date_of_birth' => $user->coach->date_of_birth ? (string) $user->coach->date_of_birth : null,
-                        'gender' => $user->coach->gender,
-                    ] : null,
-                ];
-            });
+            ->through(fn (User $user) => $this->serializeDirectoryUser($user));
 
         $totalBase = User::query()
             ->whereIn('account_state', ['active', 'deactivated'])
-            ->whereIn('role', ['student-athlete', 'coach'])
-            ->where(function ($query) {
-                $query->where('role', 'coach')
-                    ->orWhere(function ($studentQuery) {
-                        $studentQuery->whereIn('role', ['student-athlete', 'student'])
-                            ->whereHas('student', fn ($q) => $q->where('approval_status', 'approved'));
-                    });
-            });
+            ->whereIn('role', ['student-athlete', 'student', 'coach']);
 
         $totals = [
             'all' => (clone $totalBase)->where('account_state', 'active')->count(),
-            'students' => (clone $totalBase)->where('account_state', 'active')->where('role', 'student-athlete')->count(),
+            'students' => (clone $totalBase)->where('account_state', 'active')->whereIn('role', ['student-athlete', 'student'])->count(),
             'coaches' => (clone $totalBase)->where('account_state', 'active')->where('role', 'coach')->count(),
             'deactivated' => (clone $totalBase)->where('account_state', 'deactivated')->count(),
             'filtered' => (clone $baseQuery)->count(),
         ];
-        $pendingCount = $this->pendingStudentApprovalUsers()->count();
         $sports = Sport::supported()
             ->orderBy('name')
             ->get(['id', 'name'])
@@ -692,41 +671,6 @@ class AdminController extends Controller
                 'id' => (int) $sport->id,
                 'name' => $sport->name,
             ])
-            ->values();
-
-        $assignableTeams = Team::query()
-            ->whereNull('archived_at')
-            ->with([
-                'sport:id,name',
-                'coach.user:id,first_name,last_name',
-                'assistantCoach.user:id,first_name,last_name',
-                'headCoachAssignment',
-                'assistantCoachAssignment',
-            ])
-            ->orderBy('team_name')
-            ->get()
-            ->map(function (Team $team) {
-                $headCoach = trim((string) ($team->coach?->first_name . ' ' . $team->coach?->last_name));
-                $assistantCoach = trim((string) ($team->assistantCoach?->first_name . ' ' . $team->assistantCoach?->last_name));
-
-                return [
-                    'id' => (int) $team->id,
-                    'team_name' => $team->team_name,
-                    'year' => $team->year,
-                    'sport_id' => (int) $team->sport_id,
-                    'sport_name' => $team->sport?->name,
-                    'head_coach' => $team->coach ? [
-                        'id' => (int) $team->coach->id,
-                        'name' => $headCoach !== '' ? $headCoach : null,
-                    ] : null,
-                    'assistant_coach' => $team->assistantCoach ? [
-                        'id' => (int) $team->assistantCoach->id,
-                        'name' => $assistantCoach !== '' ? $assistantCoach : null,
-                    ] : null,
-                    'coach_name' => $headCoach !== '' ? $headCoach : null,
-                    'assistant_coach_name' => $assistantCoach !== '' ? $assistantCoach : null,
-                ];
-            })
             ->values();
 
         return Inertia::render('Admin/PeopleUsers', [
@@ -739,10 +683,304 @@ class AdminController extends Controller
                 'direction' => $direction,
             ],
             'totals' => $totals,
-            'pendingCount' => $pendingCount,
             'sports' => $sports,
-            'assignableTeams' => $assignableTeams,
         ]);
+    }
+
+    public function showUserProfile(User $user)
+    {
+        abort_unless(in_array($user->role, ['student-athlete', 'student', 'coach'], true), 404);
+
+        $user->load([
+            'student:id,user_id,student_id_number,course_or_strand,current_grade_level,approval_status,applied_sport_id,student_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
+            'student.appliedSport:id,name',
+            'student.teams:id,team_id,student_id,athlete_position,player_status',
+            'student.teams.team:id,team_name,sport_id,year,archived_at',
+            'student.teams.team.sport:id,name',
+            'coach:id,user_id,coach_status,sport_id,phone_number,date_of_birth,gender',
+            'coach.sport:id,name',
+            'coach.staffAssignments:id,team_id,coach_id,role,starts_at,ends_at',
+            'coach.staffAssignments.team:id,team_name,sport_id,year,archived_at',
+            'coach.staffAssignments.team.sport:id,name',
+        ]);
+
+        return Inertia::render('Admin/PeopleUserProfile', [
+            'user' => $this->serializeUserProfile($user),
+        ]);
+    }
+
+    public function destroyUser(User $user)
+    {
+        if ($user->role === 'admin') {
+            return back()->withErrors([
+                'user_action' => 'Administrator accounts cannot be deleted from the user directory.',
+            ]);
+        }
+
+        $deletionMeta = $this->deletionMeta($user);
+        if (!$deletionMeta['can_delete']) {
+            return back()->withErrors([
+                'user_action' => 'This account has linked records and cannot be permanently deleted. Deactivate it instead to preserve data integrity.',
+            ]);
+        }
+
+        try {
+            DB::transaction(function () use ($user) {
+                if ($user->student) {
+                    $user->student->delete();
+                }
+
+                if ($user->coach) {
+                    $user->coach->delete();
+                }
+
+                $user->delete();
+            });
+        } catch (\Throwable $e) {
+            Log::error('Failed to permanently delete user account.', [
+                'target_user_id' => $user->id,
+                'target_role' => $user->role,
+                'admin_id' => Auth::id(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'user_action' => 'Unable to delete this account right now. Please try again.',
+            ]);
+        }
+
+        return redirect()->route('admin.people.index')->with('success', 'The account was deleted permanently.');
+    }
+
+    private function serializeDirectoryUser(User $user): array
+    {
+        $assignment = $this->assignmentSummary($user);
+        $deletion = $this->deletionMeta($user);
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'status' => $user->account_state,
+            'avatar' => $user->avatar,
+            'created_at' => optional($user->created_at)->toDateTimeString(),
+            'assignment' => [
+                'sport_label' => $assignment['sport_label'],
+                'status_label' => $assignment['status_label'],
+                'current_teams' => $assignment['current_teams'],
+                'history_teams' => $assignment['history_teams'],
+                'needs_action' => $assignment['needs_action'],
+                'needs_action_label' => $assignment['needs_action'] ? 'Needs assignment' : null,
+            ],
+            'actions' => [
+                'can_regenerate_credentials' => $user->role === 'coach',
+                'can_deactivate' => $user->account_state === 'active',
+                'can_reactivate' => $user->account_state === 'deactivated',
+                'can_delete' => $deletion['can_delete'],
+                'delete_blockers' => $deletion['blockers'],
+            ],
+        ];
+    }
+
+    private function serializeUserProfile(User $user): array
+    {
+        $assignment = $this->assignmentSummary($user);
+        $deletion = $this->deletionMeta($user);
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'status' => $user->account_state,
+            'avatar' => $user->avatar,
+            'created_at' => optional($user->created_at)->toDateTimeString(),
+            'assignment' => $assignment,
+            'student' => $user->student ? [
+                'student_id_number' => $user->student->student_id_number,
+                'course_or_strand' => $user->student->course_or_strand,
+                'current_grade_level' => $user->student->current_grade_level,
+                'academic_level_label' => $user->student->academic_level_label,
+                'student_status' => $user->student->student_status,
+                'approval_status' => $user->student->approval_status,
+                'applied_sport' => $user->student->appliedSport?->name,
+                'phone_number' => $user->student->phone_number,
+                'emergency_contact_name' => $user->student->emergency_contact_name,
+                'emergency_contact_relationship' => $user->student->emergency_contact_relationship,
+                'emergency_contact_phone' => $user->student->emergency_contact_phone,
+                'date_of_birth' => $user->student->date_of_birth ? (string) $user->student->date_of_birth : null,
+                'gender' => $user->student->gender,
+                'height' => $user->student->height,
+                'weight' => $user->student->weight,
+            ] : null,
+            'coach' => $user->coach ? [
+                'coach_status' => $user->coach->coach_status,
+                'sport' => $user->coach->sport?->name,
+                'phone_number' => $user->coach->phone_number,
+                'date_of_birth' => $user->coach->date_of_birth ? (string) $user->coach->date_of_birth : null,
+                'gender' => $user->coach->gender,
+            ] : null,
+            'actions' => [
+                'can_regenerate_credentials' => $user->role === 'coach',
+                'can_deactivate' => $user->account_state === 'active',
+                'can_reactivate' => $user->account_state === 'deactivated',
+                'can_delete' => $deletion['can_delete'],
+                'delete_blockers' => $deletion['blockers'],
+                'delete_warning' => $deletion['can_delete']
+                    ? 'Permanent deletion is only intended for mistaken or test accounts with no linked records.'
+                    : 'Permanent deletion is blocked because this account has linked records. Deactivation is the safe option.',
+            ],
+        ];
+    }
+
+    private function assignmentSummary(User $user): array
+    {
+        $currentTeams = [];
+        $historyTeams = [];
+        $sportLabel = null;
+
+        if (in_array($user->role, ['student-athlete', 'student'], true) && $user->student) {
+            $sportLabel = $user->student->appliedSport?->name;
+
+            foreach ($user->student->teams as $teamPlayer) {
+                $team = $teamPlayer->team;
+                if (!$team) {
+                    continue;
+                }
+
+                $item = [
+                    'id' => (int) $team->id,
+                    'name' => $team->team_name,
+                    'sport_name' => $team->sport?->name ?? 'Unknown',
+                    'year' => $team->year,
+                    'role_label' => 'Player',
+                    'position' => $teamPlayer->athlete_position,
+                    'status' => $teamPlayer->player_status,
+                    'archived' => !is_null($team->archived_at),
+                ];
+
+                if ($item['archived']) {
+                    $historyTeams[] = $item;
+                } else {
+                    $currentTeams[] = $item;
+                }
+            }
+        }
+
+        if ($user->role === 'coach' && $user->coach) {
+            $sportLabel = $user->coach->sport?->name;
+
+            foreach ($user->coach->staffAssignments as $assignment) {
+                $team = $assignment->team;
+                if (!$team) {
+                    continue;
+                }
+
+                $item = [
+                    'id' => (int) $team->id,
+                    'name' => $team->team_name,
+                    'sport_name' => $team->sport?->name ?? 'Unknown',
+                    'year' => $team->year,
+                    'role_label' => $assignment->role === 'assistant' ? 'Assistant Coach' : 'Head Coach',
+                    'position' => null,
+                    'status' => $assignment->ends_at ? 'ended' : 'active',
+                    'archived' => !is_null($team->archived_at),
+                ];
+
+                if ($assignment->ends_at || $item['archived']) {
+                    $historyTeams[] = $item;
+                } else {
+                    $currentTeams[] = $item;
+                }
+            }
+        }
+
+        $currentTeams = collect($currentTeams)
+            ->unique(fn (array $team) => $team['id'] . ':' . $team['role_label'])
+            ->values()
+            ->all();
+        $historyTeams = collect($historyTeams)
+            ->unique(fn (array $team) => $team['id'] . ':' . $team['role_label'] . ':' . ($team['status'] ?? ''))
+            ->values()
+            ->all();
+
+        if (!$sportLabel && count($currentTeams) > 0) {
+            $sportLabel = $currentTeams[0]['sport_name'] ?? null;
+        }
+
+        $statusLabel = count($currentTeams) > 0
+            ? implode(', ', array_map(fn (array $team) => $team['name'], $currentTeams))
+            : (count($historyTeams) > 0 ? 'Archived history only' : 'Unassigned');
+
+        return [
+            'sport_label' => $sportLabel,
+            'status_label' => $statusLabel,
+            'current_teams' => $currentTeams,
+            'history_teams' => $historyTeams,
+            'needs_action' => count($currentTeams) === 0,
+        ];
+    }
+
+    private function deletionMeta(User $user): array
+    {
+        $blockers = [];
+
+        if ($user->role === 'admin') {
+            $blockers[] = ['label' => 'Administrator account', 'count' => 1];
+        }
+
+        if ($user->student) {
+            $studentId = $user->student->id;
+
+            $this->pushDeletionBlocker($blockers, 'Team roster assignments', $this->safeTableCount('team_players', ['student_id' => $studentId]));
+            $this->pushDeletionBlocker($blockers, 'Attendance records', $this->safeTableCount('schedule_attendances', ['student_id' => $studentId]));
+            $this->pushDeletionBlocker($blockers, 'Student documents', $this->safeTableCount('student_documents', ['student_id' => $studentId]));
+            $this->pushDeletionBlocker($blockers, 'Academic evaluations', $this->safeTableCount('academic_eligibility_evaluations', ['student_id' => $studentId]));
+            $this->pushDeletionBlocker($blockers, 'Academic holds', $this->safeTableCount('academic_holds', ['student_id' => $studentId]));
+            $this->pushDeletionBlocker($blockers, 'Training requirements', $this->safeTableCount('training_requirements', ['student_id' => $studentId]));
+            $this->pushDeletionBlocker($blockers, 'Approval history', $this->safeTableCount('student_approval_histories', ['student_id' => $studentId]));
+        }
+
+        if ($user->coach) {
+            $coachId = $user->coach->id;
+
+            $this->pushDeletionBlocker($blockers, 'Team staff assignments', $this->safeTableCount('team_staff_assignments', ['coach_id' => $coachId]));
+            $this->pushDeletionBlocker($blockers, 'Training requirements', $this->safeTableCount('training_requirements', ['coach_id' => $coachId]));
+            $this->pushDeletionBlocker($blockers, 'Approval history', $this->safeTableCount('student_approval_histories', ['coach_id' => $coachId]));
+        }
+
+        $this->pushDeletionBlocker($blockers, 'Account action logs', $this->safeTableCount('account_action_logs', ['user_id' => $user->id]));
+        $this->pushDeletionBlocker($blockers, 'Announcements', $this->safeTableCount('announcements', ['user_id' => $user->id]));
+        $this->pushDeletionBlocker($blockers, 'Announcement events', $this->safeTableCount('announcement_events', ['created_by' => $user->id]));
+        $this->pushDeletionBlocker($blockers, 'Recorded attendance actions', $this->safeTableCount('schedule_attendances', ['recorded_by' => $user->id]));
+        $this->pushDeletionBlocker($blockers, 'Uploaded documents', $this->safeTableCount('student_documents', ['uploaded_by' => $user->id]));
+        $this->pushDeletionBlocker($blockers, 'Reviewed documents', $this->safeTableCount('student_documents', ['reviewed_by' => $user->id]));
+        $this->pushDeletionBlocker($blockers, 'Evaluations performed', $this->safeTableCount('academic_eligibility_evaluations', ['evaluated_by' => $user->id]));
+
+        return [
+            'can_delete' => count($blockers) === 0,
+            'blockers' => $blockers,
+        ];
+    }
+
+    private function pushDeletionBlocker(array &$blockers, string $label, int $count): void
+    {
+        if ($count > 0) {
+            $blockers[] = [
+                'label' => $label,
+                'count' => $count,
+            ];
+        }
+    }
+
+    private function safeTableCount(string $table, array $where): int
+    {
+        if (!Schema::hasTable($table)) {
+            return 0;
+        }
+
+        return (int) DB::table($table)->where($where)->count();
     }
 
     public function storeAdminInvite(Request $request)
@@ -852,53 +1090,17 @@ class AdminController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
+            'sport_id' => ['required', 'integer', Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'phone_number' => 'nullable|string|max:30',
             'date_of_birth' => 'nullable|date',
             'gender' => 'nullable|in:Male,Female,Other',
             'home_address' => 'nullable|string|max:500',
             'notes' => 'nullable|string|max:500',
-            'assignment_role' => 'nullable|in:head,assistant',
-            'team_ids' => 'nullable|array',
-            'team_ids.*' => 'integer|exists:teams,id',
         ]);
 
-        $teamIds = collect($validated['team_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
-        $assignmentRole = (string) ($validated['assignment_role'] ?? 'assistant');
         $temporaryPassword = Str::random(12);
 
-        $activeTeams = Team::query()
-            ->whereIn('id', $teamIds)
-            ->whereNull('archived_at')
-            ->with(['headCoachAssignment', 'assistantCoachAssignment'])
-            ->get(['id', 'team_name', 'sport_id', 'year']);
-
-        if (count($teamIds) !== $activeTeams->count()) {
-            throw ValidationException::withMessages([
-                'team_ids' => 'One or more selected teams are archived or unavailable.',
-            ]);
-        }
-
-        $conflicts = [];
-        foreach ($activeTeams as $team) {
-            if ($assignmentRole === 'head' && $team->coach_id) {
-                $conflicts[] = "{$team->team_name} ({$team->year}) already has a head coach.";
-            }
-            if ($assignmentRole === 'assistant' && $team->assistant_coach_id) {
-                $conflicts[] = "{$team->team_name} ({$team->year}) already has an assistant coach.";
-            }
-        }
-
-        if (!empty($conflicts)) {
-            throw ValidationException::withMessages([
-                'team_ids' => "Assignment conflicts found:\n- " . implode("\n- ", $conflicts),
-            ]);
-        }
-
-        $newUser = DB::transaction(function () use ($validated, $teamIds, $assignmentRole, $temporaryPassword) {
+        $newUser = DB::transaction(function () use ($validated, $temporaryPassword) {
             $user = User::create([
                 'first_name' => $validated['first_name'],
                 'middle_name' => $validated['middle_name'] ?? null,
@@ -917,30 +1119,8 @@ class AdminController extends Controller
                 'gender' => $validated['gender'] ?? null,
                 'home_address' => $validated['home_address'] ?? null,
                 'coach_status' => 'Active',
+                'sport_id' => (int) $validated['sport_id'],
             ]);
-
-            if (!empty($teamIds)) {
-                $teams = Team::query()
-                    ->whereIn('id', $teamIds)
-                    ->whereNull('archived_at')
-                    ->with(['headCoachAssignment', 'assistantCoachAssignment'])
-                    ->get(['id', 'team_name', 'year']);
-
-                foreach ($teams as $team) {
-                    $team->syncStaffAssignments(
-                        $assignmentRole === 'head' ? $coach->id : $team->coach_id,
-                        $assignmentRole === 'assistant' ? $coach->id : $team->assistant_coach_id,
-                        Auth::id()
-                    );
-                    $roleLabel = $assignmentRole === 'head' ? 'head coach' : 'assistant coach';
-                    AccountActionLog::create([
-                        'user_id' => $user->id,
-                        'admin_id' => Auth::id(),
-                        'action' => 'coach_team_assignment',
-                        'remarks' => "Coach assignment audit: assigned as {$roleLabel} to {$team->team_name} ({$team->year}).",
-                    ]);
-                }
-            }
 
             $remarks = "Admin-provisioned coach account created."
                 . (!empty($validated['notes']) ? " Notes: {$validated['notes']}" : '');
@@ -1218,8 +1398,6 @@ class AdminController extends Controller
 
     private function pendingItemsSummary(CarbonInterface $start, CarbonInterface $end): array
     {
-        $pendingStudentApprovals = $this->pendingStudentApprovalUsers()->count();
-
         $pendingAcademicReviews = DB::table('academic_eligibility_evaluations')
             ->where('final_status', 'pending_review')
             ->count();
@@ -1242,7 +1420,6 @@ class AdminController extends Controller
             ->count();
 
         return [
-            'pending_student_approvals' => $pendingStudentApprovals,
             'pending_academic_reviews' => $pendingAcademicReviews,
             'teams_without_recent_attendance' => $teamsWithoutRecentAttendance,
         ];
@@ -1251,16 +1428,13 @@ class AdminController extends Controller
     private function dashboardRecentActivity(): array
     {
         $approvalItems = StudentApprovalHistory::query()
-            ->with([
-                'student.user:id,first_name,last_name',
-                'admin:id,first_name,last_name',
-            ])
+            ->with($this->studentApprovalHistoryRelations(['id', 'first_name', 'last_name']))
             ->latest()
             ->limit(12)
             ->get()
             ->map(function (StudentApprovalHistory $history) {
                 $studentName = $history->student?->user?->name ?? 'Unknown student';
-                $actorName = $history->admin?->name ?? 'System';
+                $actorName = $this->studentApprovalActorName($history);
                 $decision = ucfirst((string) $history->decision);
 
                 return [
@@ -1504,21 +1678,7 @@ class AdminController extends Controller
                 ) === 'ineligible' ? 95 : 85,
             ]);
 
-        $pendingApprovals = $this->pendingStudentApprovalUsers()
-            ->latest('created_at')
-            ->limit(4)
-            ->get(['first_name', 'last_name'])
-            ->map(fn ($row) => [
-                'type' => 'people',
-                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
-                'subtitle' => 'Pending account approval',
-                'action_label' => 'Open Queue',
-                'action_url' => '/people/queue',
-                'priority' => 75,
-            ]);
-
         return $academic
-            ->concat($pendingApprovals)
             ->sortByDesc('priority')
             ->take(10)
             ->values()
@@ -1602,21 +1762,6 @@ class AdminController extends Controller
     private function buildActionCenter(array $needsAttentionQueue, array $activityLog, array $todaySchedules): array
     {
         $today = now()->toDateString();
-        $pendingApprovals = $this->pendingStudentApprovalUsers()
-            ->latest('created_at')
-            ->limit(3)
-            ->get(['id', 'first_name', 'last_name', 'role', 'created_at'])
-            ->map(fn (User $user) => [
-                'id' => 'approval-' . $user->id,
-                'title' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
-                'subtitle' => 'Pending ' . str_replace('-', ' ', (string) $user->role) . ' account approval',
-                'meta' => $user->created_at?->diffForHumans(),
-                'urgency' => 'high',
-                'action_label' => 'Open Queue',
-                'action_url' => '/people/queue',
-            ])
-            ->values();
-
         $openPeriod = DB::table('academic_periods')
             ->whereDate('starts_on', '<=', $today)
             ->whereDate('ends_on', '>=', $today)
@@ -1744,27 +1889,7 @@ class AdminController extends Controller
                 ];
             });
 
-        $teamChangeRequests = Announcement::query()
-            ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
-            ->select('announcement_recipients.*')
-            ->where('ae.title', 'Team Change Request')
-            ->whereNull('read_at')
-            ->orderByDesc('ae.published_at')
-            ->limit(1)
-            ->with('event')
-            ->get()
-            ->map(fn (Announcement $announcement) => [
-                'id' => 'team-request-' . $announcement->id,
-                'title' => 'Team change request pending',
-                'subtitle' => Str::limit((string) $announcement->message, 72),
-                'meta' => $announcement->published_at?->diffForHumans(),
-                'urgency' => 'medium',
-                'action_label' => 'Review Request',
-                'action_url' => '/teams',
-            ]);
-
         $teamAlerts = $teamAlerts
-            ->concat($teamChangeRequests)
             ->take(4)
             ->values();
 
@@ -1799,16 +1924,6 @@ class AdminController extends Controller
             ->values();
 
         $groups = collect([
-            [
-                'key' => 'pending_approvals',
-                'title' => 'Pending Approvals',
-                'description' => 'New student registrations awaiting admin review.',
-                'count' => $this->pendingStudentApprovalUsers()->count(),
-                'action_label' => 'Open Queue',
-                'action_url' => '/people/queue',
-                'tone' => 'slate',
-                'items' => $pendingApprovals->all(),
-            ],
             [
                 'key' => 'academic_alerts',
                 'title' => 'Academic Alerts',
@@ -1860,7 +1975,7 @@ class AdminController extends Controller
                 'open_issues' => $allIssues->count(),
                 'critical' => $criticalCount,
                 'due_today' => count($todaySchedules),
-                'pending_review' => $groups->whereIn('key', ['pending_approvals', 'academic_alerts'])->sum('count'),
+                'pending_review' => $groups->where('key', 'academic_alerts')->sum('count'),
             ],
             'groups' => $groups->all(),
             'recent_activity' => [
@@ -1881,6 +1996,50 @@ class AdminController extends Controller
         return User::query()
             ->whereIn('role', ['student-athlete', 'student'])
             ->whereHas('student', fn ($query) => $query->where('approval_status', 'pending'));
+    }
+
+    private function studentApprovalHistoryRelations(array $userColumns): array
+    {
+        $columns = array_values(array_unique(array_merge(['id'], $userColumns)));
+        $relations = [
+            'student.user:' . implode(',', $columns),
+        ];
+
+        if (Schema::hasColumn('student_approval_histories', 'admin_id')) {
+            $relations[] = 'admin:' . implode(',', $columns);
+        }
+
+        if (Schema::hasColumn('student_approval_histories', 'coach_id')) {
+            $relations[] = 'coach.user:' . implode(',', $columns);
+        }
+
+        return $relations;
+    }
+
+    private function studentApprovalActorName(StudentApprovalHistory $history): string
+    {
+        return $history->admin?->name
+            ?? $history->coach?->user?->name
+            ?? 'System';
+    }
+
+    private function studentApprovalHistoryAttributes(Student $student, string $decision, ?string $remarks = null, ?int $coachId = null): array
+    {
+        $attributes = [
+            'student_id' => $student->id,
+            'decision' => $decision,
+            'remarks' => $remarks,
+        ];
+
+        if (Schema::hasColumn('student_approval_histories', 'admin_id')) {
+            $attributes['admin_id'] = Auth::id();
+        }
+
+        if (Schema::hasColumn('student_approval_histories', 'coach_id')) {
+            $attributes['coach_id'] = $coachId;
+        }
+
+        return $attributes;
     }
 
     private function rejectedStudentApprovalUsers()

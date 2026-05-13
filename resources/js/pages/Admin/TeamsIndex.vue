@@ -2,11 +2,12 @@
 import { router } from '@inertiajs/vue3'
 import { computed, reactive, ref, watch } from 'vue'
 
+import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import EmptyResultsState from '@/components/ui/EmptyResultsState.vue'
 import SearchFilterPanel from '@/components/ui/SearchFilterPanel.vue'
-import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
+import { useTheme } from '@/composables/useTheme'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import { resolveTeamAvatarUrl as teamAvatarUrl } from '@/utils/media'
 
@@ -26,6 +27,7 @@ type TeamRow = {
     max_players: number
     roster_health: { key: string; label: string; tone: string }
     is_archived: boolean
+    archived_at?: string | null
     issue_count: number
 }
 
@@ -45,14 +47,7 @@ const props = defineProps<{
         years: (string | number)[]
     }
     readOnly: boolean
-    teamChangeRequests: Array<{
-        id: number
-        title: string
-        message: string
-        is_read: boolean
-        published_at: string | null
-        requested_by?: string | null
-    }>
+    canArchive?: boolean
 }>()
 
 const showFilters = ref(false)
@@ -77,11 +72,11 @@ const activeFilterCount = computed(() => {
     return count
 })
 
-const unreadRequestCount = computed(() => props.teamChangeRequests.filter((req) => !req.is_read).length)
-
 const teamActionDialogOpen = ref(false)
 const pendingTeamAction = ref<{ type: 'archive' | 'reactivate'; team: TeamRow } | null>(null)
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
+const { isDarkMode } = useTheme()
+const currentSeasonYear = new Date().getFullYear()
 let searchDebounce: ReturnType<typeof setTimeout> | null = null
 let suppressAutoReload = false
 
@@ -95,8 +90,10 @@ const seasonSnapshots = computed(() => {
 
     return Object.entries(buckets)
         .map(([year, teams]) => {
-            const rosterReview = teams.filter((t) => t.roster_health?.key !== 'complete').length
+            const rosterReview = teams.filter((t) => !t.is_archived && t.roster_health?.key !== 'complete').length
             const staffingReview = teams.filter((t) => !t.is_archived && (!t.coach?.id || !t.assistantCoach?.id)).length
+            const archivedCount = teams.filter((t) => t.is_archived).length
+            const priorSeasonCount = teams.filter((t) => isPriorSeasonTeam(t)).length
 
             return {
                 year,
@@ -105,6 +102,8 @@ const seasonSnapshots = computed(() => {
                     total: teams.length,
                     rosterReview,
                     staffingReview,
+                    archivedCount,
+                    priorSeasonCount,
                 },
             }
         })
@@ -122,10 +121,50 @@ function fullName(person: any): string {
     return out || 'N/A'
 }
 
-function rosterToneClass(tone: string) {
-    if (tone === 'success') return 'bg-emerald-100 text-emerald-700'
-    if (tone === 'danger') return 'bg-red-100 text-red-700'
-    return 'bg-[#dcecff] text-[#034485]'
+function normalizedTeamYear(team: TeamRow): number | null {
+    const year = Number(team.year)
+    return Number.isFinite(year) ? year : null
+}
+
+function isPriorSeasonTeam(team: TeamRow): boolean {
+    const year = normalizedTeamYear(team)
+    return !team.is_archived && year !== null && year < currentSeasonYear
+}
+
+function teamCardClass(team: TeamRow) {
+    if (team.is_archived) {
+        return 'border-slate-300 bg-slate-200/90 text-slate-700'
+    }
+
+    if (isPriorSeasonTeam(team)) {
+        return 'border-slate-300 bg-slate-50 text-slate-800'
+    }
+
+    return 'border-[#034485]/35 bg-white text-slate-900'
+}
+
+function teamAvatarClass(team: TeamRow) {
+    if (team.is_archived) {
+        return 'border-slate-300 bg-slate-100'
+    }
+
+    if (isPriorSeasonTeam(team)) {
+        return 'border-slate-300 bg-slate-50'
+    }
+
+    return 'border-[#034485]/12 bg-[#f8fbff]'
+}
+
+function formatArchivedAt(value: string | null | undefined) {
+    if (!value) return '-'
+
+    const date = new Date(value)
+    return date.toLocaleString('en-PH', {
+        timeZone: 'Asia/Manila',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    })
 }
 
 function buildQuery(extra: Record<string, any> = {}) {
@@ -170,10 +209,6 @@ function goToCreateTeam() {
     router.get('/teams/create')
 }
 
-function goToArchivedTeams() {
-    router.get('/teams/archived')
-}
-
 function goToRosterPage(teamId: number) {
     router.get(`/teams/${teamId}/view-roster`)
 }
@@ -186,13 +221,13 @@ function goToTeamSchedules(teamId: number) {
 }
 
 function archiveTeam(team: TeamRow) {
-    if (props.readOnly) return
+    if (!props.canArchive) return
     pendingTeamAction.value = { type: 'archive', team }
     teamActionDialogOpen.value = true
 }
 
 function reactivateTeam(team: TeamRow) {
-    if (props.readOnly) return
+    if (!props.canArchive) return
     pendingTeamAction.value = { type: 'reactivate', team }
     teamActionDialogOpen.value = true
 }
@@ -251,70 +286,32 @@ function confirmTeamAction() {
     })
 }
 
-function markRequestRead(id: number) {
-    router.put(`/announcements/${id}/read`, {}, { preserveScroll: true })
-}
-
 function goToPage(page: number) {
     if (page < 1 || page > props.teams.meta.last_page) return
     reload({ page })
-}
-
-function parseRequestMessage(message: string) {
-    const lines = String(message ?? '').split('\n').map((line) => line.trim()).filter(Boolean)
-    const data = {
-        team: '',
-        requestedBy: '',
-        target: '',
-        notes: '',
-        extra: [] as string[],
-    }
-
-    for (const line of lines) {
-        const lower = line.toLowerCase()
-        if (lower.startsWith('team:')) data.team = line.slice(5).trim()
-        else if (lower.startsWith('requested by:')) data.requestedBy = line.slice(13).trim()
-        else if (lower.startsWith('target:')) data.target = line.slice(7).trim()
-        else if (lower.startsWith('notes:')) data.notes = line.slice(6).trim()
-        else data.extra.push(line)
-    }
-
-    return data
-}
-
-function formatTimestamp(value: string | null) {
-    if (!value) return '-'
-    const date = new Date(value)
-    return date.toLocaleString('en-PH', {
-        timeZone: 'Asia/Manila',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    })
 }
 
 </script>
 
 <template>
     <div class="space-y-5">
-        <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <button
-                        type="button"
-                        class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f]"
-                        @click="goToCreateTeam"
-                    >
-                        Create Team
-                    </button>
-                </div>
+        <section class="w-full rounded-3xl border border-[#02315f] bg-[#034485] px-5 py-4 text-white shadow-[0_18px_40px_-28px_rgba(3,68,133,0.9)]">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Admin Workspace</p>
+            <h1 class="mt-2 text-xl font-semibold">Team Monitoring</h1>
+            <p class="mt-1 text-sm leading-relaxed text-white/85">
+                Review varsity teams by year, monitor roster health and staffing coverage, and keep archived records inside their original season groups.
+            </p>
+        </section>
+
+        <div class="space-y-4">
+            <div class="grid grid-cols-1 gap-2 sm:max-w-xs">
                 <button
+                    v-if="!props.readOnly"
                     type="button"
-                    class="rounded-md border border-[#034485]/30 bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff] md:ml-auto"
-                    @click="goToArchivedTeams"
+                    class="inline-flex w-full items-center justify-center rounded-full bg-[#034485] px-3 py-2 text-center text-[11px] font-semibold text-white transition hover:bg-[#02315f]"
+                    @click="goToCreateTeam"
                 >
-                    Archived Teams
+                    Create Team
                 </button>
             </div>
 
@@ -367,73 +364,7 @@ function formatTimestamp(value: string | null) {
                     </template>
                 </SearchFilterPanel>
             </div>
-        </section>
-
-        <section class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <section class="page-card rounded-xl border border-[#034485]/45 bg-white p-5">
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 class="text-lg font-semibold text-slate-900">Team Change Requests</h2>
-                        <p class="text-sm text-slate-500">Coach-initiated changes waiting for admin review.</p>
-                    </div>
-                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                        Unread: {{ unreadRequestCount }}
-                    </span>
-                </div>
-
-                <div v-if="teamChangeRequests.length === 0" class="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                    No team change requests right now.
-                </div>
-
-                <div v-else class="mt-4 grid gap-3 lg:grid-cols-2">
-                    <article
-                        v-for="req in teamChangeRequests"
-                        :key="req.id"
-                        class="page-card rounded-xl border border-slate-200 bg-slate-50 p-4"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <p class="text-sm font-semibold text-slate-900">{{ req.title }}</p>
-                                <p class="text-xs text-slate-500">{{ formatTimestamp(req.published_at) }}</p>
-                            </div>
-                            <span
-                                class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                                :class="req.is_read ? 'bg-slate-200 text-slate-700' : 'bg-amber-100 text-amber-700'"
-                            >
-                                {{ req.is_read ? 'Read' : 'Unread' }}
-                            </span>
-                        </div>
-
-                        <div class="mt-3 space-y-1 text-xs text-slate-600">
-                            <p v-if="parseRequestMessage(req.message).team">
-                                <span class="font-semibold text-slate-700">Team:</span> {{ parseRequestMessage(req.message).team }}
-                            </p>
-                            <p v-if="req.requested_by || parseRequestMessage(req.message).requestedBy">
-                                <span class="font-semibold text-slate-700">Requested by:</span>
-                                {{ req.requested_by || parseRequestMessage(req.message).requestedBy }}
-                            </p>
-                            <p v-if="parseRequestMessage(req.message).target">
-                                <span class="font-semibold text-slate-700">Target:</span> {{ parseRequestMessage(req.message).target }}
-                            </p>
-                            <p v-if="parseRequestMessage(req.message).notes">
-                                <span class="font-semibold text-slate-700">Notes:</span> {{ parseRequestMessage(req.message).notes }}
-                            </p>
-                        </div>
-
-                        <div v-if="!req.is_read" class="mt-3 flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700"
-                                @click="markRequestRead(req.id)"
-                            >
-                                Mark as Read
-                            </button>
-                        </div>
-                    </article>
-                </div>
-            </section>
-
-        </section>
+        </div>
 
         <section class="page-card rounded-xl border border-[#034485]/45 bg-white">
             <div v-if="seasonSnapshots.length === 0" class="p-6">
@@ -451,13 +382,13 @@ function formatTimestamp(value: string | null) {
                 >
                     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <h3 class="text-lg font-bold text-slate-900">{{ season.year }}</h3>
-                            <p class="text-xs text-slate-500">{{ season.kpis.total }} teams</p>
+                            <h3 class="text-lg font-bold" :class="isDarkMode ? 'text-white' : 'text-slate-900'">{{ season.year }}</h3>
+                            <p class="text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">{{ season.kpis.total }} teams</p>
                         </div>
                         <div class="flex flex-wrap gap-1.5 text-xs">
-                            <span class="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700">Teams: {{ season.kpis.total }}</span>
-                            <span class="rounded-full bg-[#dcecff] px-2 py-0.5 text-[#034485]">Roster Review: {{ season.kpis.rosterReview }}</span>
-                            <span class="rounded-full bg-[#dcecff] px-2 py-0.5 text-[#034485]">Staffing Review: {{ season.kpis.staffingReview }}</span>
+                            <span class="rounded-full px-2 py-0.5" :class="isDarkMode ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-700'">Teams: {{ season.kpis.total }}</span>
+                            <span v-if="season.kpis.priorSeasonCount > 0" class="rounded-full px-2 py-0.5" :class="isDarkMode ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-700'">Prior Season: {{ season.kpis.priorSeasonCount }}</span>
+                            <span v-if="season.kpis.archivedCount > 0" class="rounded-full px-2 py-0.5" :class="isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-300 text-slate-700'">Archived: {{ season.kpis.archivedCount }}</span>
                         </div>
                     </div>
 
@@ -465,7 +396,8 @@ function formatTimestamp(value: string | null) {
                         <article
                             v-for="team in season.teams"
                             :key="team.id"
-                            class="page-card rounded-3xl border border-[#034485]/35 bg-white p-5 text-slate-900"
+                            class="page-card rounded-3xl border p-5"
+                            :class="teamCardClass(team)"
                         >
                             <div class="mb-3 flex items-start justify-between gap-3">
                                 <span
@@ -474,11 +406,21 @@ function formatTimestamp(value: string | null) {
                                 >
                                     {{ sportLabel(team.sport?.name ?? '') }}
                                 </span>
-                                <p v-if="team.is_archived" class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">Archived</p>
+                                <div class="flex flex-wrap justify-end gap-1.5">
+                                    <p v-if="isPriorSeasonTeam(team)" class="rounded-full bg-slate-300 px-2 py-0.5 text-[11px] font-medium text-slate-700">Prior Season</p>
+                                    <p v-if="team.is_archived" class="rounded-full bg-slate-400 px-2 py-0.5 text-[11px] font-medium text-white">Archived</p>
+                                </div>
                             </div>
 
                             <div class="flex items-start gap-3">
-                                <img :src="teamAvatarUrl(team.team_avatar)" alt="Team Avatar" loading="lazy" decoding="async" class="h-14 w-14 rounded-2xl border border-[#034485]/12 bg-[#f8fbff] object-cover" />
+                                <img
+                                    :src="teamAvatarUrl(team.team_avatar)"
+                                    alt="Team Avatar"
+                                    loading="lazy"
+                                    decoding="async"
+                                    class="h-14 w-14 rounded-2xl border object-cover"
+                                    :class="teamAvatarClass(team)"
+                                />
                                 <div class="min-w-0 flex-1">
                                     <p class="truncate text-xl font-semibold text-slate-900">{{ team.team_name }}</p>
                                     <p class="mt-1 text-sm text-slate-500">{{ team.sport?.name || 'No sport' }}</p>
@@ -487,20 +429,8 @@ function formatTimestamp(value: string | null) {
                                 </div>
                             </div>
 
-                            <div class="mt-3 flex flex-wrap gap-1.5 text-[11px] font-medium">
-                                <span class="rounded-full px-2 py-0.5" :class="rosterToneClass(team.roster_health?.tone)">
-                                    {{ team.roster_health?.label }}
-                                </span>
-                                <span
-                                    v-if="!team.coach?.id || !team.assistantCoach?.id"
-                                    class="rounded-full px-2 py-0.5"
-                                    :class="'bg-[#dcecff] text-[#034485]'"
-                                >
-                                    Needs Staff Support
-                                </span>
-                            </div>
-
                             <p class="mt-3 text-sm text-slate-600">Players: {{ team.players_count }} / {{ team.max_players }}</p>
+                            <p v-if="team.is_archived" class="mt-1 text-xs text-slate-500">Archived on {{ formatArchivedAt(team.archived_at) }}</p>
 
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <button

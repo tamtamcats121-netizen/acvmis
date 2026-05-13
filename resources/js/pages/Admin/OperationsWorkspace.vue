@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
-import { computed, reactive, ref, watch } from 'vue'
 import DatePicker from 'primevue/datepicker'
+import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
+import { computed, reactive, ref, watch } from 'vue'
 import { VueCal } from 'vue-cal'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
@@ -15,45 +17,35 @@ defineOptions({
 })
 
 type FilterOption = { value: string; label: string }
-type AttendanceRow = {
-    schedule_id: number
-    schedule_title: string
-    schedule_type: string
-    schedule_start: string
-    team_id: number
-    team_name: string
-    sport_name: string
-    student_id: number
-    student_id_number: string | null
-    student_name: string
-    status: 'present' | 'absent' | 'late' | 'excused' | 'no_response'
-    verification_method: string | null
-    recorded_at: string | null
-    override_reason: string | null
-}
-
-type PaginatedPayload = {
-    data: AttendanceRow[]
-    meta: {
-        current_page: number
-        last_page: number
-        per_page: number
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'no_response'
+type AttendanceDrilldown = {
+    schedule: {
+        id: number
+        title: string
+        type: string
+        team_name: string
+        sport_name: string
+        start_time: string
+        end_time: string
+        notes: string | null
+    }
+    counts: {
         total: number
-        from: number | null
-        to: number | null
-    }
-    links: {
-        next: string | null
-        prev: string | null
-    }
-    totals: {
-        total_records: number
         present: number
         absent: number
         late: number
         excused: number
         no_response: number
     }
+    roster: Array<{
+        student_id: number
+        student_id_number: string | null
+        student_name: string
+        attendance_status: AttendanceStatus
+        recorded_at: string | null
+        notes: string | null
+        override_reason: string | null
+    }>
 }
 
 const props = defineProps<{
@@ -84,16 +76,18 @@ const props = defineProps<{
         }
     }
     tabs: {
-        active: 'calendar' | 'attendance' | 'exceptions'
-        available: Array<'calendar' | 'attendance' | 'exceptions'>
+        active: 'calendar'
+        available: Array<'calendar'>
     }
     calendarSchedules: Array<{
         id: number
         title: string
         type: string
         venue: string
+        notes: string | null
         team_name: string
         sport: string
+        coach_name: string
         start: string
         end: string
         counts: {
@@ -105,8 +99,8 @@ const props = defineProps<{
             no_response: number
         }
     }>
-    attendanceRecords: PaginatedPayload
-    exceptionsRecords: PaginatedPayload
+    attendanceRecords: unknown
+    exceptionsRecords: unknown
     kpis: {
         summary: {
             total_records: number
@@ -128,21 +122,22 @@ const props = defineProps<{
     }
 }>()
 
-const { sportColor, sportTextColor, sportLabel, normalizeSport } = useSportColors()
+const { normalizeSport, sportColor, sportTextColor, sportLabel } = useSportColors()
 const { isDarkMode } = useTheme()
 
-const activeTab = ref<'calendar' | 'attendance'>(props.tabs.active === 'exceptions' ? 'attendance' : props.tabs.active)
 const showFilters = ref(false)
-const isLoadingRecords = ref(false)
+const showCalendar = ref(true)
+const calendarSportFilter = ref<string>('all')
+const isLoadingAttendance = ref(false)
+const attendanceDialogOpen = ref(false)
+const attendanceDetails = ref<AttendanceDrilldown | null>(null)
 const noticeDialog = ref<{ open: boolean; title: string; description: string }>({
     open: false,
     title: '',
     description: '',
 })
-
-const attendanceState = ref<PaginatedPayload>(props.attendanceRecords)
-
-const selectedScheduleId = ref<number | null>(props.filters.selected.schedule_id)
+let searchDebounce: ReturnType<typeof setTimeout> | null = null
+let suppressAutoReload = false
 
 const filterForm = reactive({
     search: props.filters.selected.search ?? '',
@@ -165,40 +160,117 @@ const quickPeriods: Array<{ key: '' | 'today' | 'week' | 'month'; label: string 
     { key: 'week', label: 'This Week' },
     { key: 'month', label: 'This Month' },
 ]
-
-const calendarSportFilter = ref<'all' | string>('all')
-
-const sportsLegend = computed(() =>
-    supportedSports.map((sport) => ({
-        key: sport,
-        label: sportLabel(sport),
-        color: sportColor(sport),
-        textColor: sportTextColor(sport),
-    })),
-)
+const sportOptions = computed(() => [
+    { label: 'All Sports', value: '' },
+    ...props.filters.options.sports.map((sport) => ({ label: sport.name, value: String(sport.id) })),
+])
+const teamOptions = computed(() => [
+    { label: 'All Teams', value: '' },
+    ...filteredTeams.value.map((team) => ({ label: `${team.team_name} (${team.sport_name})`, value: String(team.id) })),
+])
+const scheduleTypeOptions = computed(() => [
+    { label: 'All Schedule Types', value: '' },
+    ...props.filters.options.schedule_types.map((type) => ({ label: type, value: type })),
+])
+const attendanceStatusOptions = computed(() => [
+    { label: 'All Attendance Statuses', value: '' },
+    ...props.filters.options.statuses.map((status) => ({ label: status.label, value: status.value })),
+])
+const coachOptions = computed(() => [
+    { label: 'All Coaches', value: '' },
+    ...props.filters.options.coaches.map((coach) => ({ label: coach.name, value: String(coach.coach_id) })),
+])
 
 const activeFilterCount = computed(() => {
     let count = 0
+    if (filterForm.search.trim()) count++
     if (filterForm.sport_id) count++
     if (filterForm.team_id) count++
     if (filterForm.coach_id) count++
     if (filterForm.schedule_type) count++
     if (filterForm.status) count++
-    if (filterForm.search.trim()) count++
     if (filterForm.period) count++
     if (filterForm.start_date || filterForm.end_date) count++
-    if (filterForm.sort !== 'schedule_start' || filterForm.direction !== 'desc') count++
     return count
 })
 
-const filteredCalendarSchedules = computed(() =>
-    calendarSportFilter.value === 'all'
-        ? props.calendarSchedules
-        : props.calendarSchedules.filter((item) => normalizeSport(item.sport) === normalizeSport(calendarSportFilter.value)),
-)
+const filteredTeams = computed(() => {
+    if (!filterForm.sport_id) return props.filters.options.teams
 
+    const selectedSport = props.filters.options.sports.find((sport) => String(sport.id) === filterForm.sport_id)
+    if (!selectedSport) return props.filters.options.teams
+
+    return props.filters.options.teams.filter((team) => team.sport_name === selectedSport.name)
+})
+
+const filteredSchedules = computed(() => props.calendarSchedules)
+const availableCalendarSports = computed(() => {
+    const sportMap = new Map<string, { key: string; label: string; color: string; textColor: string }>()
+
+    supportedSports.forEach((sport) => {
+        const normalizedSport = normalizeSport(sport)
+        sportMap.set(normalizedSport, {
+            key: normalizedSport,
+            label: sportLabel(sport),
+            color: sportColor(sport),
+            textColor: sportTextColor(sport),
+        })
+    })
+
+    return Array.from(sportMap.values()).sort((left, right) => left.label.localeCompare(right.label))
+})
+const calendarVisibleSchedules = computed(() => {
+    if (calendarSportFilter.value === 'all') return filteredSchedules.value
+    return filteredSchedules.value.filter((item) => normalizeSport(item.sport) === normalizeSport(calendarSportFilter.value))
+})
+const selectedSportLabel = computed(() => {
+    if (!filterForm.sport_id) return null
+    return props.filters.options.sports.find((sport) => String(sport.id) === filterForm.sport_id)?.name ?? null
+})
+const selectedTeamLabel = computed(() => {
+    if (!filterForm.team_id) return null
+    return filteredTeams.value.find((team) => String(team.id) === filterForm.team_id)?.team_name ?? null
+})
+const selectedCoachLabel = computed(() => {
+    if (!filterForm.coach_id) return null
+    return props.filters.options.coaches.find((coach) => String(coach.coach_id) === filterForm.coach_id)?.name ?? null
+})
+const activeFilterChips = computed(() => {
+    const chips: string[] = []
+    if (filterForm.search.trim()) chips.push(`Search: ${filterForm.search.trim()}`)
+    if (selectedSportLabel.value) chips.push(`Sport: ${selectedSportLabel.value}`)
+    if (selectedTeamLabel.value) chips.push(`Team: ${selectedTeamLabel.value}`)
+    if (selectedCoachLabel.value) chips.push(`Coach: ${selectedCoachLabel.value}`)
+    if (filterForm.schedule_type) chips.push(`Type: ${filterForm.schedule_type}`)
+    if (filterForm.status) chips.push(`Attendance: ${filterForm.status.replaceAll('_', ' ')}`)
+    if (filterForm.period) chips.push(`Period: ${quickPeriods.find((period) => period.key === filterForm.period)?.label ?? filterForm.period}`)
+    if (filterForm.start_date) chips.push(`Start: ${filterForm.start_date}`)
+    if (filterForm.end_date) chips.push(`End: ${filterForm.end_date}`)
+    return chips
+})
+const defaultFilterChips = computed(() => {
+    if (activeFilterChips.value.length > 0) return activeFilterChips.value
+
+    const defaults = [
+        'All Sports',
+        'All Teams',
+        'All Schedule Types',
+        'All Attendance Statuses',
+        'All Coaches',
+    ]
+
+    if (filterForm.period) {
+        defaults.push(quickPeriods.find((period) => period.key === filterForm.period)?.label ?? filterForm.period)
+    } else if (filterForm.start_date || filterForm.end_date) {
+        defaults.push(`${filterForm.start_date || 'Any start'} to ${filterForm.end_date || 'Any end'}`)
+    } else {
+        defaults.push('All Dates')
+    }
+
+    return defaults
+})
 const calendarEvents = computed(() =>
-    filteredCalendarSchedules.value.map((item) => ({
+    calendarVisibleSchedules.value.map((item) => ({
         id: item.id,
         title: item.title,
         start: new Date(item.start),
@@ -208,8 +280,6 @@ const calendarEvents = computed(() =>
         color: sportTextColor(item.sport),
     })),
 )
-
-const visibleTable = computed(() => attendanceState.value)
 
 function parseFilterDate(value: string): Date | null {
     if (!value) return null
@@ -243,22 +313,13 @@ const endDateModel = computed<Date | null>({
     },
 })
 
-watch(() => props.attendanceRecords, (value) => {
-    attendanceState.value = value
-})
-
-watch(() => props.tabs.active, (value) => {
-    activeTab.value = value === 'exceptions' ? 'attendance' : value
-})
-
 function buildQuery(extra: Record<string, string | number | undefined> = {}) {
     return {
-        tab: activeTab.value,
+        tab: 'calendar',
         search: filterForm.search.trim() || undefined,
         sport_id: filterForm.sport_id || undefined,
         team_id: filterForm.team_id || undefined,
         coach_id: filterForm.coach_id || undefined,
-        schedule_id: selectedScheduleId.value || undefined,
         schedule_type: filterForm.schedule_type || undefined,
         status: filterForm.status || undefined,
         period: filterForm.period || undefined,
@@ -280,6 +341,7 @@ function applyFilters() {
 }
 
 function resetFilters() {
+    suppressAutoReload = true
     filterForm.search = ''
     filterForm.sport_id = ''
     filterForm.team_id = ''
@@ -292,8 +354,11 @@ function resetFilters() {
     filterForm.sort = 'schedule_start'
     filterForm.direction = 'desc'
     filterForm.per_page = '15'
-    selectedScheduleId.value = null
+    showFilters.value = false
     applyFilters()
+    setTimeout(() => {
+        suppressAutoReload = false
+    }, 0)
 }
 
 function setPeriod(period: '' | 'today' | 'week' | 'month') {
@@ -302,12 +367,6 @@ function setPeriod(period: '' | 'today' | 'week' | 'month') {
         filterForm.start_date = ''
         filterForm.end_date = ''
     }
-    applyFilters()
-}
-
-function setTab(tab: 'calendar' | 'attendance') {
-    activeTab.value = tab
-    applyFilters()
 }
 
 function formatDateTime(dt: string | Date | null) {
@@ -324,127 +383,195 @@ function formatDateTime(dt: string | Date | null) {
     })
 }
 
-function tableStatusClass(status: AttendanceRow['status']) {
-    if (status === 'present') return 'bg-emerald-100 text-emerald-700'
-    if (status === 'late') return 'bg-amber-100 text-amber-700'
-    if (status === 'absent') return 'bg-red-100 text-red-700'
-    if (status === 'excused') return 'bg-slate-100 text-slate-700'
-    return 'bg-slate-100 text-slate-700'
-}
-
-function scheduleCardStyle(sport: unknown) {
-    const textColor = sportTextColor(sport)
-    const isDarkText = textColor === '#111827'
-    return {
-        backgroundColor: sportColor(sport),
-        color: textColor,
-        borderColor: isDarkText ? 'rgba(15,23,42,0.2)' : 'rgba(255,255,255,0.35)',
-    }
-}
-
-function scheduleSubTextClass(sport: unknown) {
-    return sportTextColor(sport) === '#111827' ? 'text-slate-700' : 'text-white/80'
-}
-
-function scheduleAlertTextClass(sport: unknown) {
-    return sportTextColor(sport) === '#111827' ? 'text-amber-700' : 'text-amber-200'
-}
-
-async function fetchRecords(page = 1) {
-    isLoadingRecords.value = true
-
-    const params = new URLSearchParams()
-    const query = buildQuery({ page })
-    Object.entries(query).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') return
-        params.set(key, String(value))
+function formatDateOnly(dt: string | Date | null) {
+    if (!dt) return '-'
+    const date = typeof dt === 'string' ? new Date(dt) : dt
+    return date.toLocaleDateString('en-PH', {
+        timeZone: 'Asia/Manila',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
     })
+}
 
-    const response = await fetch(`/operations/attendance/records?${params.toString()}`, {
-        credentials: 'same-origin',
-        headers: {
-            Accept: 'application/json',
-        },
+function formatTimeOnly(dt: string | Date | null) {
+    if (!dt) return '-'
+    const date = typeof dt === 'string' ? new Date(dt) : dt
+    return date.toLocaleTimeString('en-PH', {
+        timeZone: 'Asia/Manila',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
     })
-
-    isLoadingRecords.value = false
-
-    if (!response.ok) {
-        return
-    }
-
-    const payload = await response.json() as PaginatedPayload
-    attendanceState.value = payload
 }
 
 function showNotice(title: string, description: string) {
     noticeDialog.value = { open: true, title, description }
 }
+
+function attendanceStatusClass(status: AttendanceStatus) {
+    if (status === 'present') return isDarkMode.value ? 'bg-[#0b3158] text-sky-100' : 'bg-emerald-100 text-emerald-700'
+    if (status === 'late') return isDarkMode.value ? 'bg-[#11335a] text-blue-100' : 'bg-amber-100 text-amber-700'
+    if (status === 'absent') return isDarkMode.value ? 'bg-[#102942] text-slate-100' : 'bg-rose-100 text-rose-700'
+    if (status === 'excused') return isDarkMode.value ? 'bg-[#102942] text-slate-100' : 'bg-slate-100 text-slate-700'
+    return isDarkMode.value ? 'bg-[#102942] text-slate-100' : 'bg-slate-100 text-slate-700'
+}
+
+async function openAttendance(scheduleId: number) {
+    isLoadingAttendance.value = true
+
+    try {
+        const response = await fetch(`/operations/schedules/${scheduleId}/drilldown`, {
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+            },
+        })
+
+        if (!response.ok) {
+            throw new Error('Unable to load attendance details right now.')
+        }
+
+        attendanceDetails.value = await response.json() as AttendanceDrilldown
+        attendanceDialogOpen.value = true
+    } catch (error) {
+        showNotice(
+            'Attendance Unavailable',
+            error instanceof Error ? error.message : 'Unable to load attendance details right now.',
+        )
+    } finally {
+        isLoadingAttendance.value = false
+    }
+}
+
+watch(
+    () => filterForm.sport_id,
+    () => {
+        if (!filterForm.team_id) return
+
+        const teamStillAvailable = filteredTeams.value.some((team) => String(team.id) === filterForm.team_id)
+        if (!teamStillAvailable) {
+            filterForm.team_id = ''
+        }
+    },
+)
+
+watch(
+    () => filterForm.search,
+    () => {
+        if (suppressAutoReload) return
+        if (searchDebounce) clearTimeout(searchDebounce)
+        searchDebounce = setTimeout(() => applyFilters(), 250)
+    },
+)
+
+watch(
+    () => [filterForm.sport_id, filterForm.team_id, filterForm.coach_id, filterForm.schedule_type, filterForm.status, filterForm.period, filterForm.start_date, filterForm.end_date],
+    () => {
+        if (suppressAutoReload) return
+        applyFilters()
+    },
+)
 </script>
 
 <template>
     <div class="space-y-5">
         <section class="operations-workspace-hero page-card rounded-3xl border border-[#034485] bg-[#034485] p-6 text-white">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Operations Workspace</p>
-            <h1 class="mt-2 text-2xl font-bold">Attendance And Schedule Monitoring</h1>
+            <h1 class="mt-2 text-2xl font-bold">Schedule Monitoring</h1>
             <p class="mt-2 max-w-3xl text-sm text-white/85">
-                Review team schedules and monitor attendance activity from one shared operations workspace.
+                Review schedules across all teams, then open each schedule's attendance in a read-only admin view.
             </p>
         </section>
 
-        <section class="page-card rounded-3xl border border-[#034485]/35 bg-white p-5">
-            <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
+        <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/20 bg-white'">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">Schedule Records</p>
+                <p class="mt-2 text-2xl font-bold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ filteredSchedules.length }}</p>
+            </div>
+            <div class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-amber-200 bg-amber-50'">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-amber-300' : 'text-amber-700'">No Response</p>
+                <p class="mt-2 text-2xl font-bold" :class="isDarkMode ? 'text-amber-200' : 'text-amber-800'">{{ kpis.needs_attention.no_response }}</p>
+            </div>
+            <div class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-rose-200 bg-rose-50'">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-rose-300' : 'text-rose-700'">Present Total</p>
+                <p class="mt-2 text-2xl font-bold" :class="isDarkMode ? 'text-rose-200' : 'text-rose-800'">{{ kpis.summary.counts.present }}</p>
+            </div>
+        </section>
+
+        <section class="page-card rounded-3xl border p-5" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/35 bg-white'">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <InputText
                     v-model="filterForm.search"
-                    type="text"
-                    placeholder="Search by schedule, team, sport, student, or status"
-                    class="w-full rounded-md border border-[#034485]/20 px-3 py-2 text-sm sm:flex-1"
-                    @keyup.enter="applyFilters"
+                    placeholder="Search schedule, team, sport, coach, venue, type, or date"
+                    class="w-full lg:flex-1"
                 />
-                <button type="button" class="rounded-md bg-[#034485] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f]" @click="applyFilters">
-                    Search
-                </button>
-                <button type="button" class="rounded-md border border-[#034485]/30 px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]" @click="showFilters = !showFilters">
-                    Filters <span v-if="activeFilterCount" class="ml-1 rounded-full bg-[#dcecff] px-1.5 py-0.5 text-xs text-[#034485]">{{ activeFilterCount }}</span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        class="rounded-xl border px-3 py-2 text-sm font-semibold transition"
+                        :class="isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : 'border-[#034485]/30 text-[#034485] hover:bg-[#eef5ff]'"
+                        @click="showFilters = !showFilters"
+                    >
+                        {{ showFilters ? 'Hide Filters' : 'Filters' }}
+                        <span v-if="activeFilterCount" class="ml-1 rounded-full bg-[#dcecff] px-1.5 py-0.5 text-xs text-[#034485]">{{ activeFilterCount }}</span>
+                    </button>
+                </div>
             </div>
 
-            <div class="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                    v-for="period in quickPeriods"
-                    :key="period.key || 'all-time'"
-                    type="button"
-                    class="rounded-full px-3 py-1 text-xs font-medium"
-                    :class="filterForm.period === period.key ? 'border border-[#034485]/35 bg-[#034485] text-white' : 'border border-[#034485]/15 bg-[#034485]/5 text-[#034485] hover:bg-[#034485]/10'"
-                    @click="setPeriod(period.key)"
-                >
-                    {{ period.label }}
-                </button>
-            </div>
+            <div v-if="showFilters" class="mt-3 space-y-3 border-t border-slate-200 pt-3">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="flex flex-wrap gap-2">
+                        <span
+                            v-for="chip in defaultFilterChips"
+                            :key="chip"
+                            class="inline-flex rounded-full border px-3 py-1 text-xs font-medium"
+                            :class="activeFilterChips.length
+                                ? (isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-200' : 'border-[#034485]/15 bg-[#edf4ff] text-[#034485]')
+                                : (isDarkMode ? 'border-[#4a90e2]/25 bg-[#0a2a4d] text-sky-100' : 'border-[#034485]/12 bg-[#f4f8ff] text-[#034485]')"
+                        >
+                            {{ chip }}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        class="w-full rounded-xl border px-3 py-2 text-sm font-semibold transition sm:w-auto"
+                        :class="isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-50'"
+                        @click="resetFilters"
+                    >
+                        Clear Filters
+                    </button>
+                </div>
 
-            <div v-if="showFilters" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 md:grid-cols-2 lg:grid-cols-4">
-                <select v-model="filterForm.team_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">All Teams</option>
-                    <option v-for="team in filters.options.teams" :key="team.id" :value="String(team.id)">
-                        {{ team.team_name }} ({{ team.sport_name }})
-                    </option>
-                </select>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button
+                        v-for="period in quickPeriods"
+                        :key="period.key || 'all-time'"
+                        type="button"
+                        class="rounded-full px-3 py-1 text-xs font-medium"
+                        :class="filterForm.period === period.key ? 'border border-[#034485]/35 bg-[#034485] text-white' : 'border border-[#034485]/15 bg-[#034485]/5 text-[#034485] hover:bg-[#034485]/10'"
+                        @click="setPeriod(period.key)"
+                    >
+                        {{ period.label }}
+                    </button>
+                </div>
 
-                <select v-model="filterForm.schedule_type" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">All Schedule Types</option>
-                    <option v-for="type in filters.options.schedule_types" :key="type" :value="type">{{ type }}</option>
-                </select>
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+                <Select v-model="filterForm.sport_id" :options="sportOptions" optionLabel="label" optionValue="value" class="w-full" placeholder="All Sports" />
 
-                <select v-model="filterForm.status" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">All Statuses</option>
-                    <option v-for="status in filters.options.statuses" :key="status.value" :value="status.value">{{ status.label }}</option>
-                </select>
+                <Select v-model="filterForm.team_id" :options="teamOptions" optionLabel="label" optionValue="value" class="w-full" placeholder="All Teams" />
+
+                <Select v-model="filterForm.schedule_type" :options="scheduleTypeOptions" optionLabel="label" optionValue="value" class="w-full" placeholder="All Schedule Types" />
+
+                <Select v-model="filterForm.status" :options="attendanceStatusOptions" optionLabel="label" optionValue="value" class="w-full" placeholder="All Attendance Statuses" />
+
+                <Select v-model="filterForm.coach_id" :options="coachOptions" optionLabel="label" optionValue="value" class="w-full" placeholder="All Coaches" />
 
                 <DatePicker
                     v-model="startDateModel"
                     showIcon
                     iconDisplay="input"
-                    inputClass="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    inputClass="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                     :pt="{
                         pcInputText: {
                             root: {
@@ -453,15 +580,16 @@ function showNotice(title: string, description: string) {
                         },
                     }"
                     panelClass="text-sm"
-                    placeholder="Start date"
+                    placeholder="All Dates"
                     dateFormat="yy-mm-dd"
                     :manualInput="false"
                 />
+
                 <DatePicker
                     v-model="endDateModel"
                     showIcon
                     iconDisplay="input"
-                    inputClass="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    inputClass="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                     :pt="{
                         pcInputText: {
                             root: {
@@ -470,93 +598,77 @@ function showNotice(title: string, description: string) {
                         },
                     }"
                     panelClass="text-sm"
-                    placeholder="End date"
+                    placeholder="All Dates"
                     dateFormat="yy-mm-dd"
                     :manualInput="false"
                 />
-
-                <div class="grid grid-cols-3 gap-2">
-                    <select v-model="filterForm.sort" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                        <option value="schedule_start">Sort: Date</option>
-                        <option value="team_name">Sort: Team</option>
-                        <option value="student_name">Sort: Student</option>
-                        <option value="status">Sort: Status</option>
-                    </select>
-                    <select v-model="filterForm.direction" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                        <option value="desc">Desc</option>
-                        <option value="asc">Asc</option>
-                    </select>
-                    <select v-model="filterForm.per_page" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                        <option value="15">15</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                    </select>
-                </div>
-
-                <div class="flex gap-2">
-                    <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="applyFilters">Apply</button>
-                    <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @click="resetFilters">Reset</button>
                 </div>
             </div>
         </section>
 
-        <section class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4">
-            <div class="mb-4 flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    class="rounded-md px-3 py-2 text-sm font-medium"
-                    :class="activeTab === 'calendar' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    @click="setTab('calendar')"
-                >
-                    Calendar
-                </button>
-                <button
-                    type="button"
-                    class="rounded-md px-3 py-2 text-sm font-medium"
-                    :class="activeTab === 'attendance' ? 'bg-[#034485] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    @click="setTab('attendance')"
-                >
-                    Attendance
-                </button>
-            </div>
+        <section class="page-card rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-800 bg-black' : 'border-[#034485]/35 bg-white'">
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">All Team Schedules</h2>
+                        <p class="text-sm" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">
+                            Review schedule details and open attendance for any team session.
+                        </p>
+                        <p class="mt-1 text-xs" :class="isDarkMode ? 'text-slate-500' : 'text-slate-400'">
+                            Showing {{ filteredSchedules.length }} matching schedule{{ filteredSchedules.length === 1 ? '' : 's' }}.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-xl border px-3 py-2 text-sm font-semibold transition"
+                        :class="isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : 'border-[#034485]/30 text-[#034485] hover:bg-[#eef5ff]'"
+                        @click="showCalendar = !showCalendar"
+                    >
+                        {{ showCalendar ? 'Hide Calendar View' : 'Show Calendar View' }}
+                    </button>
+                </div>
 
-            <div v-if="activeTab === 'calendar'" class="grid grid-cols-1 gap-4 xl:grid-cols-4">
-                <section class="page-card xl:col-span-3 overflow-hidden rounded-2xl border border-[#034485]/25 bg-white p-3">
-                    <div class="mb-3 flex flex-wrap items-center gap-2" aria-label="Sport legend">
+                <section v-if="showCalendar" class="rounded-2xl border p-3" :class="isDarkMode ? 'border-slate-800 bg-black' : 'border-[#034485]/25 bg-white'">
+                    <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Calendar View</h3>
+                            <p class="text-xs" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">
+                                Use this as a secondary visual timeline. The schedule cards remain the primary admin workflow.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="mb-3 flex flex-wrap items-center gap-2" aria-label="Calendar sport filters">
                         <button
                             type="button"
-                            class="sports-legend-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium"
-                            :class="
-                                calendarSportFilter === 'all'
-                                    ? 'border-[#034485] bg-[#034485] text-white'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                            "
+                            class="rounded-full px-3 py-1 text-xs font-semibold transition"
+                            :class="calendarSportFilter === 'all'
+                                ? 'border border-[#034485]/35 bg-[#034485] text-white'
+                                : isDarkMode
+                                    ? 'border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+                                    : 'border border-[#034485]/15 bg-[#034485]/5 text-[#034485] hover:bg-[#034485]/10'"
                             @click="calendarSportFilter = 'all'"
                         >
-                            <span class="h-2.5 w-2.5 rounded-full bg-slate-400" />
                             All
                         </button>
                         <button
-                            v-for="item in sportsLegend"
-                            :key="item.key"
+                            v-for="sport in availableCalendarSports"
+                            :key="sport.key"
                             type="button"
-                            class="sports-legend-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium transition"
-                            :class="
-                                calendarSportFilter === item.key
-                                    ? ''
-                                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                            "
-                            :style="
-                                calendarSportFilter === item.key
-                                    ? { backgroundColor: item.color, color: item.textColor, borderColor: item.color }
-                                    : undefined
-                            "
-                            @click="calendarSportFilter = item.key"
+                            class="rounded-full border px-3 py-1 text-xs font-semibold transition"
+                            :style="calendarSportFilter === sport.key
+                                ? { backgroundColor: sport.color, color: sport.textColor, borderColor: sport.color }
+                                : undefined"
+                            :class="calendarSportFilter === sport.key
+                                ? ''
+                                : isDarkMode
+                                    ? 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+                            @click="calendarSportFilter = sport.key"
                         >
-                            <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: item.color }" />
-                            {{ item.label }}
+                            {{ sport.label }}
                         </button>
                     </div>
+
                     <VueCal
                         sm
                         style="height: 660px"
@@ -569,118 +681,197 @@ function showNotice(title: string, description: string) {
                     />
                 </section>
 
-                <aside class="max-h-[660px] overflow-y-auto rounded-2xl border border-[#034485]/25 bg-[#034485]/5 p-3">
-                    <div class="mb-2 flex items-center justify-between gap-2">
-                        <h2 class="text-sm font-semibold text-slate-800">Schedules</h2>
-                    </div>
-                    <div v-if="filteredCalendarSchedules.length === 0" class="text-sm text-slate-500">No schedules found.</div>
-                    <div
-                        v-for="item in filteredCalendarSchedules"
-                        :key="item.id"
-                        class="page-card relative overflow-hidden rounded-3xl border border-[#034485]/45 bg-white p-5 shadow-[0_18px_40px_-28px_rgba(3,68,133,0.45)] transition"
-                    >
-                        <div class="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-[#034485] via-[#0b5aa6] to-[#034485]/85 opacity-100"></div>
-                        <div class="pointer-events-none absolute inset-x-0 top-16 h-16 bg-gradient-to-b from-[#034485]/18 to-transparent"></div>
-                        <div class="relative z-10">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div class="min-w-0">
-                                    <div class="truncate font-semibold leading-tight text-white">{{ item.title }}</div>
-                                    <div class="mt-1 inline-flex max-w-full rounded-full border border-white bg-white px-2.5 py-1 text-[11px] font-semibold text-[#034485] shadow-[0_10px_24px_-18px_rgba(15,23,42,0.7)]">
-                                        {{ item.type }} • {{ item.venue || '-' }}
-                                    </div>
-                                </div>
-                                <span
-                                    class="rounded border border-white/20 bg-[#023463] px-2.5 py-1 text-xs font-semibold text-white"
-                                >
-                                    {{ sportLabel(item.sport) }}
-                                </span>
-                            </div>
-
-                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                                <div class="rounded-2xl border border-[#034485]/18 bg-[#edf4ff] px-3 py-2 shadow-sm">
-                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-[#034485]">Team</p>
-                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ item.team_name }}</p>
-                                </div>
-                                <div class="rounded-2xl border border-[#034485]/18 bg-[#edf4ff] px-3 py-2 shadow-sm">
-                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-[#034485]">Start Time</p>
-                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatDateTime(item.start) }}</p>
-                                </div>
-                            </div>
-
-                            <div class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                No response: {{ item.counts.no_response }}
-                            </div>
-                        </div>
-                    </div>
-                </aside>
-            </div>
-
-            <div v-else class="space-y-3">
-                <div class="overflow-x-auto rounded-2xl border border-[#034485]/25">
-                    <table class="w-full text-sm">
-                        <thead class="bg-[#034485] text-white">
-                            <tr>
-                                <th class="px-3 py-2 text-left">Schedule</th>
-                                <th class="px-3 py-2 text-left">Team</th>
-                                <th class="px-3 py-2 text-left">Student</th>
-                                <th class="px-3 py-2 text-left">Status</th>
-                                <th class="px-3 py-2 text-left">Recorded</th>
-                                <th class="px-3 py-2 text-left">Recorded By</th>
-                            </tr>
-                        </thead>
-                        <transition-group name="table-fade" tag="tbody">
-                            <tr v-if="visibleTable.data.length === 0" key="empty">
-                                <td colspan="6" class="px-3 py-4 text-center text-slate-500">
-                                    No attendance records were found.
-                                </td>
-                            </tr>
-                            <tr v-for="row in visibleTable.data" :key="`${row.schedule_id}-${row.student_id}`" class="border-t border-slate-200">
-                                <td class="px-3 py-2">
-                                    <p class="font-medium text-slate-900">{{ row.schedule_title }}</p>
-                                    <p class="text-xs text-slate-500">{{ formatDateTime(row.schedule_start) }}</p>
-                                </td>
-                                <td class="px-3 py-2 text-slate-700">{{ row.team_name }}</td>
-                                <td class="px-3 py-2">
-                                    <p class="font-medium text-slate-900">{{ row.student_name }}</p>
-                                    <p class="text-xs text-slate-500">{{ row.student_id_number || '-' }}</p>
-                                </td>
-                                <td class="px-3 py-2">
-                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="tableStatusClass(row.status)">
-                                        {{ row.status.replaceAll('_', ' ') }}
-                                    </span>
-                                </td>
-                                <td class="px-3 py-2 text-slate-600">{{ formatDateTime(row.recorded_at) }}</td>
-                                <td class="px-3 py-2 text-slate-600">{{ row.recorded_by || '-' }}</td>
-                            </tr>
-                        </transition-group>
-                    </table>
+                <div v-if="filteredSchedules.length === 0" class="rounded-2xl border border-dashed px-5 py-10 text-center text-sm" :class="isDarkMode ? 'border-slate-700 text-slate-400' : 'border-[#034485]/20 text-slate-500'">
+                    No schedules matched the current search and filters.
                 </div>
 
-                <div class="flex items-center justify-between">
-                    <p class="text-xs text-slate-500">
-                        Showing {{ visibleTable.meta.from || 0 }}-{{ visibleTable.meta.to || 0 }} of {{ visibleTable.meta.total }}
-                    </p>
-                    <div class="flex gap-2">
-                        <button
-                            type="button"
-                            class="rounded-md border border-slate-300 px-3 py-1 text-sm"
-                            :disabled="isLoadingRecords || visibleTable.meta.current_page <= 1"
-                            @click="fetchRecords(visibleTable.meta.current_page - 1)"
-                        >
-                            Previous
-                        </button>
-                        <button
-                            type="button"
-                            class="rounded-md border border-slate-300 px-3 py-1 text-sm"
-                            :disabled="isLoadingRecords || visibleTable.meta.current_page >= visibleTable.meta.last_page"
-                            @click="fetchRecords(visibleTable.meta.current_page + 1)"
-                        >
-                            Next
-                        </button>
-                    </div>
+                <div v-else class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                    <article
+                        v-for="item in filteredSchedules"
+                        :key="item.id"
+                        class="page-card rounded-3xl border p-5 shadow-[0_18px_40px_-30px_rgba(3,68,133,0.24)]"
+                        :class="isDarkMode ? 'border-slate-800 bg-black' : 'border-[#034485]/25 bg-white'"
+                    >
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="min-w-0">
+                                <div class="truncate text-lg font-semibold leading-tight" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ item.title }}</div>
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex max-w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold" :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-[#034485]/20 bg-[#edf4ff] text-[#034485]'">
+                                        {{ item.type }}
+                                    </span>
+                                    <span
+                                        class="rounded border px-2.5 py-1 text-xs font-semibold"
+                                        :style="{ backgroundColor: sportColor(item.sport), color: sportTextColor(item.sport), borderColor: sportColor(item.sport) }"
+                                    >
+                                        {{ sportLabel(item.sport) }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-right text-xs" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">
+                                <p>{{ formatDateOnly(item.start) }}</p>
+                                <p class="mt-1 font-medium" :class="isDarkMode ? 'text-slate-200' : 'text-slate-700'">{{ formatTimeOnly(item.start) }} - {{ formatTimeOnly(item.end) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Team</p>
+                                <p class="mt-1 text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ item.team_name }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Coach</p>
+                                <p class="mt-1 text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ item.coach_name || 'Unassigned' }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Venue</p>
+                                <p class="mt-1 text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ item.venue || 'No venue listed' }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Roster</p>
+                                <p class="mt-1 text-sm font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ item.counts.roster_total }} players</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-2 gap-2 text-xs lg:grid-cols-4">
+                            <div class="rounded-2xl border px-3 py-2" :class="isDarkMode ? 'border-[#4a90e2]/18 bg-[#0a2747] text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'">Present: {{ item.counts.present }}</div>
+                            <div class="rounded-2xl border px-3 py-2" :class="isDarkMode ? 'border-[#4a90e2]/18 bg-[#0a2747] text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'">Absent: {{ item.counts.absent }}</div>
+                            <div class="rounded-2xl border px-3 py-2" :class="isDarkMode ? 'border-[#4a90e2]/18 bg-[#0a2747] text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'">Late: {{ item.counts.late }}</div>
+                            <div class="rounded-2xl border px-3 py-2" :class="isDarkMode ? 'border-[#4a90e2]/22 bg-[#10345c] text-blue-100' : 'border-amber-200 bg-amber-50 text-amber-700'">No response: {{ item.counts.no_response }}</div>
+                        </div>
+
+                        <p v-if="item.notes" class="mt-4 text-sm leading-relaxed" :class="isDarkMode ? 'text-slate-400' : 'text-slate-600'">
+                            {{ item.notes }}
+                        </p>
+
+                        <div class="mt-4 flex justify-end">
+                            <button
+                                type="button"
+                                class="rounded-xl bg-[#034485] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-60"
+                                :disabled="isLoadingAttendance"
+                                @click="openAttendance(item.id)"
+                            >
+                                {{ isLoadingAttendance ? 'Loading Attendance...' : 'Open Attendance' }}
+                            </button>
+                        </div>
+                    </article>
                 </div>
             </div>
         </section>
+
+        <div
+            v-if="attendanceDialogOpen && attendanceDetails"
+            class="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
+            @click="attendanceDialogOpen = false"
+        >
+            <div class="flex min-h-full items-center justify-center">
+                <div
+                    class="w-full max-w-5xl rounded-3xl border shadow-[0_28px_70px_-34px_rgba(2,12,27,0.45)]"
+                    :class="isDarkMode ? 'border-slate-800 bg-black text-slate-100' : 'border-[#034485]/35 bg-white text-slate-900'"
+                    @click.stop
+                >
+                    <div class="rounded-t-3xl bg-[#034485] px-6 py-5 text-white sm:px-8">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-white/75">Attendance View</p>
+                                <h3 class="mt-1 text-2xl font-bold">{{ attendanceDetails.schedule.title }}</h3>
+                                <p class="mt-1 text-sm text-white/80">
+                                    {{ attendanceDetails.schedule.team_name }} • {{ attendanceDetails.schedule.sport_name }} • {{ attendanceDetails.schedule.type }}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                class="rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                                @click="attendanceDialogOpen = false"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6 p-6 sm:p-8" :class="isDarkMode ? 'bg-black' : ''">
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Date</p>
+                                <p class="mt-1 text-sm font-semibold">{{ formatDateOnly(attendanceDetails.schedule.start_time) }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Time</p>
+                                <p class="mt-1 text-sm font-semibold">{{ formatTimeOnly(attendanceDetails.schedule.start_time) }} - {{ formatTimeOnly(attendanceDetails.schedule.end_time) }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Roster Size</p>
+                                <p class="mt-1 text-sm font-semibold">{{ attendanceDetails.counts.total }} players</p>
+                            </div>
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Notes</p>
+                                <p class="mt-1 text-sm font-semibold">{{ attendanceDetails.schedule.notes || 'No notes' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#0a2747]' : 'border-emerald-200 bg-emerald-50'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-emerald-300' : 'text-emerald-700'">Present</p>
+                                <p class="mt-1 text-xl font-bold">{{ attendanceDetails.counts.present }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#0a2747]' : 'border-rose-200 bg-rose-50'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-rose-300' : 'text-rose-700'">Absent</p>
+                                <p class="mt-1 text-xl font-bold">{{ attendanceDetails.counts.absent }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#0a2747]' : 'border-amber-200 bg-amber-50'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-amber-300' : 'text-amber-700'">Late</p>
+                                <p class="mt-1 text-xl font-bold">{{ attendanceDetails.counts.late }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#0a2747]' : 'border-slate-200 bg-slate-50'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-slate-300' : 'text-slate-700'">Excused</p>
+                                <p class="mt-1 text-xl font-bold">{{ attendanceDetails.counts.excused }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/22 bg-[#10345c]' : 'border-amber-200 bg-amber-50'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-amber-300' : 'text-amber-700'">No Response</p>
+                                <p class="mt-1 text-xl font-bold">{{ attendanceDetails.counts.no_response }}</p>
+                            </div>
+                            <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#034485]/18 backdrop-blur-sm' : 'border-[#034485]/15 bg-[#edf4ff]'">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide" :class="isDarkMode ? 'text-sky-300' : 'text-[#034485]'">Mode</p>
+                                <p class="mt-1 text-sm font-semibold">View Only</p>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto rounded-2xl border" :class="isDarkMode ? 'border-slate-800 bg-black' : 'border-[#034485]/15'">
+                            <table class="w-full min-w-[720px] text-sm">
+                                <thead :class="isDarkMode ? 'bg-[#0a2747] text-sky-100' : 'bg-[#034485] text-white'">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left">Student</th>
+                                        <th class="px-4 py-3 text-left">Student ID</th>
+                                        <th class="px-4 py-3 text-left">Status</th>
+                                        <th class="px-4 py-3 text-left">Recorded</th>
+                                        <th class="px-4 py-3 text-left">Notes</th>
+                                        <th class="px-4 py-3 text-left">Override Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="row in attendanceDetails.roster"
+                                        :key="`${attendanceDetails.schedule.id}-${row.student_id}`"
+                                        class="border-t"
+                                        :class="isDarkMode ? 'border-slate-800 bg-black text-slate-100' : 'border-slate-200 text-slate-700'"
+                                    >
+                                        <td class="px-4 py-3 font-medium" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ row.student_name }}</td>
+                                        <td class="px-4 py-3">{{ row.student_id_number || '-' }}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="attendanceStatusClass(row.attendance_status)">
+                                                {{ row.attendance_status.replaceAll('_', ' ') }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3">{{ formatDateTime(row.recorded_at) }}</td>
+                                        <td class="px-4 py-3">{{ row.notes || '-' }}</td>
+                                        <td class="px-4 py-3">{{ row.override_reason || '-' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <ConfirmDialog
             :open="noticeDialog.open"
@@ -693,20 +884,3 @@ function showNotice(title: string, description: string) {
         />
     </div>
 </template>
-
-<style scoped>
-.table-fade-enter-active,
-.table-fade-leave-active {
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.table-fade-enter-from,
-.table-fade-leave-to {
-    opacity: 0;
-    transform: translateY(6px);
-}
-
-.table-fade-move {
-    transition: transform 0.2s ease;
-}
-</style>

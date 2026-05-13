@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Support\Str;
 
 class Team extends Model
 {
@@ -18,6 +19,9 @@ class Team extends Model
         'description',
         'archived_at',
         'archived_by',
+        'join_code',
+        'join_code_enabled',
+        'join_code_expires_at',
     ];
 
     protected $appends = [
@@ -28,6 +32,8 @@ class Team extends Model
 
     protected $casts = [
         'archived_at' => 'datetime',
+        'join_code_enabled' => 'boolean',
+        'join_code_expires_at' => 'datetime',
     ];
 
     public function sport()
@@ -127,9 +133,48 @@ class Team extends Model
 
     public function scopeForCoach($query, int $coachId)
     {
-        return $query->whereHas('activeStaffAssignments', function ($assignmentQuery) use ($coachId) {
-            $assignmentQuery->where('coach_id', $coachId);
-        });
+        return $query
+            ->whereNull('archived_at')
+            ->whereHas('activeStaffAssignments', function ($assignmentQuery) use ($coachId) {
+                $assignmentQuery->where('coach_id', $coachId);
+            });
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function isCurrentYearActive(): bool
+    {
+        return $this->archived_at === null && (int) $this->year === (int) now()->year;
+    }
+
+    public function inviteCodeIsActive(): bool
+    {
+        if (!$this->isCurrentYearActive() || !$this->join_code_enabled || blank($this->join_code)) {
+            return false;
+        }
+
+        return !$this->join_code_expires_at || $this->join_code_expires_at->isFuture();
+    }
+
+    public function assignFreshJoinCode(): string
+    {
+        do {
+            $code = $this->buildReadableJoinCode();
+        } while (static::query()
+            ->where('join_code', $code)
+            ->when($this->exists, fn ($query) => $query->whereKeyNot($this->getKey()))
+            ->exists());
+
+        $this->forceFill([
+            'join_code' => $code,
+            'join_code_enabled' => true,
+            'join_code_expires_at' => null,
+        ])->save();
+
+        return $code;
     }
 
     public function scopeMissingAssistant($query)
@@ -197,5 +242,23 @@ class Team extends Model
                 'created_by' => $createdBy,
             ]);
         }
+    }
+
+    private function buildReadableJoinCode(): string
+    {
+        $initials = collect(preg_split('/\s+/', trim((string) $this->team_name)))
+            ->filter()
+            ->map(fn ($part) => Str::upper(Str::substr(preg_replace('/[^A-Za-z0-9]/', '', $part) ?: 'T', 0, 1)))
+            ->take(2)
+            ->implode('');
+
+        $prefix = str_pad($initials ?: 'TM', 2, 'X');
+        $year = Str::substr((string) ($this->year ?: now()->year), -2);
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        $suffix = collect(range(1, 4))
+            ->map(fn () => $alphabet[random_int(0, strlen($alphabet) - 1)])
+            ->implode('');
+
+        return "{$prefix}{$year}-{$suffix}";
     }
 }

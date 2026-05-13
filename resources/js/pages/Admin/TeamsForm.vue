@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
+import FileUpload from 'primevue/fileupload'
+import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
+import Select from 'primevue/select'
+import Textarea from 'primevue/textarea'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 import BackLinkButton from '@/components/ui/BackLinkButton.vue'
@@ -51,14 +56,17 @@ const selectedSport = computed(() => props.sports.find((item) => String(item.id)
 const rosterCount = computed(() => props.selectedTeam?.player_ids?.length ?? 0)
 const currentHeadCoach = computed(() => props.selectedTeam?.head_coach?.name || 'Unassigned')
 const currentAssistantCoach = computed(() => props.selectedTeam?.assistant_coach?.name || 'Unassigned')
+const sportOptions = computed(() => props.sports.map((item) => ({
+    id: String(item.id),
+    label: `${item.name} (Max ${item.max_players})`,
+})))
 
 function goBack() {
     router.get('/teams')
 }
 
-function handleAvatarUpload(event: Event) {
-    const files = (event.target as HTMLInputElement).files
-    if (!files || !files.length) return
+function handleAvatarUpload(files: File[]) {
+    if (!files.length) return
 
     if (avatarPreview.value && avatarPreviewFromUpload.value) {
         URL.revokeObjectURL(avatarPreview.value)
@@ -223,45 +231,48 @@ onBeforeUnmount(() => {
                 <div class="mt-5 grid gap-5">
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Team Name</label>
-                        <input
+                        <InputText
                             v-model="teamName"
-                            type="text"
                             placeholder="e.g., Falcons A-Team"
-                            class="w-full rounded-xl border border-[#034485]/20 px-3 py-2.5 text-sm outline-none transition focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/15"
+                            class="w-full"
+                            :invalid="Boolean(errors.team_name)"
                         />
-                        <p v-if="errors.team_name" class="mt-1 text-xs text-red-600">{{ errors.team_name }}</p>
+                        <Message v-if="errors.team_name" severity="error" size="small" variant="simple" class="mt-1">{{ errors.team_name }}</Message>
                     </div>
 
                     <div class="grid gap-4 md:grid-cols-2">
                         <div>
                             <label class="mb-1 block text-sm font-medium text-slate-700">Sport</label>
-                            <select v-model="sport" class="w-full rounded-xl border border-[#034485]/20 px-3 py-2.5 text-sm outline-none transition focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/15">
-                                <option value="" disabled>Select sport</option>
-                                <option v-for="item in sports" :key="item.id" :value="String(item.id)">
-                                    {{ item.name }} (Max {{ item.max_players }})
-                                </option>
-                            </select>
-                            <p v-if="errors.sport_id" class="mt-1 text-xs text-red-600">{{ errors.sport_id }}</p>
+                            <Select
+                                v-model="sport"
+                                :options="sportOptions"
+                                optionLabel="label"
+                                optionValue="id"
+                                placeholder="Select sport"
+                                class="w-full"
+                                :invalid="Boolean(errors.sport_id)"
+                            />
+                            <Message v-if="errors.sport_id" severity="error" size="small" variant="simple" class="mt-1">{{ errors.sport_id }}</Message>
                         </div>
 
                         <div>
                             <label class="mb-1 block text-sm font-medium text-slate-700">Year</label>
-                            <select v-model="year" class="w-full rounded-xl border border-[#034485]/20 px-3 py-2.5 text-sm outline-none transition focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/15">
-                                <option value="" disabled>Select year</option>
-                                <option v-for="item in yearOptions" :key="item" :value="item">{{ item }}</option>
-                            </select>
-                            <p v-if="errors.year" class="mt-1 text-xs text-red-600">{{ errors.year }}</p>
+                            <Select v-model="year" :options="yearOptions" placeholder="Select year" class="w-full" :invalid="Boolean(errors.year)" />
+                            <Message v-if="errors.year" severity="error" size="small" variant="simple" class="mt-1">{{ errors.year }}</Message>
                         </div>
                     </div>
 
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Description</label>
-                        <textarea
+                        <Textarea
                             v-model="description"
                             rows="4"
-                            class="w-full rounded-xl border border-[#034485]/20 px-3 py-2.5 text-sm outline-none transition focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/15"
+                            autoResize
+                            class="w-full"
                             placeholder="Add optional notes about the team."
+                            :invalid="Boolean(errors.description)"
                         />
+                        <Message v-if="errors.description" severity="error" size="small" variant="simple" class="mt-1">{{ errors.description }}</Message>
                     </div>
                 </div>
             </section>
@@ -286,7 +297,17 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div>
-                            <input type="file" accept="image/*" @change="handleAvatarUpload" class="w-full text-sm text-slate-600" />
+                            <FileUpload
+                                mode="basic"
+                                customUpload
+                                chooseLabel="Choose Team Photo"
+                                accept="image/*"
+                                class="w-full"
+                                :invalid="Boolean(errors.team_avatar)"
+                                @select="(event) => handleAvatarUpload(event.files)"
+                            />
+                            <p class="mt-2 text-xs text-slate-500">Selected: {{ teamAvatar?.name || 'No file selected' }}</p>
+                            <Message v-if="errors.team_avatar" severity="error" size="small" variant="simple" class="mt-1">{{ errors.team_avatar }}</Message>
                         </div>
                     </div>
                 </section>

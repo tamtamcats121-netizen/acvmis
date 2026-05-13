@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
-import { computed, reactive } from 'vue'
 import DatePicker from 'primevue/datepicker'
+import { computed, reactive } from 'vue'
 
 import { useTheme } from '@/composables/useTheme'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'

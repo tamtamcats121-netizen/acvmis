@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
-import { computed, reactive } from 'vue'
+import Column from 'primevue/column'
+import DataTable from 'primevue/datatable'
+import DatePicker from 'primevue/datepicker'
+import InputText from 'primevue/inputtext'
+import Paginator from 'primevue/paginator'
+import Select from 'primevue/select'
+import { computed, reactive, watch } from 'vue'
 
 import { useTheme } from '@/composables/useTheme'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
@@ -45,7 +51,24 @@ const props = defineProps<{
 
 const { isDarkMode } = useTheme()
 const filters = reactive({ ...props.filters })
-const selectedPreview = computed(() => props.documents.data[0] ?? null)
+
+let searchDebounce: ReturnType<typeof setTimeout> | null = null
+
+function parseFilterDate(value: string): Date | null {
+    if (!value) return null
+
+    const date = new Date(`${value}T00:00:00`)
+    return Number.isNaN(date.getTime()) ? null : date
+}
+
+function formatFilterDate(value: Date | null): string {
+    if (!value) return ''
+
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
 
 function applyFilters(page = 1) {
     router.get('/coach/documents', { ...filters, page }, {
@@ -55,12 +78,50 @@ function applyFilters(page = 1) {
     })
 }
 
+watch(
+    () => filters.search,
+    () => {
+        if (searchDebounce) clearTimeout(searchDebounce)
+        searchDebounce = setTimeout(() => applyFilters(1), 250)
+    },
+)
+
+watch(
+    () => [filters.type, filters.review_status, filters.upload_date],
+    () => {
+        applyFilters(1)
+    },
+)
+
+const firstRecordIndex = computed(() => (props.documents.meta.current_page - 1) * props.documents.meta.per_page)
+const uploadDateModel = computed<Date | null>({
+    get: () => parseFilterDate(filters.upload_date),
+    set: (value) => {
+        filters.upload_date = formatFilterDate(value)
+    },
+})
+const documentTypeOptions = computed(() => [
+    { label: 'All document types', value: 'all' },
+    ...props.documentTypes.map((type) => ({ label: type.label, value: type.code })),
+])
+const reviewStatusOptions = [
+    { label: 'All review statuses', value: 'all' },
+    { label: 'Pending', value: 'pending' },
+    { label: 'Auto Processed', value: 'auto_processed' },
+    { label: 'Needs Review', value: 'needs_review' },
+    { label: 'Reviewed', value: 'reviewed' },
+]
+
+function handlePageChange(event: { page: number }) {
+    applyFilters(event.page + 1)
+}
+
 function statusTone(status: string | null | undefined) {
     const normalized = String(status ?? '').toLowerCase()
-    if (normalized === 'reviewed') return 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
-    if (normalized === 'needs_review') return 'border-amber-500/35 bg-amber-500/10 text-amber-300'
-    if (normalized === 'auto_processed') return 'border-sky-500/35 bg-sky-500/10 text-sky-300'
-    return 'border-slate-500/35 bg-slate-500/10 text-slate-200'
+    if (normalized === 'reviewed') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    if (normalized === 'needs_review') return 'border-amber-200 bg-amber-50 text-amber-700'
+    if (normalized === 'auto_processed') return 'border-sky-200 bg-sky-50 text-sky-700'
+    return 'border-slate-200 bg-slate-100 text-slate-700'
 }
 
 function statusLabel(status: string | null | undefined) {
@@ -90,179 +151,150 @@ function formatDateTime(value: string | null) {
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Team Documents</p>
             <h1 class="mt-2 text-2xl font-bold">{{ team ? team.name : 'Team Documents' }}</h1>
             <p class="mt-2 text-sm text-white/85">
-                View the submitted documents of your assigned student-athletes in one organized, read-only page.
+                Review your assigned student-athletes’ submitted documents in a searchable table with review status and file access in one place.
             </p>
-        </section>
-
-        <section
-            class="rounded-3xl border p-4 shadow-sm"
-            :class="isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-100' : 'border-[#d6e4f4] bg-white text-slate-900'"
-        >
-            <div class="grid gap-3 md:grid-cols-4">
-                <input
-                    v-model="filters.search"
-                    class="rounded-2xl border px-4 py-3 text-sm"
-                    :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500' : 'border-slate-200 bg-white text-slate-900'"
-                    placeholder="Search student name, ID, or document"
-                />
-                <select
-                    v-model="filters.type"
-                    class="rounded-2xl border px-4 py-3 text-sm"
-                    :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-900'"
-                >
-                    <option value="all">All document types</option>
-                    <option v-for="type in documentTypes" :key="type.code" :value="type.code">{{ type.label }}</option>
-                </select>
-                <select
-                    v-model="filters.review_status"
-                    class="rounded-2xl border px-4 py-3 text-sm"
-                    :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-900'"
-                >
-                    <option value="all">All review statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="auto_processed">Auto Processed</option>
-                    <option value="needs_review">Needs Review</option>
-                    <option value="reviewed">Reviewed</option>
-                </select>
-                <input
-                    v-model="filters.upload_date"
-                    type="date"
-                    class="rounded-2xl border px-4 py-3 text-sm"
-                    :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-900'"
-                />
-            </div>
-            <div class="mt-3 flex justify-end">
-                <button class="rounded-2xl bg-[#034485] px-4 py-2 text-sm font-semibold text-white" @click="applyFilters">Apply Filters</button>
-            </div>
         </section>
 
         <div
             v-if="!team"
-            class="rounded-3xl border p-6 text-sm shadow-sm"
-            :class="isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-[#d6e4f4] bg-white text-slate-500'"
+            class="rounded-3xl border p-6 text-sm"
+            :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-400' : 'border-[#c8dcef] bg-white text-slate-500'"
         >
             You are not assigned to a team yet.
         </div>
 
-        <div v-else class="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.85fr)]">
-            <section class="space-y-3">
-                <article
-                    v-for="row in documents.data"
-                    :key="row.id"
-                    class="rounded-3xl border p-5 shadow-sm"
-                    :class="isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-100' : 'border-[#d6e4f4] bg-white text-slate-900'"
-                >
-                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-[0.16em]" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">{{ row.document_label }}</p>
-                            <h2 class="mt-2 text-lg font-semibold">{{ row.student_name }}</h2>
-                            <p class="mt-1 text-sm" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">
-                                {{ row.student_id_number || '-' }} • {{ row.team_name || team.name }}
-                            </p>
-                        </div>
-                        <span class="rounded-full border px-3 py-1 text-xs font-semibold" :class="statusTone(row.review_status)">
-                            {{ statusLabel(row.review_status) }}
-                        </span>
-                    </div>
-
-                    <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-50'">
-                            <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">Student ID</p>
-                            <p class="mt-2 text-sm font-medium">{{ row.student_id_number || '-' }}</p>
-                        </div>
-                        <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-50'">
-                            <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">Team</p>
-                            <p class="mt-2 text-sm font-medium">{{ row.team_name || team.name }}</p>
-                        </div>
-                        <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-50'">
-                            <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">File Name</p>
-                            <p class="mt-2 text-sm font-medium break-all">{{ row.file_name }}</p>
-                        </div>
-                        <div class="rounded-2xl border px-4 py-3" :class="isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-50'">
-                            <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">Uploaded</p>
-                            <p class="mt-2 text-sm font-medium">{{ formatDateTime(row.uploaded_at) }}</p>
-                        </div>
-                    </div>
-
-                    <p v-if="row.notes" class="mt-4 text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">{{ row.notes }}</p>
-
-                    <div class="mt-4 flex flex-wrap gap-2">
-                        <a :href="row.file_url" target="_blank" class="rounded-2xl border border-[#034485]/25 bg-white px-4 py-2 text-sm font-semibold text-[#034485]">View / Preview</a>
-                        <a
-                            :href="row.download_url"
-                            class="rounded-2xl border px-4 py-2 text-sm font-semibold"
-                            :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'"
-                        >
-                            Download
-                        </a>
-                    </div>
-                </article>
-
-                <div
-                    v-if="documents.data.length === 0"
-                    class="rounded-3xl border p-8 text-center text-sm shadow-sm"
-                    :class="isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-[#d6e4f4] bg-white text-slate-500'"
-                >
-                    No team documents matched the current filters.
-                </div>
-
-                <div v-if="documents.meta.last_page > 1" class="flex items-center justify-between gap-3 rounded-3xl border p-4 shadow-sm" :class="isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-100' : 'border-[#d6e4f4] bg-white text-slate-900'">
-                    <p class="text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
-                        Page {{ documents.meta.current_page }} of {{ documents.meta.last_page }} • {{ documents.meta.total }} documents
-                    </p>
-                    <div class="flex gap-2">
-                        <button
-                            type="button"
-                            class="rounded-2xl border px-4 py-2 text-sm font-semibold"
-                            :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100 disabled:opacity-40' : 'border-slate-200 bg-slate-50 text-slate-700 disabled:opacity-40'"
-                            :disabled="documents.meta.current_page <= 1"
-                            @click="applyFilters(documents.meta.current_page - 1)"
-                        >
-                            Previous
-                        </button>
-                        <button
-                            type="button"
-                            class="rounded-2xl border px-4 py-2 text-sm font-semibold"
-                            :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100 disabled:opacity-40' : 'border-slate-200 bg-slate-50 text-slate-700 disabled:opacity-40'"
-                            :disabled="documents.meta.current_page >= documents.meta.last_page"
-                            @click="applyFilters(documents.meta.current_page + 1)"
-                        >
-                            Next
-                        </button>
-                    </div>
+        <template v-else>
+            <section
+                class="rounded-3xl border p-4"
+                :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-[#c8dcef] bg-white text-slate-900'"
+            >
+                <div class="grid gap-3 md:grid-cols-4">
+                    <InputText
+                        v-model="filters.search"
+                        class="w-full"
+                        placeholder="Search student name, ID, or document"
+                    />
+                    <Select v-model="filters.type" :options="documentTypeOptions" optionLabel="label" optionValue="value" class="w-full" />
+                    <Select v-model="filters.review_status" :options="reviewStatusOptions" optionLabel="label" optionValue="value" class="w-full" />
+                    <DatePicker
+                        v-model="uploadDateModel"
+                        showIcon
+                        iconDisplay="input"
+                        inputClass="w-full rounded-2xl border px-4 py-3 text-sm"
+                        :pt="{
+                            pcInputText: {
+                                root: {
+                                    class: isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-900',
+                                },
+                            },
+                        }"
+                        panelClass="text-sm"
+                        placeholder="Upload date"
+                        dateFormat="yy-mm-dd"
+                        :manualInput="false"
+                    />
                 </div>
             </section>
 
-            <aside
-                class="rounded-3xl border p-5 shadow-sm"
-                :class="isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-100' : 'border-[#d6e4f4] bg-white text-slate-900'"
+            <section
+                class="rounded-3xl border p-4"
+                :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-[#c8dcef] bg-white text-slate-900'"
             >
-                <p class="text-xs font-semibold uppercase tracking-[0.16em]" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">Preview Summary</p>
-                <template v-if="selectedPreview">
-                    <h2 class="mt-3 text-xl font-semibold">{{ selectedPreview.document_label }}</h2>
-                    <p class="mt-1 text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
-                        {{ selectedPreview.student_name }} • {{ selectedPreview.student_id_number || '-' }}
+                <DataTable
+                    :value="documents.data"
+                    dataKey="id"
+                    responsiveLayout="scroll"
+                    class="team-documents-table"
+                    :pt="{
+                        table: { class: 'min-w-[980px]' },
+                        thead: { class: 'bg-[#034485] text-white' },
+                        tbody: { class: isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-900' },
+                    }"
+                >
+                    <template #empty>
+                        <div class="py-8 text-center text-sm text-slate-500">
+                            No team documents matched the current filters.
+                        </div>
+                    </template>
+
+                    <Column field="student_name" header="Student">
+                        <template #body="{ data }">
+                            <div>
+                                <p class="font-semibold">{{ data.student_name }}</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ data.student_id_number || '-' }}</p>
+                            </div>
+                        </template>
+                    </Column>
+
+                    <Column field="document_label" header="Document">
+                        <template #body="{ data }">
+                            <div>
+                                <p class="font-medium">{{ data.document_label }}</p>
+                                <p class="mt-1 text-xs text-slate-500 break-all">{{ data.file_name }}</p>
+                            </div>
+                        </template>
+                    </Column>
+
+                    <Column field="team_name" header="Team">
+                        <template #body="{ data }">
+                            {{ data.team_name || team.name }}
+                        </template>
+                    </Column>
+
+                    <Column field="review_status" header="Review">
+                        <template #body="{ data }">
+                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold" :class="statusTone(data.review_status)">
+                                {{ statusLabel(data.review_status) }}
+                            </span>
+                        </template>
+                    </Column>
+
+                    <Column field="uploaded_at" header="Uploaded">
+                        <template #body="{ data }">
+                            {{ formatDateTime(data.uploaded_at) }}
+                        </template>
+                    </Column>
+
+                    <Column field="notes" header="Notes">
+                        <template #body="{ data }">
+                            <span class="line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
+                                {{ data.notes || '-' }}
+                            </span>
+                        </template>
+                    </Column>
+
+                    <Column header="Actions">
+                        <template #body="{ data }">
+                            <div class="flex flex-wrap gap-2">
+                                <a :href="data.file_url" target="_blank" class="rounded-2xl border border-[#034485]/25 bg-white px-3 py-2 text-xs font-semibold text-[#034485]">
+                                    Preview
+                                </a>
+                                <a
+                                    :href="data.download_url"
+                                    class="rounded-2xl border px-3 py-2 text-xs font-semibold"
+                                    :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'"
+                                >
+                                    Download
+                                </a>
+                            </div>
+                        </template>
+                    </Column>
+                </DataTable>
+
+                <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
+                        Page {{ documents.meta.current_page }} of {{ documents.meta.last_page }} • {{ documents.meta.total }} documents
                     </p>
-                    <div class="mt-4 space-y-3 text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-700'">
-                        <p><span class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-900'">Team:</span> {{ selectedPreview.team_name || team.name }}</p>
-                        <p><span class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-900'">File name:</span> {{ selectedPreview.file_name }}</p>
-                        <p><span class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-900'">Review status:</span> {{ statusLabel(selectedPreview.review_status) }}</p>
-                        <p><span class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-900'">Uploaded:</span> {{ formatDateTime(selectedPreview.uploaded_at) }}</p>
-                        <p v-if="selectedPreview.notes"><span class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-900'">Notes:</span> {{ selectedPreview.notes }}</p>
-                    </div>
-                    <div class="mt-4 flex flex-wrap gap-2">
-                        <a :href="selectedPreview.file_url" target="_blank" class="rounded-2xl border border-[#034485]/25 bg-white px-4 py-2 text-sm font-semibold text-[#034485]">View / Preview</a>
-                        <a
-                            :href="selectedPreview.download_url"
-                            class="rounded-2xl border px-4 py-2 text-sm font-semibold"
-                            :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'"
-                        >
-                            Download
-                        </a>
-                    </div>
-                </template>
-                <p v-else class="mt-3 text-sm" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">No documents found for the current filters.</p>
-            </aside>
-        </div>
+
+                    <Paginator
+                        :first="firstRecordIndex"
+                        :rows="documents.meta.per_page"
+                        :totalRecords="documents.meta.total"
+                        template="PrevPageLink PageLinks NextPageLink"
+                        @page="handlePageChange"
+                    />
+                </div>
+            </section>
+        </template>
     </div>
 </template>

@@ -12,7 +12,7 @@ return new class extends Migration
         Schema::create('student_approval_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
-            $table->foreignId('admin_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('coach_id')->nullable()->constrained('coaches')->nullOnDelete();
             $table->enum('decision', ['approved', 'rejected']);
             $table->string('remarks', 255)->nullable();
             $table->timestamps();
@@ -21,14 +21,15 @@ return new class extends Migration
         $rows = DB::table('account_approvals as aa')
             ->join('users', 'users.id', '=', 'aa.user_id')
             ->join('students', 'students.user_id', '=', 'users.id')
+            ->leftJoin('coaches as c', 'c.user_id', '=', 'aa.admin_id')
             ->whereIn('aa.decision', ['approved', 'rejected'])
-            ->select('students.id as student_id', 'aa.admin_id', 'aa.decision', 'aa.remarks', 'aa.created_at', 'aa.updated_at')
+            ->select('students.id as student_id', 'c.id as coach_id', 'aa.decision', 'aa.remarks', 'aa.created_at', 'aa.updated_at')
             ->get();
 
         foreach ($rows as $row) {
             DB::table('student_approval_histories')->insert([
                 'student_id' => $row->student_id,
-                'admin_id' => $row->admin_id,
+                'coach_id' => $row->coach_id,
                 'decision' => $row->decision,
                 'remarks' => $row->remarks,
                 'created_at' => $row->created_at,

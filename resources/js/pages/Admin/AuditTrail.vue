@@ -201,8 +201,8 @@ function categoryTone(value: AuditRow['category']) {
 
             <div v-else class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50">
-                        <tr class="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    <thead class="bg-[#034485] text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]">
+                        <tr class="text-left text-xs font-semibold uppercase tracking-[0.16em] text-white">
                             <th class="px-6 py-4">Category</th>
                             <th class="px-6 py-4">Subject</th>
                             <th class="px-6 py-4">Context</th>

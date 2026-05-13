@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\TeamPlayer;
 use App\Models\Team;
+use App\Models\Sport;
 
 class Student extends Model
 {
@@ -24,6 +25,7 @@ class Student extends Model
         'course_or_strand',
         'current_grade_level',
         'approval_status',
+        'applied_sport_id',
         'student_status',
         'phone_number',
         'emergency_contact_name',
@@ -130,6 +132,11 @@ class Student extends Model
     public function trainingRequirements()
     {
         return $this->hasMany(TrainingRequirement::class, 'student_id');
+    }
+
+    public function appliedSport()
+    {
+        return $this->belongsTo(Sport::class, 'applied_sport_id');
     }
 
     public function academicDocuments()

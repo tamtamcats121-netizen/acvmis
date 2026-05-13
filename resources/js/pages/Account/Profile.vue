@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3'
+import DatePicker from 'primevue/datepicker'
+import FileUpload from 'primevue/fileupload'
+import InputMask from 'primevue/inputmask'
+import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
+import Select from 'primevue/select'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 import AccountShell from '@/components/Account/AccountShell.vue'
@@ -65,10 +71,10 @@ const form = useForm({
 })
 
 const emergencyRelationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Grandparent', 'Relative', 'Spouse', 'Other']
+const genderOptions = ['Male', 'Female', 'Other']
 
 const saved = ref(false)
 const avatarPreview = ref<string | null>(null)
-const avatarInput = ref<HTMLInputElement | null>(null)
 
 const cropModalOpen = ref(false)
 const cropSourceUrl = ref<string | null>(null)
@@ -103,6 +109,29 @@ const roleLabel = computed(() => {
   if (role.value === 'coach') return 'Coach'
   if (role.value === 'admin') return 'Administrator'
   return role.value || 'User'
+})
+
+function parseDateString(value: string | null | undefined): Date | null {
+  if (!value) return null
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function formatDateString(value: Date | null): string {
+  if (!value) return ''
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const today = new Date()
+const dateOfBirthModel = computed<Date | null>({
+  get: () => parseDateString(form.date_of_birth),
+  set: (value) => {
+    form.date_of_birth = formatDateString(value)
+  },
 })
 
 function displayValue(value: string | number | null | undefined) {
@@ -152,10 +181,6 @@ function revokeUrl(value: string | null) {
   }
 }
 
-function triggerAvatarPicker() {
-  avatarInput.value?.click()
-}
-
 function resetCropState() {
   cropScale.value = 1
   cropMinScale.value = 1
@@ -173,15 +198,13 @@ function closeCropModal() {
   removeDragListeners()
 }
 
-function onAvatarChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
+function onPrimeAvatarSelect(files: File[] | undefined) {
+  const file = files?.[0] ?? null
 
   if (!file) return
 
   if (!file.type.startsWith('image/')) {
     form.setError('avatar', 'Please select a valid image file.')
-    input.value = ''
     return
   }
 
@@ -190,7 +213,6 @@ function onAvatarChange(event: Event) {
   revokeUrl(cropSourceUrl.value)
   cropSourceUrl.value = URL.createObjectURL(file)
   cropModalOpen.value = true
-  input.value = ''
 }
 
 function onCropImageLoad() {
@@ -383,22 +405,19 @@ onBeforeUnmount(() => {
               <div class="min-w-0">
                 <p class="text-sm font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-900'">Profile Photo</p>
                 <p class="mt-1 text-xs leading-5" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">JPG, PNG, or WebP up to 2MB. Crop before saving for the best fit.</p>
-                <input ref="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" @change="onAvatarChange" class="hidden" />
-                <button
-                  type="button"
-                  class="mt-3 inline-flex rounded-full border px-4 py-2 text-sm font-semibold transition"
-                  :class="
-                    isDarkMode
-                      ? 'border-slate-600 bg-slate-800 text-white hover:bg-slate-700'
-                      : 'border-[#034485]/25 bg-white text-[#034485] hover:bg-[#034485]/5'
-                  "
-                  @click="triggerAvatarPicker"
-                >
-                  Choose Photo
-                </button>
+                <FileUpload
+                  mode="basic"
+                  customUpload
+                  chooseLabel="Choose Photo"
+                  accept="image/png,image/jpeg,image/webp"
+                  class="mt-3"
+                  @select="(event) => onPrimeAvatarSelect(event.files)"
+                />
               </div>
             </div>
-            <p v-if="form.errors.avatar" class="mt-3 text-xs text-red-600">{{ form.errors.avatar }}</p>
+            <Message v-if="form.errors.avatar" severity="error" size="small" variant="simple" class="mt-3">
+              {{ form.errors.avatar }}
+            </Message>
           </div>
         </div>
       </section>
@@ -419,54 +438,61 @@ onBeforeUnmount(() => {
             <div class="grid gap-4 md:grid-cols-2">
               <div class="md:col-span-2">
                 <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Full Name</label>
-                <input v-model="form.name" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" required />
-                <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
+                <InputText v-model="form.name" class="mt-1 w-full" required />
+                <Message v-if="form.errors.name" severity="error" size="small" variant="simple" class="mt-1">{{ form.errors.name }}</Message>
               </div>
 
               <template v-if="role !== 'admin'">
                 <div>
                   <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Phone</label>
-                  <input v-model="form.phone_number" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
-                  <p v-if="form.errors.phone_number" class="mt-1 text-xs text-red-600">{{ form.errors.phone_number }}</p>
+                  <InputMask v-model="form.phone_number" mask="0999-999-9999" class="mt-1 w-full" />
+                  <Message v-if="form.errors.phone_number" severity="error" size="small" variant="simple" class="mt-1">{{ form.errors.phone_number }}</Message>
                 </div>
                 <div>
                   <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</label>
-                  <input v-model="form.home_address" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
-                  <p v-if="form.errors.home_address" class="mt-1 text-xs text-red-600">{{ form.errors.home_address }}</p>
+                  <InputText v-model="form.home_address" class="mt-1 w-full" />
+                  <Message v-if="form.errors.home_address" severity="error" size="small" variant="simple" class="mt-1">{{ form.errors.home_address }}</Message>
                 </div>
               </template>
 
               <template v-if="role === 'student'">
                 <div>
                   <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Emergency Contact Name</label>
-                  <input v-model="form.emergency_contact_name" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
-                  <p v-if="form.errors.emergency_contact_name" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_name }}</p>
+                  <InputText v-model="form.emergency_contact_name" class="mt-1 w-full" />
+                  <Message v-if="form.errors.emergency_contact_name" severity="error" size="small" variant="simple" class="mt-1">{{ form.errors.emergency_contact_name }}</Message>
                 </div>
                 <div>
                   <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Relationship</label>
-                  <select v-model="form.emergency_contact_relationship" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10">
-                    <option value="">Select relationship</option>
-                    <option v-for="option in emergencyRelationshipOptions" :key="option" :value="option">{{ option }}</option>
-                  </select>
-                  <p v-if="form.errors.emergency_contact_relationship" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_relationship }}</p>
+                  <Select v-model="form.emergency_contact_relationship" :options="emergencyRelationshipOptions" placeholder="Select relationship" class="mt-1 w-full" />
+                  <Message v-if="form.errors.emergency_contact_relationship" severity="error" size="small" variant="simple" class="mt-1">{{ form.errors.emergency_contact_relationship }}</Message>
                 </div>
                 <div class="md:col-span-2">
                   <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Emergency Contact Phone</label>
-                  <input v-model="form.emergency_contact_phone" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
-                  <p v-if="form.errors.emergency_contact_phone" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_phone }}</p>
+                  <InputMask v-model="form.emergency_contact_phone" mask="0999-999-9999" class="mt-1 w-full" />
+                  <Message v-if="form.errors.emergency_contact_phone" severity="error" size="small" variant="simple" class="mt-1">{{ form.errors.emergency_contact_phone }}</Message>
                 </div>
               </template>
 
               <template v-if="role === 'coach'">
                 <div>
                   <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Date of Birth</label>
-                  <input v-model="form.date_of_birth" type="date" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
-                  <p v-if="form.errors.date_of_birth" class="mt-1 text-xs text-red-600">{{ form.errors.date_of_birth }}</p>
+                  <DatePicker
+                    v-model="dateOfBirthModel"
+                    showIcon
+                    iconDisplay="input"
+                    inputClass="w-full"
+                    :maxDate="today"
+                    panelClass="text-sm"
+                    placeholder="Select date of birth"
+                    dateFormat="yy-mm-dd"
+                    :manualInput="false"
+                  />
+                  <Message v-if="form.errors.date_of_birth" severity="error" size="small" variant="simple" class="mt-1">{{ form.errors.date_of_birth }}</Message>
                 </div>
                 <div>
                   <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Gender</label>
-                  <input v-model="form.gender" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
-                  <p v-if="form.errors.gender" class="mt-1 text-xs text-red-600">{{ form.errors.gender }}</p>
+                  <Select v-model="form.gender" :options="genderOptions" placeholder="Select gender" class="mt-1 w-full" />
+                  <Message v-if="form.errors.gender" severity="error" size="small" variant="simple" class="mt-1">{{ form.errors.gender }}</Message>
                 </div>
               </template>
             </div>
@@ -548,6 +574,23 @@ onBeforeUnmount(() => {
     </div>
   </AccountShell>
 </template>
+
+<style scoped>
+:deep(.p-fileupload-basic .p-button) {
+  background: #034485 !important;
+  border-color: #034485 !important;
+  color: #ffffff !important;
+  border-radius: 0.9rem !important;
+  padding: 0.65rem 1rem !important;
+  font-weight: 600 !important;
+}
+
+:deep(.p-fileupload-basic .p-button:hover) {
+  background: #02376b !important;
+  border-color: #02376b !important;
+  color: #ffffff !important;
+}
+</style>
 
 <style scoped>
 .crop-overlay {

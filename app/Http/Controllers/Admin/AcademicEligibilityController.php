@@ -268,6 +268,7 @@ class AcademicEligibilityController extends Controller
         }
 
         $coachUserIds = Team::query()
+            ->active()
             ->whereHas('players', fn ($q) => $q->where('student_id', (int) $validated['student_id']))
             ->with([
                 'coach' => fn ($query) => $query->select('coaches.id', 'coaches.user_id'),

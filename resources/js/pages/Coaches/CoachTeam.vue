@@ -2,9 +2,8 @@
 import { router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
-import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
+import { useTheme } from '@/composables/useTheme'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import { resolveTeamAvatarUrl as teamAvatarUrl, resolveUserAvatarUrl as userAvatarUrl } from '@/utils/media'
 
@@ -50,23 +49,27 @@ const props = defineProps<{
 const positionDrafts = ref<Record<number, string>>({})
 const positionSaveState = ref<Record<number, 'idle' | 'saving' | 'saved' | 'error'>>({})
 
-const requestDialogOpen = ref(false)
-const requestNotes = ref('')
-const requestSubmitting = ref(false)
 const detailsOpen = ref(false)
 const selectedPlayer = ref<PlayerRow | null>(null)
 const copiedField = ref<string | null>(null)
+const inviteMenuOpen = ref(false)
 let restoreBodyOverflow: string | null = null
 let restoreHtmlOverflow: string | null = null
 
 const selectedTeamId = ref<number | null>(props.selectedTeamId ?? null)
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
+const { isDarkMode } = useTheme()
 
 const players = computed<PlayerRow[]>(() => props.team?.players ?? [])
 const selectedStudent = computed(() => selectedPlayer.value?.student ?? null)
 const totalPlayers = computed(() => players.value.length)
 const positionsFilled = computed(() => players.value.filter((player) => String(player.athlete_position ?? '').trim() !== '').length)
 const jerseysAssigned = computed(() => players.value.filter((player) => String(player.jersey_number ?? '').trim() !== '').length)
+const teamInvite = computed(() => props.team?.invite ?? null)
+const inviteCode = computed(() => String(teamInvite.value?.code ?? ''))
+const inviteLink = computed(() => String(teamInvite.value?.join_url ?? ''))
+const inviteAvailable = computed(() => Boolean(teamInvite.value?.is_available))
+const inviteActive = computed(() => Boolean(teamInvite.value?.is_active))
 
 watch(
     () => props.team?.players,
@@ -169,11 +172,6 @@ function savePosition(teamPlayerId: number) {
     )
 }
 
-function openRequest() {
-    requestNotes.value = ''
-    requestDialogOpen.value = true
-}
-
 function openDetails(player: PlayerRow) {
     selectedPlayer.value = player
     detailsOpen.value = true
@@ -232,39 +230,6 @@ async function copyToClipboard(value?: string | number | null, label?: string) {
     }
 }
 
-function submitRequest() {
-    router.post(
-        '/coach/team/requests',
-        {
-            type: 'team_change',
-            notes: requestNotes.value,
-            team_id: selectedTeamId.value ?? undefined,
-        },
-        {
-            preserveScroll: true,
-            onStart: () => {
-                requestSubmitting.value = true
-            },
-            onFinish: () => {
-                requestSubmitting.value = false
-            },
-            onSuccess: () => {
-                requestDialogOpen.value = false
-                requestNotes.value = ''
-            },
-            onError: (errors) => {
-                const detail = Array.isArray(errors?.team_id)
-                    ? errors.team_id[0]
-                    : errors?.team_id || errors?.type || 'Unable to send request.'
-
-                showAppToast(String(detail), 'error', {
-                    summary: 'Team Change Request',
-                })
-            },
-        },
-    )
-}
-
 function changeTeam() {
     if (!selectedTeamId.value) return
     router.get('/coach/team', { team_id: selectedTeamId.value }, {
@@ -279,6 +244,59 @@ function printTeamRoster() {
     const params = new URLSearchParams()
     params.set('team_id', String(selectedTeamId.value))
     window.open(`/coach/team/print?${params.toString()}`, '_blank')
+}
+
+function openManageTeams() {
+    router.get('/coach/teams/manage', selectedTeamId.value ? { team_id: selectedTeamId.value } : {}, {
+        preserveScroll: true,
+    })
+}
+
+function generateInviteCode() {
+    if (!props.team?.id) return
+    router.post(`/coach/teams/${props.team.id}/invite-code`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            inviteMenuOpen.value = false
+        },
+    })
+}
+
+function regenerateInviteCode() {
+    if (!props.team?.id) return
+    if (!window.confirm('Regenerate this team invite code? The old code will stop working.')) return
+    router.post(`/coach/teams/${props.team.id}/invite-code/regenerate`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            inviteMenuOpen.value = false
+        },
+    })
+}
+
+function disableInviteCode() {
+    if (!props.team?.id) return
+    if (!window.confirm('Disable this team invite code? Students will no longer be able to join with this link.')) return
+    router.delete(`/coach/teams/${props.team.id}/invite-code`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            inviteMenuOpen.value = false
+        },
+    })
+}
+
+function copyInviteLink() {
+    copyToClipboard(inviteLink.value, 'team-invite-link')
+}
+
+function copyInviteCode() {
+    copyToClipboard(inviteCode.value, 'team-invite-code')
+    inviteMenuOpen.value = false
+}
+
+function openJoinPage() {
+    if (!inviteLink.value) return
+    window.open(inviteLink.value, '_blank')
+    inviteMenuOpen.value = false
 }
 
 </script>
@@ -305,7 +323,7 @@ function printTeamRoster() {
         </div>
 
         <div v-else class="space-y-5">
-            <section class="page-card overflow-hidden rounded-3xl border border-[#034485]/35 bg-gradient-to-br from-[#034485] via-[#0b5aa6] to-[#02315f] p-6 shadow-[0_22px_48px_-30px_rgba(3,68,133,0.42)]">
+            <section class="page-card relative z-10 rounded-3xl border border-[#034485]/35 bg-gradient-to-br from-[#034485] via-[#0b5aa6] to-[#02315f] p-6 shadow-[0_22px_48px_-30px_rgba(3,68,133,0.42)]">
                 <div class="relative flex flex-col gap-5">
                     <div class="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-center">
                         <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-white/18 bg-[#0a4f96]/70 shadow-[0_16px_36px_-24px_rgba(15,23,42,0.55)] sm:h-28 sm:w-28">
@@ -339,14 +357,11 @@ function printTeamRoster() {
                     </div>
 
                     <div class="flex w-full flex-col gap-2 border-t border-white/14 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
-                        <span class="inline-flex w-fit items-center rounded-full border border-white/18 bg-[#0a4f96]/55 px-3 py-1 text-xs font-semibold text-white/90">
-                            Coach Actions
-                        </span>
                         <button
                             class="rounded-full border border-white/24 bg-white px-4 py-2 text-xs font-semibold text-[#034485] shadow-sm transition hover:bg-[#eef5ff]"
-                            @click="openRequest()"
+                            @click="openManageTeams"
                         >
-                            Request Team Change
+                            Manage Teams
                         </button>
                         <button
                             class="rounded-full border border-white/24 bg-white px-4 py-2 text-xs font-semibold text-[#034485] shadow-sm transition hover:bg-[#eef5ff]"
@@ -355,21 +370,107 @@ function printTeamRoster() {
                             Print Roster
                         </button>
                     </div>
+
+                    <div class="relative z-30 rounded-3xl border border-white/20 bg-white/12 p-4 text-white shadow-[0_16px_30px_-24px_rgba(15,23,42,0.36)] backdrop-blur-md">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">Team Invite Code</p>
+                                <div v-if="inviteAvailable" class="mt-2 flex flex-wrap items-center gap-3">
+                                    <p
+                                        v-if="inviteCode"
+                                        class="rounded-2xl border border-white/24 bg-white/18 px-4 py-2 font-mono text-xl font-bold tracking-[0.18em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]"
+                                    >
+                                        {{ inviteCode }}
+                                    </p>
+                                    <p v-else class="text-sm font-medium text-white/75">
+                                        Generate a code so student-athletes can join this current-year roster.
+                                    </p>
+                                    <span
+                                        v-if="inviteCode"
+                                        class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
+                                        :class="inviteActive ? 'border-emerald-200/50 bg-emerald-400/18 text-emerald-50' : 'border-amber-200/50 bg-amber-400/18 text-amber-50'"
+                                    >
+                                        {{ inviteActive ? 'Active' : 'Disabled' }}
+                                    </span>
+                                </div>
+                                <p v-else class="mt-2 text-sm font-medium text-white/72">
+                                    Invite codes are only available for current active teams.
+                                </p>
+                            </div>
+
+                            <div v-if="inviteAvailable" class="flex shrink-0 items-center gap-2">
+                                <button
+                                    v-if="inviteActive && inviteLink"
+                                    type="button"
+                                    class="rounded-full border border-white/24 bg-white px-4 py-2 text-xs font-semibold text-[#034485] shadow-sm transition hover:bg-[#eef5ff]"
+                                    @click="copyInviteLink"
+                                >
+                                    {{ copiedField === 'team-invite-link' ? 'Copied' : 'Copy Link' }}
+                                </button>
+                                <button
+                                    v-else-if="!inviteCode || !inviteActive"
+                                    type="button"
+                                    class="rounded-full border border-white/24 bg-white px-4 py-2 text-xs font-semibold text-[#034485] shadow-sm transition hover:bg-[#eef5ff]"
+                                    @click="generateInviteCode"
+                                >
+                                    Generate Invite Code
+                                </button>
+
+                                <div v-if="inviteCode" class="relative z-40">
+                                    <button
+                                        type="button"
+                                        class="flex h-10 w-10 items-center justify-center rounded-full border border-white/24 bg-white/14 text-white transition hover:bg-white/22"
+                                        aria-label="Team invite actions"
+                                        @click="inviteMenuOpen = !inviteMenuOpen"
+                                    >
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor">
+                                            <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4m0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4" />
+                                        </svg>
+                                    </button>
+
+                                    <transition name="invite-menu">
+                                        <div
+                                            v-if="inviteMenuOpen"
+                                            class="absolute right-0 z-[80] mt-2 w-52 overflow-hidden rounded-2xl border border-[#034485]/20 bg-white py-2 text-sm text-slate-700 shadow-[0_18px_45px_-24px_rgba(15,23,42,0.45)]"
+                                        >
+                                            <button type="button" class="block w-full px-4 py-2 text-left font-semibold hover:bg-[#eef5ff] hover:text-[#034485]" @click="copyInviteCode">
+                                                {{ copiedField === 'team-invite-code' ? 'Code Copied' : 'Copy Code' }}
+                                            </button>
+                                            <button v-if="inviteLink" type="button" class="block w-full px-4 py-2 text-left font-semibold hover:bg-[#eef5ff] hover:text-[#034485]" @click="openJoinPage">
+                                                View Join Page
+                                            </button>
+                                            <button type="button" class="block w-full px-4 py-2 text-left font-semibold hover:bg-[#eef5ff] hover:text-[#034485]" @click="regenerateInviteCode">
+                                                Regenerate Code
+                                            </button>
+                                            <button
+                                                v-if="inviteActive"
+                                                type="button"
+                                                class="block w-full px-4 py-2 text-left font-semibold text-red-600 hover:bg-red-50"
+                                                @click="disableInviteCode"
+                                            >
+                                                Disable Code
+                                            </button>
+                                        </div>
+                                    </transition>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div class="page-card rounded-3xl border border-[#034485]/30 bg-[#eef4fb] p-4 text-slate-800 shadow-[0_18px_36px_-30px_rgba(3,68,133,0.26)]">
+                    <div class="page-card rounded-3xl border border-white/20 bg-white/12 p-4 text-white shadow-[0_16px_30px_-24px_rgba(15,23,42,0.36)] backdrop-blur-md">
                         <div class="flex items-start justify-between gap-3">
-                            <p class="text-xs uppercase tracking-wide text-[#034485]">Head Coach</p>
+                            <p class="text-xs uppercase tracking-wide text-white/78">Head Coach</p>
                             <span
                                 v-if="isCurrentCoach(props.team.coach)"
-                                class="inline-flex items-center rounded-full border border-[#034485]/20 bg-[#034485]/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#034485]"
+                                class="inline-flex items-center rounded-full border border-white/28 bg-white/16 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
                             >
                                 You
                             </span>
                         </div>
                         <div class="mt-3 flex items-center gap-3">
-                            <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-white text-sm font-bold text-[#034485] shadow-sm">
+                            <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/24 bg-white/22 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-xl">
                                 <img
                                     v-if="props.team.coach?.user?.avatar"
                                     :src="coachAvatarUrl(props.team.coach)"
@@ -381,10 +482,10 @@ function printTeamRoster() {
                                 <span v-else>{{ initialsFromParts(props.team.coach?.first_name, props.team.coach?.last_name) }}</span>
                             </div>
                             <div class="min-w-0">
-                                <p class="truncate text-sm font-semibold text-slate-900">
+                                <p class="truncate text-sm font-semibold text-white">
                                     {{ props.team.coach?.first_name }} {{ props.team.coach?.last_name }}
                                 </p>
-                                <p class="mt-1 text-xs text-slate-600">
+                                <p class="mt-1 text-xs text-white/72">
                                     {{ props.team.coach?.email || props.team.coach?.phone_number || 'Contact available below' }}
                                 </p>
                             </div>
@@ -392,16 +493,16 @@ function printTeamRoster() {
                         <div class="mt-3 space-y-2 text-xs">
                             <div
                                 v-if="props.team.coach?.email"
-                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#034485]/15 bg-white px-3 py-2"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/24 bg-white/16 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] backdrop-blur-xl"
                             >
                                 <div class="min-w-0">
-                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Email</p>
-                                    <p class="truncate text-sm font-medium text-slate-700">{{ props.team.coach.email }}</p>
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-white/65">Email</p>
+                                    <p class="truncate text-sm font-medium text-white">{{ props.team.coach.email }}</p>
                                 </div>
                                 <button
                                     type="button"
                                     @click="copyToClipboard(props.team.coach.email, 'coach-email')"
-                                    class="inline-flex items-center gap-1 rounded-full border border-[#034485]/30 px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                    class="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/18 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] transition hover:bg-white/26"
                                 >
                                     <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
                                         <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
@@ -411,16 +512,16 @@ function printTeamRoster() {
                             </div>
                             <div
                                 v-if="props.team.coach?.phone_number"
-                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#034485]/15 bg-white px-3 py-2"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/24 bg-white/16 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] backdrop-blur-xl"
                             >
                                 <div class="min-w-0">
-                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Phone</p>
-                                    <p class="text-sm font-medium text-slate-700">{{ props.team.coach.phone_number }}</p>
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-white/65">Phone</p>
+                                    <p class="text-sm font-medium text-white">{{ props.team.coach.phone_number }}</p>
                                 </div>
                                 <button
                                     type="button"
                                     @click="copyToClipboard(props.team.coach.phone_number, 'coach-phone')"
-                                    class="inline-flex items-center gap-1 rounded-full border border-[#034485]/30 px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                    class="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/18 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] transition hover:bg-white/26"
                                 >
                                     <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
                                         <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
@@ -430,24 +531,24 @@ function printTeamRoster() {
                             </div>
                             <span
                                 v-if="!props.team.coach?.email && !props.team.coach?.phone_number"
-                                class="text-slate-400"
+                                class="text-white/55"
                             >
                                 Contact the administrator for assistance
                             </span>
                         </div>
                     </div>
-                    <div class="page-card rounded-3xl border border-[#034485]/30 bg-[#eef4fb] p-4 text-slate-800 shadow-[0_18px_36px_-30px_rgba(3,68,133,0.26)]">
+                    <div class="page-card rounded-3xl border border-white/20 bg-white/12 p-4 text-white shadow-[0_16px_30px_-24px_rgba(15,23,42,0.36)] backdrop-blur-md">
                         <div class="flex items-start justify-between gap-3">
-                            <p class="text-xs uppercase tracking-wide text-[#034485]">Assistant Coach</p>
+                            <p class="text-xs uppercase tracking-wide text-white/78">Assistant Coach</p>
                             <span
                                 v-if="isCurrentCoach(props.team.assistantCoach)"
-                                class="inline-flex items-center rounded-full border border-[#034485]/20 bg-[#034485]/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#034485]"
+                                class="inline-flex items-center rounded-full border border-white/28 bg-white/16 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]"
                             >
                                 You
                             </span>
                         </div>
                         <div v-if="props.team.assistantCoach" class="mt-3 flex items-center gap-3">
-                            <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-white text-sm font-bold text-[#034485] shadow-sm">
+                            <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/24 bg-white/22 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-xl">
                                 <img
                                     v-if="props.team.assistantCoach?.user?.avatar"
                                     :src="coachAvatarUrl(props.team.assistantCoach)"
@@ -457,28 +558,28 @@ function printTeamRoster() {
                                 <span v-else>{{ initialsFromParts(props.team.assistantCoach?.first_name, props.team.assistantCoach?.last_name) }}</span>
                             </div>
                             <div class="min-w-0">
-                                <p class="truncate text-sm font-semibold text-slate-900">
+                                <p class="truncate text-sm font-semibold text-white">
                                     {{ props.team.assistantCoach?.first_name }} {{ props.team.assistantCoach?.last_name }}
                                 </p>
-                                <p class="mt-1 text-xs text-slate-600">
+                                <p class="mt-1 text-xs text-white/72">
                                     {{ props.team.assistantCoach?.email || props.team.assistantCoach?.phone_number || 'Contact available below' }}
                                 </p>
                             </div>
                         </div>
-                        <p v-else class="mt-3 text-sm font-medium text-slate-400">Not assigned</p>
+                        <p v-else class="mt-3 text-sm font-medium text-white/55">Not assigned</p>
                         <div v-if="props.team.assistantCoach" class="mt-3 space-y-2 text-xs">
                             <div
                                 v-if="props.team.assistantCoach?.email"
-                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#034485]/15 bg-white px-3 py-2"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/24 bg-white/16 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] backdrop-blur-xl"
                             >
                                 <div class="min-w-0">
-                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Email</p>
-                                    <p class="truncate text-sm font-medium text-slate-700">{{ props.team.assistantCoach.email }}</p>
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-white/65">Email</p>
+                                    <p class="truncate text-sm font-medium text-white">{{ props.team.assistantCoach.email }}</p>
                                 </div>
                                 <button
                                     type="button"
                                     @click="copyToClipboard(props.team.assistantCoach.email, 'assistant-email')"
-                                    class="inline-flex items-center gap-1 rounded-full border border-[#034485]/30 px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                    class="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/18 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] transition hover:bg-white/26"
                                 >
                                     <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
                                         <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
@@ -488,16 +589,16 @@ function printTeamRoster() {
                             </div>
                             <div
                                 v-if="props.team.assistantCoach?.phone_number"
-                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#034485]/15 bg-white px-3 py-2"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/24 bg-white/16 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] backdrop-blur-xl"
                             >
                                 <div class="min-w-0">
-                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Phone</p>
-                                    <p class="text-sm font-medium text-slate-700">{{ props.team.assistantCoach.phone_number }}</p>
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-white/65">Phone</p>
+                                    <p class="text-sm font-medium text-white">{{ props.team.assistantCoach.phone_number }}</p>
                                 </div>
                                 <button
                                     type="button"
                                     @click="copyToClipboard(props.team.assistantCoach.phone_number, 'assistant-phone')"
-                                    class="inline-flex items-center gap-1 rounded-full border border-[#034485]/30 px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                    class="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/18 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] transition hover:bg-white/26"
                                 >
                                     <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
                                         <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
@@ -507,7 +608,7 @@ function printTeamRoster() {
                             </div>
                             <span
                                 v-if="!props.team.assistantCoach?.email && !props.team.assistantCoach?.phone_number"
-                                class="text-slate-400"
+                                class="text-white/55"
                             >
                                 Contact the administrator for assistance
                             </span>
@@ -620,7 +721,11 @@ function printTeamRoster() {
         <transition name="athlete-modal">
             <div v-if="detailsOpen" class="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/40 px-4 py-6 backdrop-blur-sm">
                 <div class="flex min-h-full items-center justify-center" @click="closeDetails">
-                <div class="flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[#034485]/35 bg-white shadow-[0_28px_70px_-34px_rgba(2,12,27,0.45)]" @click.stop>
+                <div
+                    class="flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border shadow-[0_28px_70px_-34px_rgba(2,12,27,0.45)]"
+                    :class="isDarkMode ? 'border-slate-700 bg-slate-950' : 'border-[#034485]/35 bg-white'"
+                    @click.stop
+                >
                 <div class="rounded-t-3xl bg-[#034485] px-6 py-5 text-white sm:px-8">
                     <p class="text-xs font-semibold uppercase tracking-wide text-white/75">Player Details</p>
                     <h3 class="mt-1 text-2xl font-bold text-white">
@@ -628,13 +733,13 @@ function printTeamRoster() {
                     </h3>
                     <p class="mt-1 text-xs text-white/80">Student ID: {{ formatSimple(selectedStudent?.student_id_number) }}</p>
                 </div>
-                <div class="overflow-y-auto p-6 sm:p-8">
+                <div class="overflow-y-auto p-6 sm:p-8" :class="isDarkMode ? 'text-slate-200' : 'text-slate-700'">
                 <div class="flex flex-wrap items-start justify-between gap-6">
                     <div class="min-w-[220px] flex-1 space-y-4">
-                        <div class="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-                            <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] px-3 py-3 sm:col-span-2">
+                        <div class="grid gap-3 text-sm sm:grid-cols-2" :class="isDarkMode ? 'text-slate-300' : 'text-slate-700'">
+                            <div class="rounded-2xl border px-3 py-3 sm:col-span-2" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/15 bg-[#f7fbff]'">
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Student ID</p>
-                                <p class="mt-1 inline-flex items-center gap-2 font-semibold text-slate-900">
+                                <p class="mt-1 inline-flex items-center gap-2 font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">
                                     {{ formatSimple(selectedStudent?.student_id_number) }}
                                     <button
                                         type="button"
@@ -650,49 +755,49 @@ function printTeamRoster() {
                                     </button>
                                 </p>
                             </div>
-                            <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] px-3 py-3">
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/15 bg-[#f7fbff]'">
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Position</p>
-                                <p class="mt-1 font-semibold text-slate-900">{{ formatSimple(selectedPlayer?.athlete_position) }}</p>
+                                <p class="mt-1 font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ formatSimple(selectedPlayer?.athlete_position) }}</p>
                             </div>
-                            <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] px-3 py-3">
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/15 bg-[#f7fbff]'">
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Jersey</p>
-                                <p class="mt-1 font-semibold text-slate-900">{{ formatSimple(selectedPlayer?.jersey_number) }}</p>
+                                <p class="mt-1 font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ formatSimple(selectedPlayer?.jersey_number) }}</p>
                             </div>
                         </div>
 
-                        <div class="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-                            <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] px-3 py-3">
+                        <div class="grid gap-3 text-sm sm:grid-cols-2" :class="isDarkMode ? 'text-slate-300' : 'text-slate-700'">
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/15 bg-[#f7fbff]'">
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Course/Strand</p>
-                                <p class="mt-1 font-semibold text-slate-900">{{ formatSimple(selectedStudent?.course_or_strand) }}</p>
+                                <p class="mt-1 font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ formatSimple(selectedStudent?.course_or_strand) }}</p>
                             </div>
-                            <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] px-3 py-3">
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/15 bg-[#f7fbff]'">
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Academic Level</p>
-                                <p class="mt-1 font-semibold text-slate-900">{{ formatSimple(selectedStudent?.academic_level_label ?? selectedStudent?.current_grade_level) }}</p>
+                                <p class="mt-1 font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ formatSimple(selectedStudent?.academic_level_label ?? selectedStudent?.current_grade_level) }}</p>
                             </div>
-                            <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] px-3 py-3">
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/15 bg-[#f7fbff]'">
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Gender</p>
-                                <p class="mt-1 font-semibold text-slate-900">{{ formatSimple(selectedStudent?.gender) }}</p>
+                                <p class="mt-1 font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ formatSimple(selectedStudent?.gender) }}</p>
                             </div>
-                            <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] px-3 py-3">
+                            <div class="rounded-2xl border px-3 py-3" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/15 bg-[#f7fbff]'">
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Height</p>
-                                <p class="mt-1 font-semibold text-slate-900">{{ formatMeasure(selectedStudent?.height, 'cm') }}</p>
+                                <p class="mt-1 font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ formatMeasure(selectedStudent?.height, 'cm') }}</p>
                             </div>
-                            <div class="rounded-2xl border border-[#034485]/15 bg-[#f7fbff] px-3 py-3 sm:col-span-2">
+                            <div class="rounded-2xl border px-3 py-3 sm:col-span-2" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/15 bg-[#f7fbff]'">
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-[#034485]">Weight</p>
-                                <p class="mt-1 font-semibold text-slate-900">{{ formatMeasure(selectedStudent?.weight, 'kg') }}</p>
+                                <p class="mt-1 font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ formatMeasure(selectedStudent?.weight, 'kg') }}</p>
                             </div>
                         </div>
                     </div>
-                    <div class="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#034485]/20 bg-[#f7fbff]">
+                    <div class="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/20 bg-[#f7fbff]'">
                         <img :src="userAvatarUrl(selectedStudent?.user?.avatar ?? null)" alt="Student avatar" class="h-full w-full object-cover" />
                     </div>
                 </div>
 
-                <div class="mt-6 border-t border-slate-200 pt-4">
+                <div class="mt-6 border-t pt-4" :class="isDarkMode ? 'border-slate-700' : 'border-slate-200'">
                     <p class="text-xs font-semibold uppercase tracking-wide text-[#034485]">Contact</p>
-                    <div class="mt-2 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                    <div class="mt-2 grid gap-2 text-sm sm:grid-cols-2" :class="isDarkMode ? 'text-slate-300' : 'text-slate-700'">
                         <p>
-                            <span class="font-semibold text-slate-900">Email:</span>
+                            <span class="font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Email:</span>
                             <span class="ml-1 inline-flex items-center gap-2">
                                 {{ formatSimple(selectedStudent?.user?.email) }}
                                 <button
@@ -713,7 +818,7 @@ function printTeamRoster() {
                             </span>
                         </p>
                         <p>
-                            <span class="font-semibold text-slate-900">Phone:</span>
+                            <span class="font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Phone:</span>
                             <span class="ml-1 inline-flex items-center gap-2">
                                 {{ formatSimple(selectedStudent?.phone_number) }}
                                 <button
@@ -736,13 +841,13 @@ function printTeamRoster() {
                     </div>
                 </div>
 
-                <div class="mt-6 border-t border-slate-200 pt-4">
+                <div class="mt-6 border-t pt-4" :class="isDarkMode ? 'border-slate-700' : 'border-slate-200'">
                     <p class="text-xs font-semibold uppercase tracking-wide text-[#034485]">Emergency Contact</p>
-                    <div class="mt-2 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                        <p><span class="font-semibold text-slate-900">Name:</span> {{ formatSimple(selectedStudent?.emergency_contact_name) }}</p>
-                        <p><span class="font-semibold text-slate-900">Relationship:</span> {{ formatSimple(selectedStudent?.emergency_contact_relationship) }}</p>
+                    <div class="mt-2 grid gap-2 text-sm sm:grid-cols-2" :class="isDarkMode ? 'text-slate-300' : 'text-slate-700'">
+                        <p><span class="font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Name:</span> {{ formatSimple(selectedStudent?.emergency_contact_name) }}</p>
+                        <p><span class="font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Relationship:</span> {{ formatSimple(selectedStudent?.emergency_contact_relationship) }}</p>
                         <p class="sm:col-span-2">
-                            <span class="font-semibold text-slate-900">Phone:</span>
+                            <span class="font-semibold" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">Phone:</span>
                             <span class="ml-1 inline-flex items-center gap-2">
                                 {{ formatSimple(selectedStudent?.emergency_contact_phone) }}
                                 <button
@@ -781,26 +886,6 @@ function printTeamRoster() {
         </transition>
         </Teleport>
 
-        <ConfirmDialog
-            :open="requestDialogOpen"
-            title="Request Team Change"
-            description="Add the details you want the admin team to review."
-            confirm-text="Send Request"
-            @update:open="requestDialogOpen = $event"
-            @confirm="submitRequest"
-        >
-            <div class="space-y-3">
-                <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Details (optional)</label>
-                <textarea
-                    v-model="requestNotes"
-                    rows="3"
-                    class="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                    placeholder="Provide context (names, schedule, reason)"
-                />
-
-                <p v-if="requestSubmitting" class="text-xs text-slate-500">Sending request...</p>
-            </div>
-        </ConfirmDialog>
     </div>
 </template>
 
@@ -818,6 +903,17 @@ function printTeamRoster() {
 .athlete-modal-leave-from {
     opacity: 1;
     transform: translateY(0) scale(1);
+}
+
+.invite-menu-enter-active,
+.invite-menu-leave-active {
+    transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.invite-menu-enter-from,
+.invite-menu-leave-to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
 }
 </style>
 <style scoped>

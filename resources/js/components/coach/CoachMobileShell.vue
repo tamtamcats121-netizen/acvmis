@@ -67,8 +67,9 @@ const navToggleLabel = computed(() => (isNavCollapsed.value ? 'Expand sidebar' :
 
 const footerLinks = [
     { label: 'Dashboard', href: '/coach/dashboard' },
-    { label: 'Schedule & Attendance', href: '/coach/schedule' },
+    { label: 'Student Applications', href: '/coach/applications' },
     { label: 'Team', href: '/coach/team' },
+    { label: 'Schedule & Attendance', href: '/coach/schedule' },
     { label: 'Team Documents', href: '/coach/documents' },
     { label: 'Announcements', href: '/announcements' },
     { label: 'Profile', href: '/account/profile' },

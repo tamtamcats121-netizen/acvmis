@@ -37,6 +37,8 @@ class StudentDocumentController extends Controller
         $filters = [
             'search' => trim((string) $request->query('search', '')),
             'type' => trim((string) $request->query('type', 'all')),
+            'review_status' => trim((string) $request->query('review_status', 'all')),
+            'upload_date' => trim((string) $request->query('upload_date', '')),
         ];
 
         if (!$student) {
@@ -47,7 +49,7 @@ class StudentDocumentController extends Controller
                 'filters' => $filters,
                 'documents' => [
                     'data' => [],
-                    'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 9, 'total' => 0],
+                    'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 12, 'total' => 0],
                 ],
             ]);
         }
@@ -65,6 +67,14 @@ class StudentDocumentController extends Controller
             $documentsQuery->whereHas('documentTypeDefinition', fn ($typeQuery) => $typeQuery->where('code', $filters['type']));
         }
 
+        if ($filters['review_status'] !== '' && $filters['review_status'] !== 'all') {
+            $documentsQuery->where('review_status', $filters['review_status']);
+        }
+
+        if ($filters['upload_date'] !== '') {
+            $documentsQuery->whereDate('uploaded_at', $filters['upload_date']);
+        }
+
         if ($filters['search'] !== '') {
             $term = $filters['search'];
             $documentsQuery->where(function ($query) use ($term) {
@@ -78,7 +88,7 @@ class StudentDocumentController extends Controller
             });
         }
 
-        $documents = $documentsQuery->paginate(9)->withQueryString();
+        $documents = $documentsQuery->paginate(12)->withQueryString();
 
         $evaluations = AcademicEligibilityEvaluation::query()
             ->select(['student_id', 'academic_period_id', 'gpa', 'final_status', 'remarks', 'evaluated_at'])
@@ -140,6 +150,7 @@ class StudentDocumentController extends Controller
                         'review_status' => $document->review_status,
                         'file_url' => route('files.documents.show', $document->id),
                         'download_url' => route('files.documents.show', ['document' => $document->id, 'download' => 1]),
+                        'file_name' => basename((string) $document->file_path),
                         'ocr' => $document->document_type === DocumentType::CODE_GRADE_REPORT ? [
                             'run_status' => $document->latestOcrRun?->run_status,
                             'mean_confidence' => $document->latestOcrRun?->mean_confidence,
@@ -259,6 +270,7 @@ class StudentDocumentController extends Controller
             ->all();
 
         $coachUserIds = Team::query()
+            ->active()
             ->whereHas('players', fn ($query) => $query->where('student_id', $student->id))
             ->with([
                 'coach' => fn ($query) => $query->select('coaches.id', 'coaches.user_id'),

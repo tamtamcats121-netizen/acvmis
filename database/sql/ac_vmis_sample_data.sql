@@ -225,7 +225,7 @@ INSERT INTO announcement_recipients (
     (12, 3, 6, NULL, '2026-04-29 17:00:00', '2026-04-29 17:00:00');
 
 INSERT INTO student_approval_histories (
-    id, student_id, admin_id, decision, remarks, created_at, updated_at
+    id, student_id, coach_id, decision, remarks, created_at, updated_at
 ) VALUES
     (1, 1, 1, 'approved', 'Verified registration details and transcript submission.', '2026-01-13 09:00:00', '2026-01-13 09:00:00'),
     (2, 2, 1, 'approved', 'Approved for varsity onboarding.', '2026-01-13 09:05:00', '2026-01-13 09:05:00'),

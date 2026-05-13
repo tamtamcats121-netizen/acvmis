@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
+import FileUpload from 'primevue/fileupload'
+import Message from 'primevue/message'
+import Select from 'primevue/select'
+import Textarea from 'primevue/textarea'
 import { computed, ref } from 'vue'
 
 import Spinner from '@/components/ui/spinner/Spinner.vue'
@@ -77,6 +81,10 @@ function termLabel(termCode: string) {
   return termCode
 }
 
+function handlePrimeFileSelect(files: File[] | undefined) {
+  file.value = files?.[0] ?? null
+}
+
 function submit() {
   if (isSubmitting.value) return
   submitError.value = ''
@@ -141,7 +149,9 @@ function submit() {
         <div class="flex flex-wrap items-center justify-between gap-2">
           <span class="rounded-full bg-[#034485] px-3 py-1 text-xs font-semibold text-white">Submission Form</span>
         </div>
-        <p v-if="submitError" class="mt-3 text-sm text-rose-600">{{ submitError }}</p>
+            <Message v-if="submitError" severity="error" size="small" class="mt-3">
+              {{ submitError }}
+            </Message>
         <div class="mt-4 grid gap-4 lg:grid-cols-[1.1fr,0.9fr]">
           <div class="space-y-3">
             <div
@@ -156,35 +166,44 @@ function submit() {
               Grade reports are automatically scanned to extract the academic result from the document.
             </p>
             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <select v-model="academicPeriodId" class="bg-white border border-[#034485]/35 rounded-lg px-2 py-2 text-slate-700">
-                <option :value="null" disabled>Select period</option>
-                <option v-for="p in openPeriods" :key="p.id" :value="p.id">
-                  {{ p.school_year }} - {{ termLabel(p.term) }}
-                </option>
-              </select>
-              <select
+              <Select
+                v-model="academicPeriodId"
+                :options="openPeriods.map((p) => ({ label: `${p.school_year} - ${termLabel(p.term)}`, value: p.id }))"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select period"
+                class="w-full"
+              />
+              <Select
                 v-model="documentType"
+                :options="[
+                  { label: 'Grade Report', value: 'grade_report' },
+                  { label: 'Supporting Document', value: 'supporting_document' },
+                ]"
+                optionLabel="label"
+                optionValue="value"
                 :disabled="!canSubmit"
-                class="bg-white border border-[#034485]/35 rounded-lg px-2 py-2 text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
-              >
-                <option value="grade_report">Grade Report</option>
-                <option value="supporting_document">Supporting Document</option>
-              </select>
+                class="w-full"
+              />
             </div>
-            <textarea
+            <Textarea
               v-model="notes"
               rows="2"
               placeholder="Notes (optional)"
               :disabled="!canSubmit"
-              class="w-full bg-white border border-[#034485]/35 rounded-lg px-2 py-2 text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
+              autoResize
+              class="w-full"
             />
-            <input
-              type="file"
+            <FileUpload
+              mode="basic"
+              customUpload
+              chooseLabel="Choose Academic File"
               accept=".pdf,image/*"
-              @change="(e: Event) => file = (e.target as HTMLInputElement).files?.[0] ?? null"
+              @select="(event) => handlePrimeFileSelect(event.files)"
               :disabled="!canSubmit"
-              class="w-full text-sm text-slate-500 disabled:text-slate-300"
+              class="w-full"
             />
+            <p v-if="file" class="text-xs text-slate-500">Selected: {{ file.name }}</p>
             <button
               type="submit"
               :disabled="isSubmitting || !canSubmit"

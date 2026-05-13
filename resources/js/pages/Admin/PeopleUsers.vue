@@ -1,185 +1,248 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3'
+import Button from 'primevue/button'
+import Column from 'primevue/column'
+import DataTable from 'primevue/datatable'
+import InputMask from 'primevue/inputmask'
+import InputText from 'primevue/inputtext'
+import Menu from 'primevue/menu'
+import Message from 'primevue/message'
+import Paginator from 'primevue/paginator'
+import Select from 'primevue/select'
+import { computed, ref, watch } from 'vue'
 
-import EmptyResultsState from '@/components/ui/EmptyResultsState.vue';
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
-import { resolveUserAvatarUrl } from '@/utils/media';
+import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
+import { showAppToast } from '@/composables/useAppToast'
+import { useTheme } from '@/composables/useTheme'
+import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
+import { resolveUserAvatarUrl } from '@/utils/media'
 
 defineOptions({
     layout: AdminDashboard,
-});
+})
 
-type RoleFilter = 'all' | 'student-athlete' | 'coach';
-type UserStatusFilter = 'active' | 'deactivated';
-type SortField = 'name' | 'email' | 'created_at';
-type SortDirection = 'asc' | 'desc';
-type SortOption = `${SortField}:${SortDirection}`;
+type RoleFilter = 'all' | 'student-athlete' | 'coach'
+type UserStatusFilter = 'active' | 'deactivated'
+type SortField = 'name' | 'email' | 'created_at'
+type SortDirection = 'asc' | 'desc'
+type SortOption = `${SortField}:${SortDirection}`
 
-type StudentInfo = {
-    student_id_number: string | null;
-    course_or_strand: string | null;
-    current_grade_level: string | null;
-    academic_level_label: string | null;
-    student_status: string | null;
-    approval_status: string | null;
-    phone_number: string | null;
-    emergency_contact_name: string | null;
-    emergency_contact_relationship: string | null;
-    emergency_contact_phone: string | null;
-    date_of_birth: string | null;
-    gender: string | null;
-    height: string | null;
-    weight: string | null;
-};
-
-type CoachInfo = {
-    first_name: string | null;
-    middle_name: string | null;
-    last_name: string | null;
-    coach_status: string | null;
-    phone_number: string | null;
-    date_of_birth: string | null;
-    gender: string | null;
-};
+type TeamAssignment = {
+    id: number
+    name: string
+    sport_name: string
+    year: string | null
+    role_label: string
+    position: string | null
+    status: string | null
+    archived: boolean
+}
 
 type UserRow = {
-    id: number;
-    name: string;
-    email: string;
-    role: 'student-athlete' | 'coach';
-    status: UserStatusFilter;
-    avatar: string | null;
-    created_at: string | null;
-    student?: StudentInfo | null;
-    coach?: CoachInfo | null;
-};
+    id: number
+    name: string
+    email: string
+    role: 'student-athlete' | 'student' | 'coach' | 'admin'
+    status: UserStatusFilter
+    avatar: string | null
+    created_at: string | null
+    assignment: {
+        sport_label: string | null
+        status_label: string
+        current_teams: TeamAssignment[]
+        history_teams: TeamAssignment[]
+        needs_action: boolean
+        needs_action_label: string | null
+    }
+    actions: {
+        can_regenerate_credentials: boolean
+        can_deactivate: boolean
+        can_reactivate: boolean
+        can_delete: boolean
+        delete_blockers: Array<{ label: string; count: number }>
+    }
+}
 
 type PaginationLink = {
-    url: string | null;
-    label: string;
-    active: boolean;
-};
+    url: string | null
+    label: string
+    active: boolean
+}
 
 type PaginatedUsers = {
-    data: UserRow[];
-    current_page: number;
-    from: number | null;
-    to: number | null;
-    total: number;
-    per_page: number;
-    links: PaginationLink[];
-};
+    data: UserRow[]
+    current_page: number
+    last_page: number
+    per_page: number
+    from: number | null
+    to: number | null
+    total: number
+    links: PaginationLink[]
+}
 
 type Filters = {
-    search?: string;
-    role?: RoleFilter;
-    status?: UserStatusFilter;
-    sort?: SortField;
-    direction?: SortDirection;
-};
+    search?: string
+    role?: RoleFilter
+    status?: UserStatusFilter
+    sort?: SortField
+    direction?: SortDirection
+}
 
 type Totals = {
-    all: number;
-    students: number;
-    coaches: number;
-    deactivated: number;
-    filtered: number;
-};
+    all: number
+    students: number
+    coaches: number
+    deactivated: number
+    filtered: number
+}
 
 type SportOption = {
-    id: number;
-    name: string;
-};
-
-type AssignableTeam = {
-    id: number;
-    team_name: string;
-    year: string | null;
-    sport_id: number;
-    sport_name: string | null;
-    head_coach?: { id: number; name: string | null } | null;
-    assistant_coach?: { id: number; name: string | null } | null;
-    coach_name: string | null;
-    assistant_coach_name: string | null;
-};
+    id: number
+    name: string
+}
 
 type CoachOnboardingFlash = {
-    email: string;
-    temporary_password: string;
-    email_sent: boolean;
-    activation_url: string;
-};
+    email: string
+    temporary_password: string
+    email_sent: boolean
+    activation_url: string
+}
 
 const props = defineProps<{
-    users: PaginatedUsers;
-    filters?: Filters;
-    totals?: Totals;
-    pendingCount?: number;
-    sports?: SportOption[];
-    assignableTeams?: AssignableTeam[];
-}>();
+    users: PaginatedUsers
+    filters?: Filters
+    totals?: Totals
+    sports?: SportOption[]
+}>()
 
-const defaultSort: SortOption = 'created_at:desc';
-const selectedUserId = ref<number | null>(props.users.data[0]?.id ?? null);
-const copiedUserId = ref<number | null>(null);
-const deactivateTarget = ref<UserRow | null>(null);
-const reactivateTarget = ref<UserRow | null>(null);
-const regenerateTarget = ref<UserRow | null>(null);
-const actionLoadingId = ref<number | null>(null);
-const search = ref(props.filters?.search ?? '');
-const roleFilter = ref<RoleFilter>(props.filters?.role ?? 'all');
-const statusFilter = ref<UserStatusFilter>(props.filters?.status ?? 'active');
-const sortOption = ref<SortOption>(`${props.filters?.sort ?? 'created_at'}:${props.filters?.direction ?? 'desc'}` as SortOption);
-const topTab = ref<'active' | 'queue'>('active');
-const detailsModalOpen = ref(false);
-const createCoachOpen = ref(false);
-const createCoachFeedback = ref<string | null>(null);
-const adminInviteOpen = ref(false);
-const adminInviteFeedback = ref<string | null>(null);
-const statusSwitching = ref(false);
-const statusSwitchNotice = ref<string | null>(null);
-const createCoachPanel = ref<HTMLElement | null>(null);
+const { isDarkMode } = useTheme()
+
+const defaultSort: SortOption = 'created_at:desc'
+const search = ref(props.filters?.search ?? '')
+const roleFilter = ref<RoleFilter>(props.filters?.role ?? 'all')
+const statusFilter = ref<UserStatusFilter>(props.filters?.status ?? 'active')
+const sortOption = ref<SortOption>(`${props.filters?.sort ?? 'created_at'}:${props.filters?.direction ?? 'desc'}` as SortOption)
+const createCoachOpen = ref(false)
+const createCoachFeedback = ref<string | null>(null)
+const adminInviteOpen = ref(false)
+const adminInviteFeedback = ref<string | null>(null)
+const actionLoadingId = ref<number | null>(null)
+const rowActionMenu = ref()
+const actionMenuUser = ref<UserRow | null>(null)
+const deactivateTarget = ref<UserRow | null>(null)
+const reactivateTarget = ref<UserRow | null>(null)
+const regenerateTarget = ref<UserRow | null>(null)
+const deleteTarget = ref<UserRow | null>(null)
+let searchDebounce: ReturnType<typeof setTimeout> | null = null
+
 const createCoachForm = useForm({
     first_name: '',
     middle_name: '',
     last_name: '',
     email: '',
+    sport_id: '',
     phone_number: '',
     date_of_birth: '',
     gender: '',
     home_address: '',
     notes: '',
-    assignment_role: 'assistant',
-    team_ids: [] as number[],
-});
+})
+
 const adminInviteForm = useForm({
     email: '',
-});
+})
 
-if (!['name:asc', 'name:desc', 'email:asc', 'email:desc', 'created_at:asc', 'created_at:desc'].includes(sortOption.value)) {
-    sortOption.value = defaultSort;
-}
+const totalUsers = computed(() => props.totals?.all ?? 0)
+const totalStudents = computed(() => props.totals?.students ?? 0)
+const totalCoaches = computed(() => props.totals?.coaches ?? 0)
+const totalDeactivated = computed(() => props.totals?.deactivated ?? 0)
+const filteredTotal = computed(() => props.totals?.filtered ?? props.users.total)
+const totalActive = computed(() => Math.max(totalUsers.value - totalDeactivated.value, 0))
+const hasActiveFilters = computed(() => search.value.trim() !== '' || roleFilter.value !== 'all' || sortOption.value !== defaultSort)
+const firstRecordIndex = computed(() => (props.users.current_page - 1) * props.users.per_page)
+const roleFilterOptions = [
+    { label: 'All roles', value: 'all' },
+    { label: 'Student Athlete', value: 'student-athlete' },
+    { label: 'Coach', value: 'coach' },
+]
+const sortOptions = [
+    { label: 'Newest First', value: 'created_at:desc' },
+    { label: 'Oldest First', value: 'created_at:asc' },
+    { label: 'Name A-Z', value: 'name:asc' },
+    { label: 'Name Z-A', value: 'name:desc' },
+    { label: 'Email A-Z', value: 'email:asc' },
+    { label: 'Email Z-A', value: 'email:desc' },
+]
+const sportOptions = computed(() => [
+    { label: 'Assigned sport', value: '' },
+    ...((props.sports ?? []).map((sport) => ({
+        label: sport.name,
+        value: String(sport.id),
+    }))),
+])
+const actionMenuItems = computed(() => {
+    const user = actionMenuUser.value
+    if (!user) return []
 
-let searchDebounce: ReturnType<typeof setTimeout> | null = null;
-let topTabTimeout: ReturnType<typeof setTimeout> | null = null;
+    const items: Array<Record<string, unknown>> = [
+        {
+            label: 'View Profile',
+            icon: 'pi pi-user',
+            command: () => router.get(`/people/${user.id}`),
+        },
+    ]
 
-const totalUsers = computed(() => props.totals?.all ?? 0);
-const totalStudents = computed(() => props.totals?.students ?? 0);
-const totalCoaches = computed(() => props.totals?.coaches ?? 0);
-const totalDeactivated = computed(() => props.totals?.deactivated ?? 0);
-const filteredTotal = computed(() => props.totals?.filtered ?? props.users.total);
-const totalActive = computed(() => Math.max(totalUsers.value - totalDeactivated.value, 0));
-const hasActiveFilters = computed(
-    () => search.value.trim() !== '' || roleFilter.value !== 'all' || statusFilter.value !== 'active' || sortOption.value !== defaultSort,
-);
-const isDeactivatedView = computed(() => statusFilter.value === 'deactivated');
-const selectedUser = computed(() => props.users.data.find((user) => user.id === selectedUserId.value) ?? props.users.data[0] ?? null);
-const hasBlockingModal = computed(() => Boolean(deactivateTarget.value || reactivateTarget.value || regenerateTarget.value || createCoachOpen.value || adminInviteOpen.value || detailsModalOpen.value));
-const assignableTeams = computed(() => props.assignableTeams ?? []);
+    if (user.actions.can_regenerate_credentials) {
+        items.push({
+            label: 'Regenerate Coach Credentials',
+            icon: 'pi pi-refresh',
+            command: () => regenerateCoachCredentials(user),
+        })
+    }
 
-function buildQuery(resetPage = true) {
-    const [sort, direction] = sortOption.value.split(':') as [SortField, SortDirection];
+    if (user.actions.can_deactivate) {
+        items.push({
+            label: 'Deactivate',
+            icon: 'pi pi-ban',
+            command: () => {
+                deactivateTarget.value = user
+            },
+        })
+    }
+
+    if (user.actions.can_reactivate) {
+        items.push({
+            label: 'Reactivate',
+            icon: 'pi pi-check-circle',
+            command: () => {
+                reactivateTarget.value = user
+            },
+        })
+    }
+
+    items.push({
+        separator: true,
+    })
+
+    items.push({
+        label: 'Delete',
+        icon: 'pi pi-trash',
+        class: 'admin-user-directory-delete-item',
+        command: () => {
+            if (user.actions.can_delete) {
+                deleteTarget.value = user
+                return
+            }
+
+            showAppToast('This user has linked records. Deactivate the account instead.', 'error')
+        },
+    })
+
+    return items
+})
+
+function buildQuery(page = 1) {
+    const [sort, direction] = sortOption.value.split(':') as [SortField, SortDirection]
 
     return {
         search: search.value.trim() || undefined,
@@ -187,264 +250,53 @@ function buildQuery(resetPage = true) {
         status: statusFilter.value,
         sort,
         direction,
-        page: resetPage ? 1 : props.users.current_page,
-    };
-}
-
-function applyFilters({ resetPage = true, debounce = false }: { resetPage?: boolean; debounce?: boolean } = {}) {
-    const visit = () => {
-        router.get('/people', buildQuery(resetPage), {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-            only: ['users', 'filters', 'totals', 'pendingCount'],
-        });
-    };
-
-    if (!debounce) {
-        visit();
-        return;
+        page,
     }
-
-    if (searchDebounce) {
-        clearTimeout(searchDebounce);
-    }
-
-    searchDebounce = setTimeout(visit, 250);
 }
 
-watch(search, () => {
-    applyFilters({ resetPage: true, debounce: true });
-});
-
-watch(roleFilter, () => {
-    applyFilters({ resetPage: true });
-});
-
-watch(sortOption, () => {
-    applyFilters({ resetPage: true });
-});
-
-watch(
-    () => props.users.data,
-    (users) => {
-        if (!users.length) {
-            selectedUserId.value = null;
-            return;
-        }
-
-        const stillVisible = users.some((user) => user.id === selectedUserId.value);
-        if (!stillVisible) {
-            selectedUserId.value = users[0].id;
-        }
-    },
-    { immediate: true },
-);
-
-function openInfo(user: UserRow) {
-    selectedUserId.value = user.id;
-}
-
-function openMobileDetails(user: UserRow) {
-    selectedUserId.value = user.id;
-    detailsModalOpen.value = true;
-}
-
-function closeMobileDetails() {
-    detailsModalOpen.value = false;
-}
-
-function openCreateCoach() {
-    createCoachOpen.value = true;
-    resetCreateCoachViewport();
-}
-
-function openAdminInvite() {
-    adminInviteOpen.value = true;
-}
-
-function closeCreateCoach() {
-    createCoachOpen.value = false;
-    createCoachForm.reset();
-    createCoachForm.clearErrors();
-    createCoachForm.assignment_role = 'assistant';
-    createCoachForm.team_ids = [];
-    createCoachFeedback.value = null;
-}
-
-function resetCreateCoachViewport() {
-    nextTick(() => {
-        if (!createCoachPanel.value) return;
-        createCoachPanel.value.scrollTop = 0;
-    });
-}
-
-function closeAdminInvite() {
-    adminInviteOpen.value = false;
-    adminInviteForm.reset();
-    adminInviteForm.clearErrors();
-}
-
-function submitAdminInvite() {
-    adminInviteFeedback.value = null;
-    adminInviteForm.post('/admin/invites', {
-        preserveScroll: true,
-        onSuccess: (visit) => {
-            adminInviteFeedback.value = String((visit.props as any)?.flash?.success ?? 'Admin invitation sent.');
-            closeAdminInvite();
-        },
-        onError: () => {
-            adminInviteOpen.value = true;
-        },
-    });
-}
-
-function teamSlotTaken(team: AssignableTeam) {
-    return createCoachForm.assignment_role === 'head'
-        ? Boolean(team.head_coach?.id)
-        : Boolean(team.assistant_coach?.id);
-}
-
-function teamSlotLabel(team: AssignableTeam) {
-    if (createCoachForm.assignment_role === 'head') {
-        return team.coach_name ? `Head coach: ${team.coach_name}` : 'Head coach slot open';
-    }
-    return team.assistant_coach_name ? `Assistant coach: ${team.assistant_coach_name}` : 'Assistant slot open';
-}
-
-function submitCreateCoach() {
-    createCoachFeedback.value = null;
-    createCoachForm.post('/admin/coaches', {
-        preserveScroll: true,
-        onSuccess: (visit) => {
-            const flash = (visit.props as any)?.flash?.coach_onboarding as CoachOnboardingFlash | undefined;
-            createCoachFeedback.value = flash
-                ? (flash.email_sent
-                    ? `Coach account created. Onboarding details were sent to ${flash.email}.`
-                    : `Coach account created, but the onboarding email could not be sent to ${flash.email}.`)
-                : 'The coach account has been created successfully.';
-            createCoachForm.reset();
-            createCoachForm.assignment_role = 'assistant';
-            createCoachForm.team_ids = [];
-            createCoachOpen.value = false;
-        },
-        onError: () => {
-            createCoachOpen.value = true;
-            resetCreateCoachViewport();
-        },
-    });
-}
-
-function regenerateCoachCredentials(user: UserRow) {
-    if (user.role !== 'coach') return;
-    regenerateTarget.value = user;
-}
-
-function closeRegenerateDialog() {
-    regenerateTarget.value = null;
-}
-
-function confirmRegenerateCoachCredentials() {
-    if (!regenerateTarget.value || regenerateTarget.value.role !== 'coach') return;
-
-    router.post(
-        `/admin/coaches/${regenerateTarget.value.id}/regenerate-onboarding`,
-        {},
-        {
-            preserveScroll: true,
-            onSuccess: (visit) => {
-                const flash = (visit.props as any)?.flash?.coach_onboarding as CoachOnboardingFlash | undefined;
-                createCoachFeedback.value = flash
-                    ? (flash.email_sent
-                        ? `Coach access credentials were regenerated and sent to ${flash.email}.`
-                        : `Coach access credentials were regenerated, but the onboarding email could not be sent to ${flash.email}.`)
-                    : 'Coach access credentials have been regenerated.';
-                closeRegenerateDialog();
-            },
-        },
-    );
-}
-
-function goToApprovalRequests() {
-    if (topTab.value === 'queue') return;
-    topTab.value = 'queue';
-    if (topTabTimeout) clearTimeout(topTabTimeout);
-    topTabTimeout = setTimeout(() => {
-        router.get('/people/queue');
-    }, 180);
-}
-
-function visitPage(url: string | null) {
-    if (!url) return;
-
-    router.visit(url, {
-        preserveState: true,
-        preserveScroll: true,
-        only: ['users', 'filters', 'totals', 'pendingCount'],
-    });
-}
-
-function resetAllFilters() {
-    search.value = '';
-    roleFilter.value = 'all';
-    statusFilter.value = 'active';
-    sortOption.value = defaultSort;
-    applyFilters({ resetPage: true });
-}
-
-function setStatusView(next: UserStatusFilter) {
-    if (statusFilter.value === next) return;
-    const previous = statusFilter.value;
-    statusFilter.value = next;
-    statusSwitching.value = true;
-    statusSwitchNotice.value = next === 'active' ? 'Showing active accounts.' : 'Showing deactivated accounts.';
-
-    if (searchDebounce) {
-        clearTimeout(searchDebounce);
-        searchDebounce = null;
-    }
-
-    router.get('/people', buildQuery(true), {
+function applyFilters(page = 1) {
+    router.get('/people', buildQuery(page), {
         preserveState: true,
         preserveScroll: true,
         replace: true,
-        only: ['users', 'filters', 'totals', 'pendingCount'],
-        onError: () => {
-            statusFilter.value = previous;
-            statusSwitchNotice.value = 'The account view could not be updated right now.';
-        },
-        onFinish: () => {
-            statusSwitching.value = false;
-        },
-    });
+        only: ['users', 'filters', 'totals'],
+    })
 }
 
-function formatRole(role: UserRow['role']) {
-    return role.replace('-', ' ');
+watch(search, () => {
+    if (searchDebounce) clearTimeout(searchDebounce)
+    searchDebounce = setTimeout(() => applyFilters(1), 250)
+})
+
+watch(roleFilter, () => applyFilters(1))
+watch(sortOption, () => applyFilters(1))
+
+function setStatusView(next: UserStatusFilter) {
+    if (statusFilter.value === next) return
+    statusFilter.value = next
+    applyFilters(1)
 }
 
-function formatDate(value?: string | null) {
-    if (!value) return '-';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '-';
-    return parsed.toLocaleDateString();
+function resetAllFilters() {
+    search.value = ''
+    roleFilter.value = 'all'
+    sortOption.value = defaultSort
+    applyFilters(1)
 }
 
-function formatDateTime(value?: string | null) {
-    if (!value) return '-';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '-';
-    return parsed.toLocaleString('en-PH', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+function handlePageChange(event: { page: number }) {
+    applyFilters(event.page + 1)
 }
 
-function formatSimple(value?: string | null) {
-    return value?.trim() ? value : '-';
+function handleSort(event: { sortField?: string | ((item: unknown) => string); sortOrder?: number | null }) {
+    const nextField = typeof event.sortField === 'string' ? event.sortField as SortField : 'created_at'
+    const nextDirection: SortDirection = event.sortOrder === 1 ? 'asc' : 'desc'
+    sortOption.value = `${nextField}:${nextDirection}` as SortOption
+}
+
+function toggleActionMenu(event: Event, user: UserRow) {
+    actionMenuUser.value = user
+    rowActionMenu.value?.toggle(event)
 }
 
 function userInitials(user: UserRow) {
@@ -453,1244 +305,728 @@ function userInitials(user: UserRow) {
         .filter(Boolean)
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase() ?? '')
-        .join('') || 'U';
+        .join('') || 'U'
+}
+
+function formatRole(role: UserRow['role']) {
+    if (role === 'coach') return 'Coach'
+    if (role === 'admin') return 'Admin'
+    return 'Student Athlete'
+}
+
+function formatDateTime(value?: string | null) {
+    if (!value) return '-'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return '-'
+    return parsed.toLocaleString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    })
 }
 
 function accountTone(user: UserRow) {
     return user.status === 'active'
-        ? 'border border-[#034485]/30 bg-[#e9f2ff] text-[#034485]'
-        : 'border border-amber-200 bg-amber-100 text-amber-700';
+        ? 'text-[#034485]'
+        : 'text-slate-600 dark:text-slate-200'
 }
 
 function roleTone(user: UserRow) {
-    return user.role === 'coach'
-        ? 'border border-[#1f3f73]/30 bg-[#edf4ff] text-[#1f3f73]'
-        : 'border border-[#034485]/25 bg-[#f3f8ff] text-[#034485]';
-}
-
-function getPrimaryPhone(user: UserRow) {
-    if (user.student?.phone_number) return user.student.phone_number;
-    if (user.coach?.phone_number) return user.coach.phone_number;
-    return null;
-}
-
-function getAge(value?: string | null) {
-    if (!value) return null;
-    const birthDate = new Date(value);
-    if (Number.isNaN(birthDate.getTime())) return null;
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age -= 1;
-    }
-    return age >= 0 ? age : null;
-}
-
-function coachDisplayName(coach: CoachInfo | null | undefined) {
-    if (!coach) return '-';
-    const parts = [coach.first_name, coach.middle_name, coach.last_name].filter((part) => part && part.trim());
-    return parts.length ? parts.join(' ') : '-';
-}
-
-function profileCompleteness(user: UserRow) {
-    if (user.student) {
-        const fields = [
-            user.student.student_id_number,
-            user.student.course_or_strand,
-            user.student.academic_level_label ?? user.student.current_grade_level,
-            user.student.phone_number,
-            user.student.date_of_birth,
-            user.student.gender,
-        ];
-        const filled = fields.filter((field) => field && field.toString().trim()).length;
-        return Math.round((filled / fields.length) * 100);
+    if (user.role === 'coach') {
+        return 'border border-sky-200 bg-sky-50/95 text-sky-700'
     }
 
-    if (user.coach) {
-        const fields = [
-            user.coach.first_name,
-            user.coach.last_name,
-            user.coach.phone_number,
-            user.coach.date_of_birth,
-            user.coach.gender,
-            user.coach.coach_status,
-        ];
-        const filled = fields.filter((field) => field && field.toString().trim()).length;
-        return Math.round((filled / fields.length) * 100);
+    if (user.role === 'admin') {
+        return 'border border-[#4a90e2]/30 bg-[#eef5ff] text-[#034485]'
     }
 
-    return 0;
+    return 'border border-[#4a90e2]/30 bg-[#eef5ff] text-[#034485]'
 }
 
-async function copyEmail(user: UserRow) {
-    try {
-        await navigator.clipboard.writeText(user.email);
-        copiedUserId.value = user.id;
-        setTimeout(() => {
-            if (copiedUserId.value === user.id) copiedUserId.value = null;
-        }, 1300);
-    } catch {
-        copiedUserId.value = null;
+function assignmentTone(user: UserRow) {
+    return user.assignment.needs_action
+        ? 'border border-slate-200 bg-slate-50 text-slate-700'
+        : 'border border-[#4a90e2]/25 bg-[#f1f7ff] text-[#034485]'
+}
+
+function assignmentPrimaryLabel(user: UserRow) {
+    if (user.assignment.current_teams.length > 0) {
+        return user.assignment.sport_label || user.assignment.status_label
     }
+
+    if (user.assignment.sport_label) {
+        return user.assignment.sport_label
+    }
+
+    return 'Unassigned'
 }
 
-function openDeactivateDialog(user: UserRow) {
-    deactivateTarget.value = user;
+function assignmentSecondaryLabel(user: UserRow) {
+    if (user.assignment.needs_action) {
+        return null
+    }
+
+    if (user.assignment.status_label === 'Unassigned') {
+        return null
+    }
+
+    if (user.assignment.status_label === user.assignment.sport_label) {
+        return null
+    }
+
+    return user.assignment.status_label
 }
 
-function closeDeactivateDialog() {
-    deactivateTarget.value = null;
+function openCreateCoach() {
+    createCoachOpen.value = true
 }
 
-function openReactivateDialog(user: UserRow) {
-    reactivateTarget.value = user;
+function closeCreateCoach() {
+    createCoachOpen.value = false
+    createCoachForm.reset()
+    createCoachForm.clearErrors()
 }
 
-function closeReactivateDialog() {
-    reactivateTarget.value = null;
+function openAdminInvite() {
+    adminInviteOpen.value = true
 }
 
-function deactivateUser() {
-    if (!deactivateTarget.value) return;
+function closeAdminInvite() {
+    adminInviteOpen.value = false
+    adminInviteForm.reset()
+    adminInviteForm.clearErrors()
+}
 
-    actionLoadingId.value = deactivateTarget.value.id;
-
-    router.post(
-        `/admin/users/${deactivateTarget.value.id}/deactivate`,
-        {},
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                closeDeactivateDialog();
-                setStatusView('deactivated');
-            },
-            onFinish: () => {
-                actionLoadingId.value = null;
-            },
+function submitAdminInvite() {
+    adminInviteFeedback.value = null
+    adminInviteForm.post('/admin/invites', {
+        preserveScroll: true,
+        onSuccess: (visit) => {
+            adminInviteFeedback.value = String((visit.props as any)?.flash?.success ?? 'Admin invitation sent.')
+            showAppToast(adminInviteFeedback.value, 'success')
+            closeAdminInvite()
         },
-    );
-}
-
-function reactivateUser() {
-    if (!reactivateTarget.value) return;
-
-    actionLoadingId.value = reactivateTarget.value.id;
-
-    router.post(
-        `/admin/users/${reactivateTarget.value.id}/reactivate`,
-        {},
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                closeReactivateDialog();
-                setStatusView('active');
-            },
-            onFinish: () => {
-                actionLoadingId.value = null;
-            },
+        onError: (errors) => {
+            const firstError = Object.values(errors)[0]
+            showAppToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to send the invitation right now.'), 'error')
+            adminInviteOpen.value = true
         },
-    );
+    })
 }
 
-function onModalEscape(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-        closeMobileDetails();
-        closeDeactivateDialog();
-        closeReactivateDialog();
-        closeRegenerateDialog();
-        closeCreateCoach();
-        closeAdminInvite();
-    }
+function submitCreateCoach() {
+    createCoachFeedback.value = null
+    createCoachForm.post('/admin/coaches', {
+        preserveScroll: true,
+        onSuccess: (visit) => {
+            const flash = (visit.props as any)?.flash?.coach_onboarding as CoachOnboardingFlash | undefined
+            createCoachFeedback.value = flash
+                ? (flash.email_sent
+                    ? `Coach account created. Onboarding details were sent to ${flash.email}.`
+                    : `Coach account created, but the onboarding email could not be sent to ${flash.email}.`)
+                : 'The coach account has been created successfully.'
+            showAppToast(createCoachFeedback.value, 'success')
+            closeCreateCoach()
+        },
+        onError: (errors) => {
+            const firstError = Object.values(errors)[0]
+            showAppToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to create the coach account right now.'), 'error')
+            createCoachOpen.value = true
+        },
+    })
 }
 
-onMounted(() => {
-    window.addEventListener('keydown', onModalEscape);
-});
+function regenerateCoachCredentials(user: UserRow) {
+    if (!user.actions.can_regenerate_credentials) return
+    regenerateTarget.value = user
+}
 
-onUnmounted(() => {
-    window.removeEventListener('keydown', onModalEscape);
-    document.body.style.overflow = '';
-    if (searchDebounce) clearTimeout(searchDebounce);
-});
+function confirmRegenerateCoachCredentials() {
+    if (!regenerateTarget.value) return
 
-watch(hasBlockingModal, (isOpen) => {
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-});
+    actionLoadingId.value = regenerateTarget.value.id
+    router.post(`/admin/coaches/${regenerateTarget.value.id}/regenerate-onboarding`, {}, {
+        preserveScroll: true,
+        onSuccess: (visit) => {
+            const flash = (visit.props as any)?.flash?.coach_onboarding as CoachOnboardingFlash | undefined
+            createCoachFeedback.value = flash
+                ? (flash.email_sent
+                    ? `Coach access credentials were regenerated and sent to ${flash.email}.`
+                    : `Coach access credentials were regenerated, but the onboarding email could not be sent to ${flash.email}.`)
+                : 'Coach access credentials have been regenerated.'
+            showAppToast(createCoachFeedback.value, 'success')
+            regenerateTarget.value = null
+        },
+        onError: (errors) => {
+            const firstError = Object.values(errors)[0]
+            showAppToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to regenerate coach credentials.'), 'error')
+        },
+        onFinish: () => {
+            actionLoadingId.value = null
+        },
+    })
+}
 
-watch(
-    () => createCoachForm.assignment_role,
-    () => {
-        createCoachForm.team_ids = createCoachForm.team_ids.filter((teamId) => {
-            const team = assignableTeams.value.find((entry) => entry.id === teamId);
-            return team ? !teamSlotTaken(team) : false;
-        });
-    },
-);
+function confirmDeactivateUser() {
+    if (!deactivateTarget.value) return
 
+    actionLoadingId.value = deactivateTarget.value.id
+    router.post(`/admin/users/${deactivateTarget.value.id}/deactivate`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAppToast('The account has been deactivated.', 'success')
+            deactivateTarget.value = null
+            applyFilters(props.users.current_page)
+        },
+        onError: (errors) => {
+            const firstError = Object.values(errors)[0]
+            showAppToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to deactivate this account right now.'), 'error')
+        },
+        onFinish: () => {
+            actionLoadingId.value = null
+        },
+    })
+}
+
+function confirmReactivateUser() {
+    if (!reactivateTarget.value) return
+
+    actionLoadingId.value = reactivateTarget.value.id
+    router.post(`/admin/users/${reactivateTarget.value.id}/reactivate`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAppToast('The account has been reactivated.', 'success')
+            reactivateTarget.value = null
+            applyFilters(props.users.current_page)
+        },
+        onError: (errors) => {
+            const firstError = Object.values(errors)[0]
+            showAppToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to reactivate this account right now.'), 'error')
+        },
+        onFinish: () => {
+            actionLoadingId.value = null
+        },
+    })
+}
+
+function confirmDeleteUser() {
+    if (!deleteTarget.value) return
+
+    actionLoadingId.value = deleteTarget.value.id
+    router.delete(`/admin/users/${deleteTarget.value.id}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAppToast('The account was deleted permanently.', 'success')
+            deleteTarget.value = null
+        },
+        onError: (errors) => {
+            const firstError = Object.values(errors)[0]
+            showAppToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'This user has linked records. Deactivate the account instead.'), 'error')
+        },
+        onFinish: () => {
+            actionLoadingId.value = null
+        },
+    })
+}
 </script>
 
 <template>
-    <Head title="Users" />
+    <Head title="User Directory" />
 
     <div class="space-y-5">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="relative inline-grid w-full grid-cols-2 items-center rounded-2xl border border-[#034485]/45 bg-[#f4f8ff] p-1 sm:w-auto sm:rounded-full">
-                <span
-                    class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#034485] transition-transform duration-200 ease-out"
-                    :class="topTab === 'active' ? 'translate-x-0' : 'translate-x-full'"
-                    aria-hidden="true"
-                />
+        <section class="overflow-hidden rounded-[2rem] border border-[#02376b] bg-[#034485] p-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Admin Workspace</p>
+            <h1 class="mt-2 text-2xl font-bold">User Directory</h1>
+            <p class="mt-2 max-w-3xl text-sm text-white/85">
+                Monitor user accounts, assignment visibility, and access status in one clean directory without mixing in approval workflows.
+            </p>
+            <div class="mt-4 grid grid-cols-1 gap-2 sm:max-w-xl sm:grid-cols-2">
                 <button
                     type="button"
-                    class="relative z-10 flex w-full min-w-0 items-center justify-center rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4 sm:py-1.5"
-                    :class="topTab === 'active' ? 'text-white' : 'text-[#034485] hover:text-[#02315f]'"
-                    aria-current="page"
-                >
-                    Active Users
-                </button>
-                <button
-                    type="button"
-                    @click="goToApprovalRequests"
-                    class="relative z-10 inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight transition sm:rounded-full sm:px-4 sm:py-1.5"
-                    :class="topTab === 'queue' ? 'text-white' : 'text-[#034485] hover:text-[#02315f]'"
-                >
-                    Approval Queue
-                    <span
-                        class="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                        :class="topTab === 'queue' ? 'bg-white/20 text-white' : 'bg-[#dcecff] text-[#034485]'"
-                    >
-                        {{ props.pendingCount ?? 0 }}
-                    </span>
-                </button>
-            </div>
-            <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                <button
-                    type="button"
+                    class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
                     @click="openAdminInvite"
-                    class="inline-flex w-full items-center justify-center rounded-full border border-[#034485]/45 bg-white px-4 py-2 text-center text-xs font-semibold text-[#034485] transition hover:border-[#034485] hover:bg-[#eef5ff] sm:w-auto"
                 >
                     Invite Administrator
                 </button>
                 <button
                     type="button"
+                    class="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
                     @click="openCreateCoach"
-                    class="inline-flex w-full items-center justify-center rounded-full bg-[#034485] px-4 py-2 text-center text-xs font-semibold text-white transition hover:bg-[#02315f] sm:w-auto"
                 >
                     Create Coach Account
                 </button>
             </div>
-        </div>
-        <p v-if="adminInviteFeedback" class="rounded-lg border border-[#034485]/25 bg-[#edf5ff] px-3 py-2 text-sm font-medium text-[#034485]">
+        </section>
+
+        <p v-if="adminInviteFeedback" class="rounded-2xl border border-[#034485]/25 bg-[#edf5ff] px-4 py-3 text-sm font-medium text-[#034485]">
             {{ adminInviteFeedback }}
         </p>
-        <p v-if="createCoachFeedback" class="rounded-lg border border-[#034485]/25 bg-[#edf5ff] px-3 py-2 text-sm font-medium text-[#034485]">
+        <p v-if="createCoachFeedback" class="rounded-2xl border border-[#034485]/25 bg-[#edf5ff] px-4 py-3 text-sm font-medium text-[#034485]">
             {{ createCoachFeedback }}
         </p>
 
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
-            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
-                <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Users</p>
-                <p class="mt-1 text-2xl font-bold text-slate-900">{{ totalUsers }}</p>
+        <section class="grid gap-3 md:grid-cols-4">
+            <article class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-[#034485]/20 bg-white text-slate-900'">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-200' : 'text-slate-500'">Active Users</p>
+                <p class="mt-2 text-2xl font-bold">{{ totalUsers }}</p>
             </article>
-            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
-                <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Student-Athletes</p>
-                <p class="mt-1 text-2xl font-bold text-slate-900">{{ totalStudents }}</p>
+            <article class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-[#034485]/20 bg-white text-slate-900'">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-200' : 'text-slate-500'">Student Athletes</p>
+                <p class="mt-2 text-2xl font-bold">{{ totalStudents }}</p>
             </article>
-            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
-                <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Coaches</p>
-                <p class="mt-1 text-2xl font-bold text-slate-900">{{ totalCoaches }}</p>
+            <article class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-[#034485]/20 bg-white text-slate-900'">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-200' : 'text-slate-500'">Coaches</p>
+                <p class="mt-2 text-2xl font-bold">{{ totalCoaches }}</p>
             </article>
-            <article class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
-                <p class="text-[11px] leading-relaxed tracking-wide text-slate-500 uppercase">Deactivated</p>
-                <p class="mt-1 text-2xl font-bold text-[#1f3f73]">{{ totalDeactivated }}</p>
+            <article class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em]" :class="isDarkMode ? 'text-slate-200' : 'text-slate-600'">Deactivated</p>
+                <p class="mt-2 text-2xl font-bold">{{ totalDeactivated }}</p>
             </article>
-        </div>
+        </section>
 
-        <div class="page-card rounded-xl border border-[#034485]/45 bg-white p-4">
-            <div class="mb-3 grid w-full grid-cols-2 gap-2 rounded-2xl border border-[#034485]/45 bg-[#f4f8ff] p-2 sm:inline-flex sm:max-w-md sm:items-center sm:gap-0 sm:rounded-full sm:p-1">
-                <button
-                    type="button"
-                    @click="setStatusView('active')"
-                    class="relative inline-flex min-w-0 flex-col items-start justify-center gap-1 rounded-xl px-3 py-2 text-left text-xs font-semibold leading-tight transition sm:flex-1 sm:flex-row sm:items-center sm:justify-center sm:gap-2 sm:text-center sm:rounded-full sm:px-4"
-                    :class="statusFilter === 'active' ? 'bg-[#034485] text-white shadow-sm' : 'text-[#034485] hover:bg-white hover:text-[#02315f]'"
-                    :aria-pressed="statusFilter === 'active'"
-                    :disabled="statusSwitching"
-                >
-                    <span>Active</span>
-                    <span
-                        class="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                        :class="statusFilter === 'active' ? 'bg-white/20 text-white' : 'bg-[#dcecff] text-[#034485]'"
+        <section class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-[#034485]/25 bg-white text-slate-900'">
+            <div class="mb-4 w-full sm:max-w-md">
+                <div class="relative grid grid-cols-2 rounded-2xl border p-1 sm:rounded-full" :class="isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-[#034485]/20 bg-[#f4f8ff]'">
+                    <div
+                        class="absolute bottom-1 top-1 w-[calc(50%-0.25rem)] rounded-xl bg-[#034485] transition-transform duration-300 ease-out sm:rounded-full"
+                        :class="statusFilter === 'active' ? 'translate-x-0' : 'translate-x-full'"
+                    />
+                    <button
+                        type="button"
+                        class="relative z-10 rounded-xl px-4 py-2 text-sm font-semibold transition-colors duration-300 sm:rounded-full"
+                        :class="statusFilter === 'active' ? 'text-white' : (isDarkMode ? 'text-slate-100' : 'text-[#034485]')"
+                        @click="setStatusView('active')"
                     >
-                        {{ totalActive }}
-                    </span>
-                </button>
-                <span
-                    class="mx-1 hidden h-6 w-px bg-[#034485]/15 sm:block"
-                    aria-hidden="true"
-                />
-                <button
-                    type="button"
-                    @click="setStatusView('deactivated')"
-                    class="relative inline-flex min-w-0 flex-col items-start justify-center gap-1 rounded-xl px-3 py-2 text-left text-xs font-semibold leading-tight transition sm:flex-1 sm:flex-row sm:items-center sm:justify-center sm:gap-2 sm:text-center sm:rounded-full sm:px-4"
-                    :class="statusFilter === 'deactivated' ? 'bg-amber-600 text-white shadow-sm' : 'text-amber-700 hover:bg-white hover:text-amber-800'"
-                    :aria-pressed="statusFilter === 'deactivated'"
-                    :disabled="statusSwitching"
-                >
-                    <span>Deactivated</span>
-                    <span
-                        class="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                        :class="statusFilter === 'deactivated' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'"
+                        Active
+                        <span class="ml-2 rounded-full px-2 py-0.5 text-xs" :class="statusFilter === 'active' ? 'bg-white/20 text-white' : (isDarkMode ? 'bg-slate-800 text-slate-100' : 'bg-[#dcecff] text-[#034485]')">
+                            {{ totalActive }}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        class="relative z-10 rounded-xl px-4 py-2 text-sm font-semibold transition-colors duration-300 sm:rounded-full"
+                        :class="statusFilter === 'deactivated' ? 'text-white' : (isDarkMode ? 'text-slate-100' : 'text-slate-700')"
+                        @click="setStatusView('deactivated')"
                     >
-                        {{ totalDeactivated }}
-                    </span>
-                </button>
+                        Deactivated
+                        <span class="ml-2 rounded-full px-2 py-0.5 text-xs" :class="statusFilter === 'deactivated' ? 'bg-white/20 text-white' : (isDarkMode ? 'bg-slate-800 text-slate-100' : 'bg-slate-200 text-slate-700')">
+                            {{ totalDeactivated }}
+                        </span>
+                    </button>
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 lg:grid-cols-12">
-                <input
+            <div class="grid gap-3 lg:grid-cols-12">
+                <InputText
                     v-model="search"
-                    type="text"
-                    placeholder="Search by name, email, student ID, course, or status"
-                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-6"
+                    placeholder="Search name, email, sport, team, student ID, or course"
+                    class="lg:col-span-6"
                 />
-
-                <select
+                <Select
                     v-model="roleFilter"
-                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-3"
-                >
-                    <option value="all">All Roles</option>
-                    <option value="student-athlete">Student Athlete</option>
-                    <option value="coach">Coach</option>
-                </select>
-
-                <select
+                    :options="roleFilterOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    class="lg:col-span-3"
+                />
+                <Select
                     v-model="sortOption"
-                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-3"
-                >
-                    <option value="created_at:desc">Newest First</option>
-                    <option value="created_at:asc">Oldest First</option>
-                    <option value="name:asc">Name A-Z</option>
-                    <option value="name:desc">Name Z-A</option>
-                    <option value="email:asc">Email A-Z</option>
-                    <option value="email:desc">Email Z-A</option>
-                </select>
+                    :options="sortOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    class="lg:col-span-3"
+                />
             </div>
 
-            <div class="mt-3 flex justify-end" v-if="hasActiveFilters">
+            <div class="mt-3 flex items-center justify-between gap-3">
+                <p class="text-xs font-medium" :class="isDarkMode ? 'text-slate-200' : 'text-slate-500'">
+                    Showing {{ filteredTotal }} record{{ filteredTotal === 1 ? '' : 's' }} in the {{ statusFilter }} view.
+                </p>
                 <button
+                    v-if="hasActiveFilters"
                     type="button"
+                    class="rounded-xl border px-3 py-2 text-xs font-semibold transition"
+                    :class="isDarkMode ? 'border-[#4a90e2]/35 bg-slate-900 text-white hover:border-sky-300/45 hover:bg-[#0a2f57]' : 'border-[#034485]/25 bg-white text-[#034485] hover:bg-[#eef5ff]'"
                     @click="resetAllFilters"
-                    class="rounded-md border border-[#034485]/35 bg-white px-3 py-1.5 text-xs font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
                 >
                     Clear Filters
                 </button>
             </div>
-            <p class="mt-2 text-xs font-medium text-slate-500">
-                {{
-                    statusSwitching
-                        ? 'Updating the account list...'
-                        : statusSwitchNotice
-                            ? statusSwitchNotice
-                        : isDeactivatedView
-                            ? 'Viewing deactivated accounts. Select Reactivate to restore account access.'
-                            : `Matching records: ${filteredTotal}`
-                }}
-            </p>
-        </div>
+        </section>
 
-        <Transition
-            mode="out-in"
-            enter-active-class="transition duration-200 ease-out"
-            enter-from-class="opacity-0 translate-y-1"
-            enter-to-class="opacity-100 translate-y-0"
-            leave-active-class="transition duration-150 ease-in"
-            leave-from-class="opacity-100 translate-y-0"
-            leave-to-class="opacity-0 -translate-y-1"
-        >
-            <div
-                :key="statusFilter"
-                class="page-card overflow-hidden rounded-xl border border-[#034485]/45 bg-white"
-                :class="statusSwitching ? 'opacity-75' : ''"
-            >
-                <div v-if="users.data.length" class="xl:hidden">
-                    <div class="border-b border-[#034485]/15 bg-[#eef5ff] px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">User Directory</p>
-                        <p v-if="isDeactivatedView" class="mt-1 text-sm text-slate-600">
-                            Review deactivated accounts and restore access without leaving the page.
-                        </p>
-                    </div>
-                    <div class="space-y-3 p-4">
-                        <article
-                            v-for="user in users.data"
-                            :key="`mobile-${user.id}`"
-                            class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4 shadow-[0_16px_34px_-30px_rgba(3,68,133,0.28)]"
-                        >
+        <section class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-[#034485]/25 bg-white text-slate-900'">
+            <div>
+                <DataTable
+                    :value="users.data"
+                    dataKey="id"
+                    responsiveLayout="scroll"
+                    :class="['admin-user-directory-table', { 'admin-user-directory-table--dark': isDarkMode }]"
+                    :sortField="sortOption.split(':')[0]"
+                    :sortOrder="sortOption.endsWith(':asc') ? 1 : -1"
+                    @sort="handleSort"
+                    :pt="{
+                        table: { class: 'min-w-[1180px]' },
+                        tbody: { class: isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-900' },
+                    }"
+                >
+                    <template #empty>
+                        <div class="py-10 text-center text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">
+                            No users matched the current directory filters.
+                        </div>
+                    </template>
+
+                    <Column field="name" header="User" sortable>
+                        <template #body="{ data }">
                             <div class="flex items-start gap-3">
-                                <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-[#e9f2ff] text-sm font-bold text-[#034485]">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border text-sm font-bold" :class="isDarkMode ? 'border-slate-700 bg-[#0a2747] text-sky-100' : 'border-[#034485]/15 bg-[#edf4ff] text-[#034485]'">
                                     <img
-                                        v-if="user.avatar"
-                                        :src="resolveUserAvatarUrl(user.avatar)"
-                                        :alt="`${user.name} avatar`"
-                                        loading="lazy"
-                                        decoding="async"
+                                        v-if="data.avatar"
+                                        :src="resolveUserAvatarUrl(data.avatar)"
+                                        :alt="`${data.name} avatar`"
                                         class="h-full w-full object-cover"
                                     />
-                                    <span v-else>{{ userInitials(user) }}</span>
+                                    <span v-else>{{ userInitials(data) }}</span>
                                 </div>
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <p class="text-sm font-semibold text-slate-900">{{ user.name }}</p>
-                                        <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize" :class="accountTone(user)">
-                                            {{ user.status }}
-                                        </span>
-                                        <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize" :class="roleTone(user)">
-                                            {{ formatRole(user.role) }}
-                                        </span>
-                                    </div>
-                                    <p class="mt-1 text-xs text-slate-500">
-                                        {{ user.student ? formatSimple(user.student.student_id_number) : user.email }}
-                                    </p>
-                                    <p class="mt-1 text-xs text-slate-500">
-                                        {{ user.student ? user.email : formatSimple(getPrimaryPhone(user)) }}
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="mt-3 flex flex-col gap-2 sm:flex-row">
-                                <button
-                                    type="button"
-                                    class="w-full rounded-lg border border-[#034485]/35 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff] sm:w-auto"
-                                    @click="openMobileDetails(user)"
-                                >
-                                    View Details
-                                </button>
-                                <button
-                                    v-if="user.status === 'active'"
-                                    type="button"
-                                    class="w-full rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 sm:w-auto"
-                                    :disabled="actionLoadingId === user.id"
-                                    @click="openDeactivateDialog(user)"
-                                >
-                                    Deactivate
-                                </button>
-                                <button
-                                    v-else
-                                    type="button"
-                                    class="w-full rounded-lg bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f] sm:w-auto"
-                                    :disabled="actionLoadingId === user.id"
-                                    @click="openReactivateDialog(user)"
-                                >
-                                    Reactivate
-                                </button>
-                            </div>
-                        </article>
-                    </div>
-                </div>
-
-                <div v-if="users.data.length" class="hidden xl:grid xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                            <div class="flex h-full min-h-full flex-col border-b border-slate-200 xl:border-r xl:border-b-0">
-                        <div class="border-b border-[#034485]/15 bg-[#eef5ff] px-4 py-3">
-                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">User Directory</p>
-                            <p v-if="isDeactivatedView" class="mt-1 text-sm text-slate-600">
-                                Review deactivated accounts and restore access without leaving the page.
-                            </p>
-                        </div>
-                        <div class="flex-1 bg-white">
-                            <div class="xl:max-h-[calc(100vh-24rem)] xl:min-h-[24rem] overflow-y-auto">
-                            <button
-                                v-for="user in users.data"
-                                :key="user.id"
-                                type="button"
-                                class="user-directory-row w-full border-b border-[#034485]/12 px-4 py-4 text-left transition-colors duration-200 ease-out last:border-b-0"
-                                :class="
-                                    selectedUser?.id === user.id
-                                        ? 'user-directory-row--selected border-l-4 border-l-[#02315f] bg-[#034485]'
-                                        : 'hover:bg-[#f5f9ff]'
-                                "
-                                @click="openInfo(user)"
-                            >
-                                <div class="flex items-start gap-3">
-                                    <div
-                                        class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border text-sm font-bold transition-colors duration-200 ease-out"
-                                        :class="
-                                            selectedUser?.id === user.id
-                                                ? 'border-white/25 bg-white/15 text-white'
-                                                : 'border-[#034485]/20 bg-[#e9f2ff] text-[#034485]'
-                                        "
-                                    >
-                                        <img
-                                            v-if="user.avatar"
-                                            :src="resolveUserAvatarUrl(user.avatar)"
-                                            :alt="`${user.name} avatar`"
-                                            loading="lazy"
-                                            decoding="async"
-                                            class="h-full w-full object-cover"
-                                        />
-                                        <span v-else>{{ userInitials(user) }}</span>
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <p
-                                                class="text-sm font-semibold leading-tight break-words transition-colors duration-200 ease-out"
-                                                :class="selectedUser?.id === user.id ? 'text-white' : 'text-slate-900'"
-                                            >
-                                                {{ user.name }}
-                                            </p>
-                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors duration-200 ease-out" :class="accountTone(user)">
-                                                {{ user.status }}
-                                            </span>
-                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors duration-200 ease-out" :class="roleTone(user)">
-                                                {{ formatRole(user.role) }}
-                                            </span>
-                                        </div>
-                                        <p class="mt-1 text-xs transition-colors duration-200 ease-out" :class="selectedUser?.id === user.id ? 'text-blue-100' : 'text-slate-500'">{{ user.email }}</p>
-                                        <p class="mt-1 text-xs transition-colors duration-200 ease-out" :class="selectedUser?.id === user.id ? 'text-blue-100' : 'text-slate-500'">
-                                            {{
-                                                user.student
-                                                    ? `${formatSimple(user.student.student_id_number)} • ${formatSimple(user.student.course_or_strand)}`
-                                                    : `${formatSimple(coachDisplayName(user.coach))} • ${formatSimple(user.coach?.coach_status)}`
-                                            }}
-                                        </p>
-                                        <div class="mt-3 flex flex-wrap gap-2">
-                                            <span
-                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
-                                                :class="
-                                                    selectedUser?.id === user.id
-                                                        ? 'border-white/20 bg-white/10 text-blue-50'
-                                                        : 'border-[#034485]/15 bg-white text-[#034485]'
-                                                "
-                                            >
-                                                Registered {{ formatDate(user.created_at) }}
-                                            </span>
-                                            <span
-                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
-                                                :class="
-                                                    selectedUser?.id === user.id
-                                                        ? 'border-white/20 bg-white/10 text-blue-50'
-                                                        : 'border-[#034485]/15 bg-white text-[#034485]'
-                                                "
-                                            >
-                                                Profile {{ profileCompleteness(user) }}%
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white">
-                        <div v-if="selectedUser" class="space-y-5 p-4 sm:p-5">
-                            <div class="flex flex-col gap-4 border-b border-[#034485]/15 pb-4 lg:flex-row lg:items-start lg:justify-between">
-                                <div class="flex items-start gap-3">
-                                    <div
-                                        class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border text-base font-bold"
-                                        :class="'border-[#034485]/20 bg-[#e9f2ff] text-[#034485]'"
-                                    >
-                                        <img
-                                            v-if="selectedUser.avatar"
-                                            :src="resolveUserAvatarUrl(selectedUser.avatar)"
-                                            :alt="`${selectedUser.name} avatar`"
-                                            loading="lazy"
-                                            decoding="async"
-                                            class="h-full w-full object-cover"
-                                        />
-                                        <span v-else>{{ userInitials(selectedUser) }}</span>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <h2 class="text-lg font-bold leading-tight break-words text-slate-900">{{ selectedUser.name }}</h2>
-                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize" :class="accountTone(selectedUser)">
-                                                {{ selectedUser.status }}
-                                            </span>
-                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize" :class="roleTone(selectedUser)">
-                                                {{ formatRole(selectedUser.role) }}
-                                            </span>
-                                        </div>
-                                        <p class="mt-1 text-sm text-slate-600">{{ selectedUser.email }}</p>
-                                        <p class="text-sm text-slate-500">Joined {{ formatDateTime(selectedUser.created_at) }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                                    <button
-                                        type="button"
-                                        @click="copyEmail(selectedUser)"
-                                        class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-[#034485]/35 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff] sm:w-auto"
-                                    >
-                                        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor">
-                                            <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
-                                        </svg>
-                                        {{ copiedUserId === selectedUser.id ? 'Copied' : 'Copy Email Address' }}
-                                    </button>
-                                    <button
-                                        v-if="selectedUser.role === 'coach'"
-                                        type="button"
-                                        @click="regenerateCoachCredentials(selectedUser)"
-                                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#034485]/35 bg-[#eef5ff] px-3 py-2 text-sm font-semibold text-[#034485] transition hover:border-[#034485] hover:bg-[#e1eeff] sm:w-auto"
-                                    >
-                                        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                                            <path d="M21 3v6h-6" />
-                                        </svg>
-                                        Regenerate Credentials
-                                    </button>
-                                    <button
-                                        v-if="selectedUser.status === 'active'"
-                                        type="button"
-                                        @click="openDeactivateDialog(selectedUser)"
-                                        :disabled="actionLoadingId === selectedUser.id"
-                                        class="w-full rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
-                                    >
-                                        Deactivate
-                                    </button>
-                                    <button
-                                        v-if="selectedUser.status === 'deactivated'"
-                                        type="button"
-                                        @click="openReactivateDialog(selectedUser)"
-                                        :disabled="actionLoadingId === selectedUser.id"
-                                        class="w-full rounded-lg bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
-                                    >
-                                        Reactivate
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="grid gap-4 lg:grid-cols-2">
-                                <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Account Overview</p>
-                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                        <div>
-                                            <p class="text-xs text-slate-500">User ID</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ selectedUser.id }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Profile Completeness</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ profileCompleteness(selectedUser) }}%</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Account Status</p>
-                                            <p class="mt-1 text-sm font-medium capitalize text-slate-900">{{ selectedUser.status }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Registered</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatDate(selectedUser.created_at) }}</p>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contact</p>
-                                    <div class="mt-3 grid gap-3">
-                                        <div>
-                                            <p class="text-xs text-slate-500">Email</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ selectedUser.email }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Primary Phone</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(getPrimaryPhone(selectedUser)) }}</p>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section v-if="selectedUser.student" class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Student Information</p>
-                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                        <div>
-                                            <p class="text-xs text-slate-500">Student ID</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.student_id_number) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Course / Strand</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.course_or_strand) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Academic Level</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.academic_level_label || selectedUser.student.current_grade_level) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Enrollment Status</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.student_status) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Approval Status</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.approval_status) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Gender</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.gender) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Birth Date</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatDate(selectedUser.student.date_of_birth) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Age</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ getAge(selectedUser.student.date_of_birth) ?? '-' }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Height</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.height) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Weight</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.weight) }}</p>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section v-if="selectedUser.student" class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Emergency Contact</p>
-                                    <div class="mt-3 grid gap-3">
-                                        <div>
-                                            <p class="text-xs text-slate-500">Name</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.emergency_contact_name) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Relationship</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.emergency_contact_relationship) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Phone</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.emergency_contact_phone) }}</p>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section v-if="selectedUser.coach" class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4 lg:col-span-2">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Coach Information</p>
-                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                        <div>
-                                            <p class="text-xs text-slate-500">Coach Name</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ coachDisplayName(selectedUser.coach) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Coach Status</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.coach_status) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Phone</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.phone_number) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Gender</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.gender) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Birth Date</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatDate(selectedUser.coach.date_of_birth) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-slate-500">Age</p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ getAge(selectedUser.coach.date_of_birth) ?? '-' }}</p>
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-else class="p-4">
-                    <EmptyResultsState
-                        title="No user records matched your filters"
-                        description="Try adjusting the account status, role, or search terms to find the user you need."
-                    />
-                </div>
-
-                <div
-                    class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
-                >
-                    <p>Showing {{ users.from ?? 0 }} to {{ users.to ?? 0 }} of {{ users.total }} users</p>
-                    <nav class="flex flex-wrap items-center gap-1" aria-label="User pagination">
-                        <button
-                            v-for="(link, index) in users.links"
-                            :key="`${index}-${link.label}`"
-                            type="button"
-                            :disabled="!link.url"
-                            @click="visitPage(link.url)"
-                            class="min-w-9 rounded-md border px-2 py-1 text-xs transition"
-                            :class="
-                                link.active
-                                    ? 'border-[#034485] bg-[#034485] text-white'
-                                    : 'border-[#034485]/25 bg-white text-[#034485] hover:bg-[#eef5ff] disabled:cursor-not-allowed disabled:opacity-40'
-                            "
-                            v-html="link.label"
-                        />
-                    </nav>
-                </div>
-            </div>
-        </Transition>
-    </div>
-
-    <Transition name="modal-fade">
-        <div
-            v-if="detailsModalOpen && selectedUser"
-            class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center"
-            @click.self="closeMobileDetails"
-        >
-            <div class="modal-panel my-6 w-full max-w-3xl rounded-2xl border border-[#034485]/45 bg-white p-5 sm:my-0 sm:p-6">
-                <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
-                    <div class="min-w-0">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">User Details</p>
-                        <h2 class="mt-1 text-lg font-bold text-slate-900">{{ selectedUser.name }}</h2>
-                        <p class="mt-1 text-sm text-slate-600">{{ selectedUser.email }}</p>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            @click="copyEmail(selectedUser)"
-                            class="rounded-lg border border-[#034485]/35 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
-                        >
-                            {{ copiedUserId === selectedUser.id ? 'Copied' : 'Copy Email' }}
-                        </button>
-                        <button
-                            v-if="selectedUser.status === 'active'"
-                            type="button"
-                            @click="openDeactivateDialog(selectedUser); closeMobileDetails()"
-                            class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
-                        >
-                            Deactivate
-                        </button>
-                        <button
-                            v-if="selectedUser.status === 'deactivated'"
-                            type="button"
-                            @click="openReactivateDialog(selectedUser); closeMobileDetails()"
-                            class="rounded-lg bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f]"
-                        >
-                            Reactivate
-                        </button>
-                    </div>
-                </div>
-
-                <div class="mt-4 grid gap-4 lg:grid-cols-2">
-                    <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Account Overview</p>
-                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                            <div><p class="text-xs text-slate-500">User ID</p><p class="mt-1 text-sm font-medium text-slate-900">{{ selectedUser.id }}</p></div>
-                            <div><p class="text-xs text-slate-500">Profile Completeness</p><p class="mt-1 text-sm font-medium text-slate-900">{{ profileCompleteness(selectedUser) }}%</p></div>
-                            <div><p class="text-xs text-slate-500">Account Status</p><p class="mt-1 text-sm font-medium capitalize text-slate-900">{{ selectedUser.status }}</p></div>
-                            <div><p class="text-xs text-slate-500">Registered</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatDate(selectedUser.created_at) }}</p></div>
-                        </div>
-                    </section>
-
-                    <section class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contact</p>
-                        <div class="mt-3 grid gap-3">
-                            <div><p class="text-xs text-slate-500">Email</p><p class="mt-1 text-sm font-medium text-slate-900">{{ selectedUser.email }}</p></div>
-                            <div><p class="text-xs text-slate-500">Primary Phone</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(getPrimaryPhone(selectedUser)) }}</p></div>
-                        </div>
-                    </section>
-
-                    <section v-if="selectedUser.student" class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Student Information</p>
-                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                            <div><p class="text-xs text-slate-500">Student ID</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.student_id_number) }}</p></div>
-                            <div><p class="text-xs text-slate-500">Course / Strand</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.course_or_strand) }}</p></div>
-                            <div><p class="text-xs text-slate-500">Academic Level</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.academic_level_label || selectedUser.student.current_grade_level) }}</p></div>
-                            <div><p class="text-xs text-slate-500">Enrollment Status</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.student_status) }}</p></div>
-                            <div><p class="text-xs text-slate-500">Approval Status</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.approval_status) }}</p></div>
-                            <div><p class="text-xs text-slate-500">Gender</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.gender) }}</p></div>
-                        </div>
-                    </section>
-
-                    <section v-if="selectedUser.coach" class="page-card rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Coach Information</p>
-                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                            <div><p class="text-xs text-slate-500">Coach Name</p><p class="mt-1 text-sm font-medium text-slate-900">{{ coachDisplayName(selectedUser.coach) }}</p></div>
-                            <div><p class="text-xs text-slate-500">Coach Status</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.coach_status) }}</p></div>
-                            <div><p class="text-xs text-slate-500">Phone</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.phone_number) }}</p></div>
-                            <div><p class="text-xs text-slate-500">Gender</p><p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.gender) }}</p></div>
-                        </div>
-                    </section>
-                </div>
-            </div>
-        </div>
-    </Transition>
-
-    <Transition name="modal-fade">
-        <div
-            v-if="adminInviteOpen"
-            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center"
-            @click.self="closeAdminInvite"
-        >
-            <div class="modal-panel my-6 w-full max-w-xl rounded-2xl border border-[#034485]/45 bg-white p-6 sm:my-0 sm:p-7">
-                <div class="flex items-start justify-between gap-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Invite Administrator</h2>
-                        <p class="mt-1 text-sm text-slate-600">Send a one-time account setup link to a future AC-VMIS administrator.</p>
-                    </div>
-                    <button
-                        type="button"
-                        @click="closeAdminInvite"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#034485]/30 bg-white text-[#034485] hover:bg-[#eef5ff]"
-                        aria-label="Close admin invite form"
-                    >
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M18 6 6 18" />
-                            <path d="m6 6 12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <form class="mt-5 space-y-4" @submit.prevent="submitAdminInvite">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Email</label>
-                        <input
-                            v-model="adminInviteForm.email"
-                            type="email"
-                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
-                            placeholder="futureadmin@example.com"
-                        />
-                        <p v-if="adminInviteForm.errors.email" class="mt-1 text-xs text-rose-600">{{ adminInviteForm.errors.email }}</p>
-                    </div>
-
-                    <div class="rounded-xl border border-[#034485]/15 bg-[#f6faff] p-3 text-xs text-slate-600">
-                        This invitation link may be used only once and will expire after three days. The administrator account will be created after setup is completed.
-                    </div>
-
-                    <div class="flex flex-wrap items-center justify-end gap-2">
-                        <button
-                            type="button"
-                            @click="closeAdminInvite"
-                            class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            :disabled="adminInviteForm.processing"
-                            class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {{ adminInviteForm.processing ? 'Sending...' : 'Send Invitation' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </Transition>
-
-    <Transition name="modal-fade">
-        <div
-            v-if="createCoachOpen"
-            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center"
-            @click.self="closeCreateCoach"
-        >
-            <div
-                ref="createCoachPanel"
-                class="modal-panel my-6 max-h-[calc(100vh-3rem)] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#034485]/45 bg-white p-6 sm:my-0 sm:p-7"
-            >
-                <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Create Coach Account</h2>
-                        <p class="mt-1 text-sm text-slate-600">Create a coach account and optionally assign the coach to a team during setup.</p>
-                    </div>
-                    <button
-                        type="button"
-                        @click="closeCreateCoach"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#034485]/30 bg-white text-[#034485] hover:bg-[#eef5ff]"
-                        aria-label="Close create coach form"
-                    >
-                        <svg
-                            class="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
-                        >
-                            <path d="M18 6 6 18" />
-                            <path d="m6 6 12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <form class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2" @submit.prevent="submitCreateCoach">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">First Name</label>
-                        <input
-                            v-model="createCoachForm.first_name"
-                            type="text"
-                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
-                        />
-                        <p v-if="createCoachForm.errors.first_name" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.first_name }}</p>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Last Name</label>
-                        <input
-                            v-model="createCoachForm.last_name"
-                            type="text"
-                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
-                        />
-                        <p v-if="createCoachForm.errors.last_name" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.last_name }}</p>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Middle Name (Optional)</label>
-                        <input
-                            v-model="createCoachForm.middle_name"
-                            type="text"
-                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
-                        />
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Email</label>
-                        <input
-                            v-model="createCoachForm.email"
-                            type="email"
-                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
-                        />
-                        <p v-if="createCoachForm.errors.email" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.email }}</p>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Phone Number</label>
-                        <input
-                            v-model="createCoachForm.phone_number"
-                            type="text"
-                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
-                        />
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Gender</label>
-                        <select
-                            v-model="createCoachForm.gender"
-                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
-                        >
-                            <option value="">Not set</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                        </select>
-                        <p v-if="createCoachForm.errors.gender" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.gender }}</p>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Date Of Birth</label>
-                        <input
-                            v-model="createCoachForm.date_of_birth"
-                            type="date"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
-                        />
-                        <p v-if="createCoachForm.errors.date_of_birth" class="mt-1 text-xs text-rose-600">
-                            {{ createCoachForm.errors.date_of_birth }}
-                        </p>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Team Role Assignment</label>
-                        <select
-                            v-model="createCoachForm.assignment_role"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
-                        >
-                            <option value="assistant">Assistant Coach</option>
-                            <option value="head">Head Coach</option>
-                        </select>
-                    </div>
-
-                    <div class="lg:col-span-2">
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Home Address</label>
-                        <textarea
-                            v-model="createCoachForm.home_address"
-                            rows="2"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
-                        />
-                        <p v-if="createCoachForm.errors.home_address" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.home_address }}</p>
-                    </div>
-
-                    <div class="lg:col-span-2">
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Assign Team(s)</label>
-                        <div class="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-[#034485]/15 bg-[#f6faff] p-2">
-                            <label
-                                v-for="team in assignableTeams"
-                                :key="team.id"
-                                class="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-[#034485]/15 bg-white px-3 py-2 text-sm"
-                                :class="teamSlotTaken(team) ? 'opacity-60' : ''"
-                            >
                                 <div class="min-w-0">
-                                    <p class="font-semibold text-slate-900">
-                                        {{ team.team_name }} <span class="text-slate-500">({{ team.year || 'N/A' }})</span>
-                                    </p>
-                                    <p class="text-xs text-slate-500">{{ team.sport_name || 'No sport assigned' }}</p>
-                                    <p class="mt-1 text-xs" :class="teamSlotTaken(team) ? 'text-[#1f3f73]' : 'text-[#034485]'">
-                                        {{ teamSlotLabel(team) }}
+                                    <p class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-950'">{{ data.name }}</p>
+                                    <p class="mt-1 text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">ID {{ data.id }}</p>
+                                </div>
+                            </div>
+                        </template>
+                    </Column>
+
+                    <Column field="email" header="Email" sortable>
+                        <template #body="{ data }">
+                            <div class="min-w-0">
+                                <p class="break-all text-sm">{{ data.email }}</p>
+                            </div>
+                        </template>
+                    </Column>
+
+                    <Column field="role" header="Role">
+                        <template #body="{ data }">
+                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="roleTone(data)">
+                                {{ formatRole(data.role) }}
+                            </span>
+                        </template>
+                    </Column>
+
+                    <Column field="status" header="Account Status">
+                        <template #body="{ data }">
+                            <span class="text-sm font-semibold capitalize" :class="accountTone(data)">
+                                {{ data.status }}
+                            </span>
+                        </template>
+                    </Column>
+
+                    <Column header="Sport / Team Assignment">
+                        <template #body="{ data }">
+                            <div class="space-y-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="assignmentTone(data)">
+                                        {{ assignmentPrimaryLabel(data) }}
+                                    </span>
+                                </div>
+                                <div class="text-sm">
+                                    <p v-if="assignmentSecondaryLabel(data)" class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-900'">{{ assignmentSecondaryLabel(data) }}</p>
+                                    <p v-if="data.assignment.history_teams.length" class="mt-1 text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
+                                        {{ data.assignment.history_teams.length }} archived/history team link{{ data.assignment.history_teams.length === 1 ? '' : 's' }}
                                     </p>
                                 </div>
-                                <input
-                                    v-model="createCoachForm.team_ids"
-                                    type="checkbox"
-                                    :value="team.id"
-                                    :disabled="teamSlotTaken(team)"
-                                    class="mt-1 h-4 w-4"
+                            </div>
+                        </template>
+                    </Column>
+
+                    <Column field="created_at" header="Created" sortable>
+                        <template #body="{ data }">
+                            <span class="text-sm">{{ formatDateTime(data.created_at) }}</span>
+                        </template>
+                    </Column>
+
+                    <Column header="Actions">
+                        <template #body="{ data }">
+                            <div class="flex justify-center">
+                                <Button
+                                    icon="pi pi-ellipsis-v"
+                                    text
+                                    rounded
+                                    severity="contrast"
+                                    class="admin-user-directory-menu-trigger"
+                                    aria-label="Open user actions"
+                                    @click="toggleActionMenu($event, data)"
                                 />
-                            </label>
-                            <p v-if="assignableTeams.length === 0" class="px-1 py-2 text-xs text-slate-500">
-                                No team assignments are available for the selected role.
-                            </p>
-                        </div>
-                        <p v-if="createCoachForm.errors.team_ids" class="mt-1 text-xs whitespace-pre-line text-rose-600">
-                            {{ createCoachForm.errors.team_ids }}
-                        </p>
-                    </div>
-
-                    <div class="lg:col-span-2">
-                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Notes (Optional)</label>
-                        <textarea
-                            v-model="createCoachForm.notes"
-                            rows="2"
-                            class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
-                        />
-                        <p v-if="createCoachForm.errors.notes" class="mt-1 text-xs text-rose-600">{{ createCoachForm.errors.notes }}</p>
-                    </div>
-
-                    <div class="flex justify-end gap-2 lg:col-span-2">
-                        <button
-                            type="button"
-                            @click="closeCreateCoach"
-                            class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            :disabled="createCoachForm.processing"
-                            class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {{ createCoachForm.processing ? 'Creating...' : 'Create Coach Account' }}
-                        </button>
-                    </div>
-                </form>
+                            </div>
+                        </template>
+                    </Column>
+                </DataTable>
             </div>
-        </div>
-    </Transition>
 
-    <Transition name="modal-fade">
-        <div
-            v-if="regenerateTarget"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-            @click.self="closeRegenerateDialog"
-        >
-            <div class="modal-panel w-full max-w-lg rounded-xl border border-[#034485]/45 bg-white p-5">
-                <h2 class="text-lg font-bold text-slate-900">Regenerate Credentials</h2>
-                <p class="mt-2 text-sm text-slate-600">
-                    Regenerate onboarding credentials for <span class="font-semibold text-slate-900">{{ regenerateTarget.name }}</span
-                    >? The previous temporary password will no longer be valid.
+            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm" :class="isDarkMode ? 'text-slate-200' : 'text-slate-600'">
+                    Page {{ users.current_page }} of {{ users.last_page }} • {{ users.total }} users
                 </p>
-                <div class="mt-5 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        @click="closeRegenerateDialog"
-                        class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        @click="confirmRegenerateCoachCredentials"
-                        class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#02315f]"
-                    >
-                        Confirm Regenerate
-                    </button>
+
+                <Paginator
+                    :first="firstRecordIndex"
+                    :rows="users.per_page"
+                    :totalRecords="users.total"
+                    template="PrevPageLink PageLinks NextPageLink"
+                    @page="handlePageChange"
+                />
+            </div>
+        </section>
+
+        <Menu ref="rowActionMenu" :model="actionMenuItems" popup class="admin-user-directory-menu" />
+
+        <ConfirmDialog
+            :open="Boolean(regenerateTarget)"
+            title="Regenerate Coach Credentials"
+            confirmText="Regenerate"
+            :loading="actionLoadingId === regenerateTarget?.id"
+            @update:open="regenerateTarget = null"
+            @confirm="confirmRegenerateCoachCredentials"
+        >
+            <div class="space-y-2 text-sm text-slate-700">
+                <p>This will issue a fresh onboarding link and replacement credentials for the selected coach account.</p>
+                <p>The coach can use the new access details to sign in again and continue with sport or team assignment later.</p>
+            </div>
+        </ConfirmDialog>
+
+        <ConfirmDialog
+            :open="Boolean(deactivateTarget)"
+            title="Deactivate Account"
+            description="Deactivation removes sign-in access while keeping the user’s records, assignments, and historical data intact."
+            confirmText="Deactivate"
+            confirmVariant="destructive"
+            :loading="actionLoadingId === deactivateTarget?.id"
+            @update:open="deactivateTarget = null"
+            @confirm="confirmDeactivateUser"
+        />
+
+        <ConfirmDialog
+            :open="Boolean(reactivateTarget)"
+            title="Reactivate Account"
+            description="This restores sign-in access and leaves all existing records and relationships untouched."
+            confirmText="Reactivate"
+            :loading="actionLoadingId === reactivateTarget?.id"
+            @update:open="reactivateTarget = null"
+            @confirm="confirmReactivateUser"
+        />
+
+        <ConfirmDialog
+            :open="Boolean(deleteTarget)"
+            title="Delete Account Permanently"
+            description="Use permanent deletion only for mistaken or test accounts that do not need to preserve linked records."
+            confirmText="Delete Permanently"
+            confirmVariant="destructive"
+            :loading="actionLoadingId === deleteTarget?.id"
+            @update:open="deleteTarget = null"
+            @confirm="confirmDeleteUser"
+        />
+
+        <ConfirmDialog
+            :open="createCoachOpen"
+            title="Create Coach Account"
+            confirmText="Create Account"
+            :loading="createCoachForm.processing"
+            @update:open="(value) => { createCoachOpen = value; if (!value) closeCreateCoach() }"
+            @confirm="submitCreateCoach"
+        >
+            <div class="space-y-4">
+                <div class="space-y-1 text-sm text-slate-700">
+                    <p>Create a coach account directly from the admin directory.</p>
+                    <p>Enter the coach’s profile details and contact information. The account can later be assigned to a sport or active team.</p>
+                </div>
+                <div class="grid gap-3">
+                    <div>
+                        <InputText v-model="createCoachForm.first_name" placeholder="First name" class="w-full" :invalid="Boolean(createCoachForm.errors.first_name)" />
+                        <Message v-if="createCoachForm.errors.first_name" severity="error" size="small" variant="simple" class="mt-1">{{ createCoachForm.errors.first_name }}</Message>
+                    </div>
+                    <div>
+                        <InputText v-model="createCoachForm.middle_name" placeholder="Middle name" class="w-full" :invalid="Boolean(createCoachForm.errors.middle_name)" />
+                        <Message v-if="createCoachForm.errors.middle_name" severity="error" size="small" variant="simple" class="mt-1">{{ createCoachForm.errors.middle_name }}</Message>
+                    </div>
+                    <div>
+                        <InputText v-model="createCoachForm.last_name" placeholder="Last name" class="w-full" :invalid="Boolean(createCoachForm.errors.last_name)" />
+                        <Message v-if="createCoachForm.errors.last_name" severity="error" size="small" variant="simple" class="mt-1">{{ createCoachForm.errors.last_name }}</Message>
+                    </div>
+                    <div>
+                        <InputText v-model="createCoachForm.email" type="email" placeholder="Email address" class="w-full" :invalid="Boolean(createCoachForm.errors.email)" />
+                        <Message v-if="createCoachForm.errors.email" severity="error" size="small" variant="simple" class="mt-1">{{ createCoachForm.errors.email }}</Message>
+                    </div>
+                    <div>
+                        <Select v-model="createCoachForm.sport_id" :options="sportOptions" optionLabel="label" optionValue="value" class="w-full" :invalid="Boolean(createCoachForm.errors.sport_id)" />
+                        <Message v-if="createCoachForm.errors.sport_id" severity="error" size="small" variant="simple" class="mt-1">{{ createCoachForm.errors.sport_id }}</Message>
+                    </div>
+                    <div>
+                        <InputMask v-model="createCoachForm.phone_number" mask="0999-999-9999" placeholder="Phone number" class="w-full" :invalid="Boolean(createCoachForm.errors.phone_number)" />
+                        <Message v-if="createCoachForm.errors.phone_number" severity="error" size="small" variant="simple" class="mt-1">{{ createCoachForm.errors.phone_number }}</Message>
+                    </div>
                 </div>
             </div>
-        </div>
-    </Transition>
+        </ConfirmDialog>
 
-    <Transition name="modal-fade">
-        <div
-            v-if="deactivateTarget"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-            @click.self="closeDeactivateDialog"
+        <ConfirmDialog
+            :open="adminInviteOpen"
+            title="Invite Administrator"
+            confirmText="Send Invite"
+            :loading="adminInviteForm.processing"
+            @update:open="(value) => { adminInviteOpen = value; if (!value) closeAdminInvite() }"
+            @confirm="submitAdminInvite"
         >
-            <div class="modal-panel w-full max-w-lg rounded-xl border border-[#034485]/45 bg-white p-5">
-                <h2 class="text-lg font-bold text-slate-900">Deactivate Account</h2>
-                <p class="mt-2 text-sm text-slate-600">
-                    Deactivate <span class="font-semibold text-slate-900">{{ deactivateTarget.name }}</span
-                    >? This blocks login but keeps records for audit and recovery.
-                </p>
-                <div class="mt-5 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        @click="closeDeactivateDialog"
-                        class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        @click="deactivateUser"
-                        :disabled="actionLoadingId === deactivateTarget.id"
-                        class="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                        Confirm Deactivate
-                    </button>
+            <div class="space-y-4">
+                <div class="space-y-1 text-sm text-slate-700">
+                    <p>Send an administrator invitation to a new email address.</p>
+                    <p>The recipient will receive an email with a secure link to complete setup and join the admin workspace.</p>
+                </div>
+                <div>
+                    <InputText v-model="adminInviteForm.email" type="email" placeholder="Administrator email address" class="w-full" :invalid="Boolean(adminInviteForm.errors.email)" />
+                    <Message v-if="adminInviteForm.errors.email" severity="error" size="small" variant="simple" class="mt-1">{{ adminInviteForm.errors.email }}</Message>
                 </div>
             </div>
-        </div>
-    </Transition>
-
-    <Transition name="modal-fade">
-        <div
-            v-if="reactivateTarget"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-            @click.self="closeReactivateDialog"
-        >
-            <div class="modal-panel w-full max-w-lg rounded-xl border border-[#034485]/45 bg-white p-5">
-                <h2 class="text-lg font-bold text-slate-900">Reactivate Account</h2>
-                <p class="mt-2 text-sm text-slate-600">
-                    Reactivate <span class="font-semibold text-slate-900">{{ reactivateTarget.name }}</span
-                    >? This restores full sign-in access immediately.
-                </p>
-                <div class="mt-5 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        @click="closeReactivateDialog"
-                        class="rounded-md border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#eef5ff]"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        @click="reactivateUser"
-                        :disabled="actionLoadingId === reactivateTarget.id"
-                        class="rounded-md bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#02315f] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                        Confirm Reactivate
-                    </button>
-                </div>
-            </div>
-        </div>
-    </Transition>
+        </ConfirmDialog>
+    </div>
 </template>
 
 <style scoped>
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-    transition: opacity 0.2s ease;
+:deep(.admin-user-directory-table .p-datatable-thead > tr > th) {
+    border-color: rgba(147, 197, 253, 0.22) !important;
+    background: #034485 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
 }
 
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-    opacity: 0;
+:deep(.admin-user-directory-table .p-datatable-table-container) {
+    overflow: hidden;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(3, 68, 133, 0.14);
 }
 
-.modal-fade-enter-active .modal-panel,
-.modal-fade-leave-active .modal-panel {
-    transition:
-        transform 0.2s ease,
-        opacity 0.2s ease;
+:deep(.admin-user-directory-table--dark .p-datatable-table-container) {
+    border-color: rgba(74, 144, 226, 0.18);
+    background: #020617;
 }
 
-.modal-fade-enter-from .modal-panel,
-.modal-fade-leave-to .modal-panel {
-    transform: translateY(8px) scale(0.98);
-    opacity: 0;
+:deep(.admin-user-directory-table .p-datatable-thead > tr > th.p-sortable-column),
+:deep(.admin-user-directory-table .p-datatable-thead > tr > th.p-sortable-column.p-datatable-column-sorted),
+:deep(.admin-user-directory-table .p-datatable-thead > tr > th.p-sortable-column:hover),
+:deep(.admin-user-directory-table .p-datatable-thead > tr > th.p-sortable-column:focus-within) {
+    background: #034485 !important;
+    background-image: none !important;
+    color: #ffffff !important;
 }
 
-.user-directory-row:hover {
+:deep(.admin-user-directory-table .p-sortable-column .p-column-header-content),
+:deep(.admin-user-directory-table .p-sortable-column .p-column-title) {
+    color: #ffffff !important;
+}
+
+:deep(.admin-user-directory-table .p-sortable-column .p-sortable-column-icon),
+:deep(.admin-user-directory-table .p-sortable-column.p-highlight .p-sortable-column-icon),
+:deep(.admin-user-directory-table .p-datatable-thead .p-sortable-column-icon),
+:deep(.admin-user-directory-table .p-datatable-thead .p-sortable-column-icon svg),
+:deep(.admin-user-directory-table .p-datatable-thead .p-sortable-column-icon path) {
+    color: rgba(255, 255, 255, 0.84) !important;
+    fill: rgba(255, 255, 255, 0.84) !important;
+    stroke: rgba(255, 255, 255, 0.84) !important;
+}
+
+:deep(.admin-user-directory-table .p-datatable-thead > tr > th:last-child) {
+    text-align: center;
+}
+
+:deep(.admin-user-directory-table .p-datatable-thead > tr > th:first-child) {
+    border-top-left-radius: 1.25rem;
+}
+
+:deep(.admin-user-directory-table .p-datatable-thead > tr > th:last-child) {
+    border-top-right-radius: 1.25rem;
+}
+
+:deep(.admin-user-directory-table .p-datatable-tbody > tr > td) {
+    border-color: rgba(226, 232, 240, 0.9);
+    background: #ffffff;
+    color: #0f172a;
+}
+
+:deep(.admin-user-directory-table--dark .p-datatable-tbody > tr > td) {
+    border-color: rgba(51, 65, 85, 0.8);
+    background: #020617;
+    color: #f8fafc;
+}
+
+:deep(.admin-user-directory-table .p-datatable-tbody > tr > td *:not(.pi)) {
+    color: inherit;
+}
+
+:deep(.admin-user-directory-table .p-datatable-tbody > tr:hover) {
     background: rgba(3, 68, 133, 0.08);
 }
 
-.user-directory-row--selected:hover {
-    background: #034485 !important;
+:deep(.admin-user-directory-menu-trigger.p-button) {
+    color: #034485;
+    border: 1px solid rgba(74, 144, 226, 0.22);
+    background: #f8fbff;
+}
+
+:deep(.admin-user-directory-menu-trigger.p-button:hover) {
+    background: #eef5ff;
+    border-color: rgba(3, 68, 133, 0.28);
+    color: #034485;
+}
+
+:deep(.admin-user-directory-menu.p-menu) {
+    min-width: 15rem;
+    border: 1px solid rgba(74, 144, 226, 0.22);
+    background: #ffffff;
+    color: #0f172a;
+}
+
+:deep(.admin-user-directory-menu .p-menuitem-content) {
+    color: #0f172a;
+    border-radius: 0.85rem;
+}
+
+:deep(.admin-user-directory-menu .p-menuitem-link) {
+    color: #0f172a;
+}
+
+:deep(.admin-user-directory-menu .p-menuitem-content:hover) {
+    background: #eef5ff;
+}
+
+:deep(.admin-user-directory-menu .admin-user-directory-delete-item .p-menuitem-link),
+:deep(.admin-user-directory-menu .admin-user-directory-delete-item .p-menuitem-icon) {
+    color: #f87171;
+}
+
+:deep(.p-paginator) {
+    background: transparent;
+    border: 0;
+    color: #475569;
+}
+
+:deep(.p-paginator .p-paginator-page),
+:deep(.p-paginator .p-paginator-prev),
+:deep(.p-paginator .p-paginator-next) {
+    color: #475569;
+    border-radius: 9999px;
+}
+
+:deep(.p-paginator .p-paginator-page.p-highlight) {
+    background: #dcecff !important;
+    border-color: #bfd8ff !important;
+    color: #034485 !important;
+    box-shadow: none !important;
+}
+
+:deep(.p-paginator .p-paginator-page.p-highlight:hover) {
+    background: #c9e1ff !important;
+    border-color: #a8cbff !important;
+    color: #02376b !important;
 }
 </style>

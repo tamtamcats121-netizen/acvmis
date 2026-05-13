@@ -9,6 +9,7 @@ class StudentApprovalHistory extends Model
     protected $fillable = [
         'student_id',
         'admin_id',
+        'coach_id',
         'decision',
         'remarks',
     ];
@@ -16,6 +17,11 @@ class StudentApprovalHistory extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'student_id');
+    }
+
+    public function coach()
+    {
+        return $this->belongsTo(Coach::class, 'coach_id');
     }
 
     public function admin()

@@ -1,18 +1,34 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import DatePicker from 'primevue/datepicker';
+import FileUpload from 'primevue/fileupload';
+import InputMask from 'primevue/inputmask';
+import InputNumber from 'primevue/inputnumber';
+import InputText from 'primevue/inputtext';
+import Message from 'primevue/message';
+import Password from 'primevue/password';
+import RadioButton from 'primevue/radiobutton';
+import Select from 'primevue/select';
+import Textarea from 'primevue/textarea';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 import PublicLayout from '@/components/Public/PublicLayout.vue';
-import FieldError from '@/components/ui/form/FieldError.vue';
 import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 
 type Step = 1 | 2 | 3;
 type AcademicDocumentType = 'tor' | 'supporting_document';
+type SportOption = {
+    id: number;
+    name: string;
+};
 const draftKey = 'ac-vmis-student-registration-draft-v2';
 const acceptedDocsText = 'Accepted file types: PDF, JPG, JPEG, PNG (max 5MB each)';
+
+const props = defineProps<{
+    sports?: SportOption[];
+}>();
 
 const step = ref<Step>(1);
 const isSubmitting = ref(false);
@@ -45,16 +61,17 @@ const form = reactive({
     home_address: '',
     current_grade_level: '11',
     course_or_strand: '',
+    applied_sport_id: '',
     student_status: 'Enrolled',
     emergency_contact_name: '',
     emergency_contact_relationship: '',
     emergency_contact_phone: '',
 
     height_unit: 'cm' as 'cm' | 'ft',
-    height_cm: '',
-    height_ft: '',
-    height_in: '',
-    weight_kg: '',
+    height_cm: null as number | null,
+    height_ft: null as number | null,
+    height_in: null as number | null,
+    weight_kg: null as number | null,
 
     academic_document_type: 'tor' as AcademicDocumentType,
     academic_document_file: null as File | null,
@@ -70,6 +87,13 @@ const touchedFields = reactive<Record<string, boolean>>({});
 
 const yearLevelOptions = computed(() => ['11', '12', '1', '2', '3', '4']);
 const emergencyRelationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Grandparent', 'Relative', 'Spouse', 'Other'];
+const genderOptions = ['Male', 'Female', 'Other'];
+const supportedSportOptions = computed(() =>
+    (props.sports ?? []).map((sport) => ({
+        id: String(sport.id),
+        name: sport.name,
+    })),
+);
 
 const derivedEducationLevel = computed(() => {
     const raw = String(form.current_grade_level || '').trim();
@@ -111,8 +135,6 @@ const cropMinScale = ref(1);
 const cropX = ref(0);
 const cropY = ref(0);
 const cropError = ref('');
-const showPassword = ref(false);
-const showPasswordConfirm = ref(false);
 const today = new Date();
 
 let cropDragActive = false;
@@ -295,7 +317,7 @@ function validateField(field: string): boolean {
         return true;
     }
 
-    if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand'].includes(field)) {
+    if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand', 'applied_sport_id'].includes(field)) {
         if (field === 'phone_number') {
             const phone = normalizePhoneNumber(String(value || ''));
             form.phone_number = phone;
@@ -481,7 +503,7 @@ watch(
 function validateStep(currentStep: Step): boolean {
     const checks: Record<Step, string[]> = {
         1: ['email', 'password', 'password_confirmation', 'student_id_number'],
-        2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand', 'height', 'weight_kg'],
+        2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand', 'applied_sport_id', 'height', 'weight_kg'],
         3: ['academic_document_file', 'medical_document_file'],
     };
 
@@ -644,16 +666,14 @@ async function applyCroppedAvatar() {
     closeCropModal();
 }
 
-function setFile(field: 'avatar' | 'academic_document_file' | 'medical_document_file', event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
+function setPrimeFile(field: 'avatar' | 'academic_document_file' | 'medical_document_file', files: File[] | undefined) {
+    const file = files?.[0] ?? null;
 
     if (field === 'avatar') {
         touchField('avatar');
         if (!file) return;
         if (!file.type.startsWith('image/')) {
             setFieldError('avatar', 'Please select a valid image file.');
-            input.value = '';
             return;
         }
 
@@ -662,7 +682,6 @@ function setFile(field: 'avatar' | 'academic_document_file' | 'medical_document_
         revokeBlobUrl(cropSourceUrl.value);
         cropSourceUrl.value = URL.createObjectURL(file);
         cropModalOpen.value = true;
-        input.value = '';
         return;
     }
 
@@ -741,10 +760,11 @@ function submit() {
     formData.append('home_address', form.home_address);
     formData.append('current_grade_level', form.current_grade_level);
     formData.append('course_or_strand', form.course_or_strand);
+    formData.append('applied_sport_id', form.applied_sport_id);
     formData.append('student_status', 'Enrolled');
 
     formData.append('height', String(height));
-    formData.append('weight', form.weight_kg);
+    formData.append('weight', String(form.weight_kg ?? ''));
 
     formData.append('emergency_contact_name', form.emergency_contact_name);
     formData.append('emergency_contact_relationship', form.emergency_contact_relationship);
@@ -857,85 +877,59 @@ onBeforeUnmount(() => {
                     <section v-if="step === 1" key="step-1" class="mt-7 grid gap-4">
                     <div>
                         <label class="label">Email</label>
-                        <input
+                        <InputText
                             v-model="form.email"
                             type="email"
-                            :class="['field', { 'is-error': shouldShowError('email') }]"
+                            :class="['field w-full', { 'p-invalid': shouldShowError('email') }]"
                             placeholder="name@example.com"
                             @blur="touchAndValidate('email')"
                         />
-                        <FieldError :message="shouldShowError('email') ? fieldErrors.email : ''" />
+                        <Message v-if="shouldShowError('email')" severity="error" size="small" variant="simple" class="mt-1">
+                            {{ fieldErrors.email }}
+                        </Message>
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Password</label>
-                            <div class="relative">
-                                <input
-                                    v-model="form.password"
-                                    :type="showPassword ? 'text' : 'password'"
-                                    :class="['field', 'pr-10', { 'is-error': shouldShowError('password') }]"
-                                    placeholder="At least 6 characters"
-                                    @blur="touchAndValidate('password')"
-                                />
-                                <button
-                                    type="button"
-                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                                    :aria-label="showPassword ? 'Hide password' : 'Show password'"
-                                    @click="showPassword = !showPassword"
-                                >
-                                    <svg v-if="showPassword" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M3 3l18 18" />
-                                        <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                                        <path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c5 0 9.3 3.1 11 7-0.6 1.4-1.6 2.8-2.8 3.9" />
-                                        <path d="M6.7 6.7C4.7 8.1 3.3 10 2 12c1.6 3.9 6 7 10 7 1.4 0 2.8-0.3 4.1-0.9" />
-                                    </svg>
-                                    <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <FieldError :message="shouldShowError('password') ? fieldErrors.password : ''" />
+                            <Password
+                                v-model="form.password"
+                                toggleMask
+                                :feedback="false"
+                                inputClass="field w-full"
+                                :invalid="shouldShowError('password')"
+                                placeholder="At least 6 characters"
+                                class="w-full"
+                                @blur="touchAndValidate('password')"
+                            />
+                            <Message v-if="shouldShowError('password')" severity="error" size="small" variant="simple" class="mt-1">
+                                {{ fieldErrors.password }}
+                            </Message>
                         </div>
                         <div>
                             <label class="label">Confirm Password</label>
-                            <div class="relative">
-                                <input
-                                    v-model="form.password_confirmation"
-                                    :type="showPasswordConfirm ? 'text' : 'password'"
-                                    :class="['field', 'pr-10', { 'is-error': shouldShowError('password_confirmation') }]"
-                                    placeholder="Repeat password"
-                                    @blur="touchAndValidate('password_confirmation')"
-                                />
-                                <button
-                                    type="button"
-                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                                    :aria-label="showPasswordConfirm ? 'Hide password' : 'Show password'"
-                                    @click="showPasswordConfirm = !showPasswordConfirm"
-                                >
-                                    <svg v-if="showPasswordConfirm" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M3 3l18 18" />
-                                        <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                                        <path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c5 0 9.3 3.1 11 7-0.6 1.4-1.6 2.8-2.8 3.9" />
-                                        <path d="M6.7 6.7C4.7 8.1 3.3 10 2 12c1.6 3.9 6 7 10 7 1.4 0 2.8-0.3 4.1-0.9" />
-                                    </svg>
-                                    <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <FieldError :message="shouldShowError('password_confirmation') ? fieldErrors.password_confirmation : ''" />
+                            <Password
+                                v-model="form.password_confirmation"
+                                toggleMask
+                                :feedback="false"
+                                inputClass="field w-full"
+                                :invalid="shouldShowError('password_confirmation')"
+                                placeholder="Repeat password"
+                                class="w-full"
+                                @blur="touchAndValidate('password_confirmation')"
+                            />
+                            <Message v-if="shouldShowError('password_confirmation')" severity="error" size="small" variant="simple" class="mt-1">
+                                {{ fieldErrors.password_confirmation }}
+                            </Message>
                         </div>
                     </div>
 
                     <div>
                         <label class="label">Student ID Number</label>
-                        <input
+                        <InputText
                             v-model="form.student_id_number"
                             type="text"
-                            :class="['field', { 'is-error': shouldShowError('student_id_number') }]"
+                            :class="['field w-full', { 'p-invalid': shouldShowError('student_id_number') }]"
                             placeholder="Example: 24-000123"
                             @blur="touchAndValidate('student_id_number')"
                         />
@@ -944,16 +938,21 @@ onBeforeUnmount(() => {
                             <span v-else-if="studentIdAvailable === true" class="text-emerald-600">The student ID number is available.</span>
                             <span v-else-if="studentIdAvailable === false && (submitAttempted || touchedFields.student_id_number)" class="error-inline">This student ID number is already in use.</span>
                         </div>
-                        <FieldError :message="shouldShowError('student_id_number') ? fieldErrors.student_id_number : ''" />
+                        <Message v-if="shouldShowError('student_id_number')" severity="error" size="small" variant="simple" class="mt-1">
+                            {{ fieldErrors.student_id_number }}
+                        </Message>
                     </div>
 
                     <div>
                         <label class="label">Avatar (Optional)</label>
-                        <input
-                            type="file"
-                            :class="['field', 'file-field', { 'is-error': shouldShowError('avatar') }]"
+                        <FileUpload
+                            mode="basic"
+                            customUpload
+                            chooseLabel="Choose Avatar"
                             accept="image/*"
-                            @change="(event) => setFile('avatar', event)"
+                            class="w-full"
+                            :invalid="shouldShowError('avatar')"
+                            @select="(event) => setPrimeFile('avatar', event.files)"
                         />
                         <p class="mt-1 text-xs text-slate-500">Selected: {{ selectedFileNames.avatar }}</p>
                         <div v-if="avatarPreviewUrl" class="avatar-preview">
@@ -963,7 +962,9 @@ onBeforeUnmount(() => {
                                 <p class="text-sm font-semibold text-slate-700">Profile image selected</p>
                             </div>
                         </div>
-                        <FieldError :message="shouldShowError('avatar') ? fieldErrors.avatar : ''" />
+                        <Message v-if="shouldShowError('avatar')" severity="error" size="small" variant="simple" class="mt-1">
+                            {{ fieldErrors.avatar }}
+                        </Message>
                     </div>
                     </section>
 
@@ -971,17 +972,17 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-3">
                         <div>
                             <label class="label">First Name</label>
-                            <input v-model="form.first_name" type="text" :class="['field', { 'is-error': shouldShowError('first_name') }]" @blur="touchAndValidate('first_name')" />
-                            <FieldError :message="shouldShowError('first_name') ? fieldErrors.first_name : ''" />
+                            <InputText v-model="form.first_name" :class="['field w-full', { 'p-invalid': shouldShowError('first_name') }]" @blur="touchAndValidate('first_name')" />
+                            <Message v-if="shouldShowError('first_name')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.first_name }}</Message>
                         </div>
                         <div>
                             <label class="label">Middle Name (Optional)</label>
-                            <input v-model="form.middle_name" type="text" class="field" />
+                            <InputText v-model="form.middle_name" class="field w-full" />
                         </div>
                         <div>
                             <label class="label">Last Name</label>
-                            <input v-model="form.last_name" type="text" :class="['field', { 'is-error': shouldShowError('last_name') }]" @blur="touchAndValidate('last_name')" />
-                            <FieldError :message="shouldShowError('last_name') ? fieldErrors.last_name : ''" />
+                            <InputText v-model="form.last_name" :class="['field w-full', { 'p-invalid': shouldShowError('last_name') }]" @blur="touchAndValidate('last_name')" />
+                            <Message v-if="shouldShowError('last_name')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.last_name }}</Message>
                         </div>
                     </div>
 
@@ -1009,71 +1010,86 @@ onBeforeUnmount(() => {
                                 }"
                                 @hide="touchAndValidate('date_of_birth')"
                             />
-                            <FieldError :message="shouldShowError('date_of_birth') ? fieldErrors.date_of_birth : ''" />
+                            <Message v-if="shouldShowError('date_of_birth')" severity="error" size="small" variant="simple" class="mt-1">
+                                {{ fieldErrors.date_of_birth }}
+                            </Message>
                         </div>
                         <div>
                             <label class="label">Gender</label>
-                            <select v-model="form.gender" :class="['field', { 'is-error': shouldShowError('gender') }]" @blur="touchAndValidate('gender')">
-                                <option value="" disabled>Select gender</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                            </select>
-                            <FieldError :message="shouldShowError('gender') ? fieldErrors.gender : ''" />
+                            <Select
+                                v-model="form.gender"
+                                :options="genderOptions"
+                                placeholder="Select gender"
+                                :class="['w-full', { 'p-invalid': shouldShowError('gender') }]"
+                                @hide="touchAndValidate('gender')"
+                            />
+                            <Message v-if="shouldShowError('gender')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.gender }}</Message>
                         </div>
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Phone Number</label>
-                            <input
+                            <InputMask
                                 v-model="form.phone_number"
-                                type="tel"
-                                inputmode="numeric"
-                                maxlength="10"
-                                pattern="[0-9]{10}"
-                                :class="['field', { 'is-error': shouldShowError('phone_number') }]"
-                                placeholder="9XXXXXXXXX"
+                                mask="0999-999-9999"
+                                :class="['field w-full', { 'p-invalid': shouldShowError('phone_number') }]"
+                                placeholder="09XX-XXX-XXXX"
                                 @blur="touchAndValidate('phone_number')"
                             />
-                            <FieldError :message="shouldShowError('phone_number') ? fieldErrors.phone_number : ''" />
+                            <Message v-if="shouldShowError('phone_number')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.phone_number }}</Message>
                         </div>
                         <div>
                             <label class="label">Home Address (Optional)</label>
-                            <input v-model="form.home_address" type="text" class="field" />
+                            <InputText v-model="form.home_address" class="field w-full" />
                         </div>
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Education Level (Automatic)</label>
-                            <input
-                                :value="derivedEducationLevel || ''"
-                                class="field"
+                            <InputText
+                                :modelValue="derivedEducationLevel || ''"
+                                class="field w-full"
                                 placeholder="Select the current grade level first"
                                 disabled
                             />
                         </div>
                         <div>
                             <label class="label">Current Grade Level</label>
-                            <select v-model="form.current_grade_level" :class="['field', { 'is-error': shouldShowError('current_grade_level') }]" @blur="touchAndValidate('current_grade_level')">
-                                <option v-for="option in yearLevelOptions" :key="option" :value="option">{{ option }}</option>
-                            </select>
-                            <FieldError :message="shouldShowError('current_grade_level') ? fieldErrors.current_grade_level : ''" />
+                            <Select
+                                v-model="form.current_grade_level"
+                                :options="yearLevelOptions"
+                                :class="['w-full', { 'p-invalid': shouldShowError('current_grade_level') }]"
+                                @hide="touchAndValidate('current_grade_level')"
+                            />
+                            <Message v-if="shouldShowError('current_grade_level')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.current_grade_level }}</Message>
                         </div>
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">{{ courseLabel }}</label>
-                            <input
+                            <InputText
                                 v-model="form.course_or_strand"
-                                type="text"
-                                :class="['field', { 'is-error': shouldShowError('course_or_strand') }]"
+                                :class="['field w-full', { 'p-invalid': shouldShowError('course_or_strand') }]"
                                 :placeholder="coursePlaceholder"
                                 @blur="touchAndValidate('course_or_strand')"
                             />
-                            <FieldError :message="shouldShowError('course_or_strand') ? fieldErrors.course_or_strand : ''" />
+                            <Message v-if="shouldShowError('course_or_strand')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.course_or_strand }}</Message>
+                        </div>
+                        <div>
+                            <label class="label">Sport Applying For</label>
+                            <Select
+                                v-model="form.applied_sport_id"
+                                :options="supportedSportOptions"
+                                optionLabel="name"
+                                optionValue="id"
+                                placeholder="Select sport"
+                                :class="['w-full', { 'p-invalid': shouldShowError('applied_sport_id') }]"
+                                @hide="touchAndValidate('applied_sport_id')"
+                            />
+                            <Message v-if="shouldShowError('applied_sport_id')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.applied_sport_id }}</Message>
                         </div>
                     </div>
 
@@ -1082,46 +1098,43 @@ onBeforeUnmount(() => {
                             <label class="label">Height</label>
                             <div class="mb-2 flex gap-4 text-xs text-white/80">
                                 <label class="inline-flex items-center gap-1">
-                                    <input v-model="form.height_unit" type="radio" value="cm" />
+                                    <RadioButton v-model="form.height_unit" inputId="height-unit-cm" value="cm" />
                                     CM
                                 </label>
                                 <label class="inline-flex items-center gap-1">
-                                    <input v-model="form.height_unit" type="radio" value="ft" />
+                                    <RadioButton v-model="form.height_unit" inputId="height-unit-ft" value="ft" />
                                     FT/IN
                                 </label>
                             </div>
 
                             <div v-if="form.height_unit === 'cm'">
-                                <input v-model="form.height_cm" type="number" :class="['field', { 'is-error': shouldShowError('height') }]" placeholder="e.g. 170" @blur="touchAndValidate('height')" />
+                                <InputNumber v-model="form.height_cm" inputClass="field w-full" :useGrouping="false" placeholder="e.g. 170" @blur="touchAndValidate('height')" />
                             </div>
                             <div v-else class="grid grid-cols-2 gap-2">
-                                <input v-model="form.height_ft" type="number" :class="['field', { 'is-error': shouldShowError('height') }]" placeholder="ft" @blur="touchAndValidate('height')" />
-                                <input v-model="form.height_in" type="number" :class="['field', { 'is-error': shouldShowError('height') }]" placeholder="in" @blur="touchAndValidate('height')" />
+                                <InputNumber v-model="form.height_ft" inputClass="field w-full" :useGrouping="false" placeholder="ft" @blur="touchAndValidate('height')" />
+                                <InputNumber v-model="form.height_in" inputClass="field w-full" :useGrouping="false" placeholder="in" @blur="touchAndValidate('height')" />
                             </div>
-                            <FieldError :message="shouldShowError('height') ? fieldErrors.height : ''" />
+                            <Message v-if="shouldShowError('height')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.height }}</Message>
                         </div>
                         <div>
                             <label class="label">Weight (kg)</label>
-                            <input v-model="form.weight_kg" type="number" :class="['field', { 'is-error': shouldShowError('weight_kg') }]" placeholder="e.g. 60" @blur="touchAndValidate('weight_kg')" />
-                            <FieldError :message="shouldShowError('weight_kg') ? fieldErrors.weight_kg : ''" />
+                            <InputNumber v-model="form.weight_kg" inputClass="field w-full" :useGrouping="false" placeholder="e.g. 60" @blur="touchAndValidate('weight_kg')" />
+                            <Message v-if="shouldShowError('weight_kg')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.weight_kg }}</Message>
                         </div>
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-3">
                         <div>
                             <label class="label">Emergency Contact Name</label>
-                            <input v-model="form.emergency_contact_name" type="text" class="field" placeholder="Enter contact name" />
+                            <InputText v-model="form.emergency_contact_name" class="field w-full" placeholder="Enter contact name" />
                         </div>
                         <div>
                             <label class="label">Relationship</label>
-                            <select v-model="form.emergency_contact_relationship" class="field">
-                                <option value="">Select relationship</option>
-                                <option v-for="option in emergencyRelationshipOptions" :key="option" :value="option">{{ option }}</option>
-                            </select>
+                            <Select v-model="form.emergency_contact_relationship" :options="emergencyRelationshipOptions" placeholder="Select relationship" class="w-full" />
                         </div>
                         <div>
                             <label class="label">Emergency Contact Phone</label>
-                            <input v-model="form.emergency_contact_phone" type="text" class="field" placeholder="Enter contact phone" />
+                            <InputMask v-model="form.emergency_contact_phone" mask="0999-999-9999" class="field w-full" placeholder="09XX-XXX-XXXX" />
                         </div>
                     </div>
                     </section>
@@ -1135,27 +1148,38 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Academic Record Type</label>
-                            <select v-model="form.academic_document_type" class="field">
-                                <option value="tor">Transcript of Records (TOR)</option>
-                                <option value="supporting_document">Supporting Document</option>
-                            </select>
+                            <Select
+                                v-model="form.academic_document_type"
+                                :options="[
+                                    { label: 'Transcript of Records (TOR)', value: 'tor' },
+                                    { label: 'Supporting Document', value: 'supporting_document' },
+                                ]"
+                                optionLabel="label"
+                                optionValue="value"
+                                class="w-full"
+                            />
                         </div>
                         <div>
                             <label class="label">Academic Record File</label>
-                            <input
-                                type="file"
-                                :class="['field', 'file-field', { 'is-error': shouldShowError('academic_document_file') }]"
+                            <FileUpload
+                                mode="basic"
+                                customUpload
+                                chooseLabel="Choose Academic File"
                                 accept=".pdf,image/*"
-                                @change="(event) => setFile('academic_document_file', event)"
+                                class="w-full"
+                                :invalid="shouldShowError('academic_document_file')"
+                                @select="(event) => setPrimeFile('academic_document_file', event.files)"
                             />
                             <p class="support-text mt-1">Selected: {{ selectedFileNames.academic }}</p>
-                            <FieldError :message="shouldShowError('academic_document_file') ? fieldErrors.academic_document_file : ''" />
+                            <Message v-if="shouldShowError('academic_document_file')" severity="error" size="small" variant="simple" class="mt-1">
+                                {{ fieldErrors.academic_document_file }}
+                            </Message>
                         </div>
                     </div>
 
                     <div>
                         <label class="label">Academic Notes (Optional)</label>
-                        <textarea v-model="form.academic_document_notes" class="field min-h-21" placeholder="Additional context"></textarea>
+                        <Textarea v-model="form.academic_document_notes" class="field w-full min-h-21" autoResize placeholder="Additional context" />
                     </div>
 
                     <div class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
@@ -1167,19 +1191,24 @@ onBeforeUnmount(() => {
                         <div class="mt-4 grid gap-4 sm:grid-cols-2">
                             <div>
                                 <label class="label">Medical Clearance File</label>
-                                <input
-                                    type="file"
-                                    :class="['field', 'file-field', { 'is-error': shouldShowError('medical_document_file') }]"
+                                <FileUpload
+                                    mode="basic"
+                                    customUpload
+                                    chooseLabel="Choose Medical File"
                                     accept=".pdf,image/*"
-                                    @change="(event) => setFile('medical_document_file', event)"
+                                    class="w-full"
+                                    :invalid="shouldShowError('medical_document_file')"
+                                    @select="(event) => setPrimeFile('medical_document_file', event.files)"
                                 />
                                 <p class="support-text mt-1">Selected: {{ selectedFileNames.medical }}</p>
-                                <FieldError :message="shouldShowError('medical_document_file') ? fieldErrors.medical_document_file : ''" />
+                                <Message v-if="shouldShowError('medical_document_file')" severity="error" size="small" variant="simple" class="mt-1">
+                                    {{ fieldErrors.medical_document_file }}
+                                </Message>
                             </div>
 
                             <div>
                                 <label class="label">Medical Notes (Optional)</label>
-                                <textarea v-model="form.medical_document_notes" class="field min-h-21" placeholder="Clinic remarks, validity date, or other context"></textarea>
+                                <Textarea v-model="form.medical_document_notes" class="field w-full min-h-21" autoResize placeholder="Clinic remarks, validity date, or other context" />
                             </div>
                         </div>
                     </div>

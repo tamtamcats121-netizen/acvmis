@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3'
+import Checkbox from 'primevue/checkbox'
+import ToggleSwitch from 'primevue/toggleswitch'
 import { computed, ref } from 'vue'
 
 import AccountShell from '@/components/Account/AccountShell.vue'
@@ -56,7 +58,7 @@ const labelMap = computed(() => {
   return {
     notify_academic_alerts: 'Academic Submissions',
     notify_schedule_changes: 'Schedules',
-    notify_attendance_exceptions: 'Team Change Requests',
+    notify_attendance_exceptions: 'Team Operations Updates',
     notify_attendance_changes: 'Period Ending Soon',
     notify_approvals: 'Newly Pending Accounts',
   }
@@ -151,10 +153,7 @@ function cardMotion(order: number) {
                   }}
                 </p>
               </div>
-              <label v-if="hasNotificationField('notification_email_enabled')" class="switch">
-                <input v-model="form.notification_email_enabled" type="checkbox" />
-                <span class="slider" />
-              </label>
+              <ToggleSwitch v-if="hasNotificationField('notification_email_enabled')" v-model="form.notification_email_enabled" />
             </div>
             <div class="mt-4 grid gap-2">
               <div
@@ -163,10 +162,7 @@ function cardMotion(order: number) {
                 :class="[isDarkMode ? 'text-white' : 'text-slate-700', { 'toggle-row--disabled': !form.notification_email_enabled }]"
               >
                 <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-700'">{{ labelMap.notify_approvals }}</span>
-                <label class="switch switch--sm">
-                  <input v-model="form.notify_approvals" type="checkbox" :disabled="!form.notification_email_enabled" />
-                  <span class="slider" />
-                </label>
+                <Checkbox v-model="form.notify_approvals" binary :disabled="!form.notification_email_enabled" />
               </div>
               <div
                 v-if="hasNotificationField('notify_attendance_exceptions')"
@@ -174,10 +170,7 @@ function cardMotion(order: number) {
                 :class="[isDarkMode ? 'text-white' : 'text-slate-700', { 'toggle-row--disabled': !form.notification_email_enabled }]"
               >
                 <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-700'">{{ labelMap.notify_attendance_exceptions }}</span>
-                <label class="switch switch--sm">
-                  <input v-model="form.notify_attendance_exceptions" type="checkbox" :disabled="!form.notification_email_enabled" />
-                  <span class="slider" />
-                </label>
+                <Checkbox v-model="form.notify_attendance_exceptions" binary :disabled="!form.notification_email_enabled" />
               </div>
               <div
                 v-if="hasNotificationField('notify_schedule_changes')"
@@ -185,10 +178,7 @@ function cardMotion(order: number) {
                 :class="[isDarkMode ? 'text-white' : 'text-slate-700', { 'toggle-row--disabled': !form.notification_email_enabled }]"
               >
                 <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-700'">{{ labelMap.notify_schedule_changes }}</span>
-                <label class="switch switch--sm">
-                  <input v-model="form.notify_schedule_changes" type="checkbox" :disabled="!form.notification_email_enabled" />
-                  <span class="slider" />
-                </label>
+                <Checkbox v-model="form.notify_schedule_changes" binary :disabled="!form.notification_email_enabled" />
               </div>
               <div
                 v-if="hasNotificationField('notify_academic_alerts')"
@@ -196,10 +186,7 @@ function cardMotion(order: number) {
                 :class="[isDarkMode ? 'text-white' : 'text-slate-700', { 'toggle-row--disabled': !form.notification_email_enabled }]"
               >
                 <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-700'">{{ labelMap.notify_academic_alerts }}</span>
-                <label class="switch switch--sm">
-                  <input v-model="form.notify_academic_alerts" type="checkbox" :disabled="!form.notification_email_enabled" />
-                  <span class="slider" />
-                </label>
+                <Checkbox v-model="form.notify_academic_alerts" binary :disabled="!form.notification_email_enabled" />
               </div>
               <div
                 v-if="hasNotificationField('notify_attendance_changes')"
@@ -207,10 +194,7 @@ function cardMotion(order: number) {
                 :class="[isDarkMode ? 'text-white' : 'text-slate-700', { 'toggle-row--disabled': !form.notification_email_enabled }]"
               >
                 <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-700'">{{ labelMap.notify_attendance_changes }}</span>
-                <label class="switch switch--sm">
-                  <input v-model="form.notify_attendance_changes" type="checkbox" :disabled="!form.notification_email_enabled" />
-                  <span class="slider" />
-                </label>
+                <Checkbox v-model="form.notify_attendance_changes" binary :disabled="!form.notification_email_enabled" />
               </div>
             </div>
           </div>
@@ -223,8 +207,8 @@ function cardMotion(order: number) {
             class="rounded-lg px-4 py-2 font-semibold text-white transition"
             :class="
               isDarkMode
-                ? 'bg-sky-600 hover:bg-sky-500'
-                : 'bg-[#1f2937] hover:bg-[#334155]'
+                ? 'bg-[#034485] hover:bg-[#02376b]'
+                : 'bg-[#034485] hover:bg-[#02376b]'
             "
             :disabled="form.processing"
           >
@@ -288,63 +272,26 @@ function cardMotion(order: number) {
   opacity: 0.5;
 }
 
-.switch {
-  position: relative;
-  width: 42px;
-  height: 22px;
-  flex-shrink: 0;
+:deep(.p-checkbox-box.p-highlight),
+:deep(.p-checkbox-checked .p-checkbox-box) {
+  background: #034485 !important;
+  border-color: #034485 !important;
 }
 
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
+:deep(.p-checkbox-box.p-highlight .p-checkbox-icon),
+:deep(.p-checkbox-checked .p-checkbox-icon) {
+  color: #ffffff !important;
 }
 
-.slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background: #cbd5e1;
-  border-radius: 999px;
-  transition: background 0.2s ease;
+:deep(.p-toggleswitch.p-toggleswitch-checked .p-toggleswitch-slider),
+:deep(.p-toggleswitch-checked .p-toggleswitch-slider) {
+  background: #034485 !important;
+  border-color: #034485 !important;
 }
 
-.slider::before {
-  content: '';
-  position: absolute;
-  height: 18px;
-  width: 18px;
-  left: 2px;
-  top: 2px;
-  background: #ffffff;
-  border-radius: 999px;
-  transition: transform 0.2s ease;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
-}
-
-.switch input:checked + .slider {
-  background: #034485;
-}
-
-.switch input:checked + .slider::before {
-  transform: translateX(20px);
-}
-
-.switch--sm {
-  width: 36px;
-  height: 18px;
-}
-
-.switch--sm .slider::before {
-  width: 14px;
-  height: 14px;
-  top: 2px;
-  left: 2px;
-}
-
-.switch--sm input:checked + .slider::before {
-  transform: translateX(16px);
+:deep(.p-toggleswitch.p-focus .p-toggleswitch-slider),
+:deep(.p-toggleswitch:focus-within .p-toggleswitch-slider) {
+  box-shadow: 0 0 0 3px rgba(3, 68, 133, 0.18) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

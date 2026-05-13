@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import DatePicker from 'primevue/datepicker'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { VueCal } from 'vue-cal'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
@@ -402,12 +402,34 @@ function onEventDrag(event: any) {
     if (!s?.is_owner) return
     if (isLocked(s)) return
 
+    if (isPriorScheduleDate(toLocalInput(toMySQLLocal(event.start)))) {
+        showAppToast('Creating schedules for prior dates is not allowed.', 'error', {
+            summary: 'Schedule',
+        })
+        router.reload({ only: ['schedules'], preserveScroll: true, preserveState: true })
+        return
+    }
+
+    if (hasScheduleOverlap(new Date(event.start), new Date(event.end), event.id)) {
+        showAppToast('This schedule overlaps with an existing team schedule. Choose a different date or time.', 'error', {
+            summary: 'Schedule',
+        })
+        router.reload({ only: ['schedules'], preserveScroll: true, preserveState: true })
+        return
+    }
+
     router.put(`/coach/schedules/${event.id}`, {
         start_time: toMySQLLocal(event.start),
         end_time: toMySQLLocal(event.end),
         team_id: selectedTeamId.value ?? undefined,
     }, {
         preserveScroll: true,
+        onError: (errors) => {
+            showAppToast(firstErrorMessage(errors), 'error', {
+                summary: 'Schedule',
+            })
+            router.reload({ only: ['schedules'], preserveScroll: true, preserveState: true })
+        },
     })
 }
 
@@ -420,12 +442,34 @@ function onEventResize(event: any) {
     if (!s?.is_owner) return
     if (isLocked(s)) return
 
+    if (isPriorScheduleDate(toLocalInput(toMySQLLocal(event.start)))) {
+        showAppToast('Creating schedules for prior dates is not allowed.', 'error', {
+            summary: 'Schedule',
+        })
+        router.reload({ only: ['schedules'], preserveScroll: true, preserveState: true })
+        return
+    }
+
+    if (hasScheduleOverlap(new Date(event.start), new Date(event.end), event.id)) {
+        showAppToast('This schedule overlaps with an existing team schedule. Choose a different date or time.', 'error', {
+            summary: 'Schedule',
+        })
+        router.reload({ only: ['schedules'], preserveScroll: true, preserveState: true })
+        return
+    }
+
     router.put(`/coach/schedules/${event.id}`, {
         start_time: toMySQLLocal(event.start),
         end_time: toMySQLLocal(event.end),
         team_id: selectedTeamId.value ?? undefined,
     }, {
         preserveScroll: true,
+        onError: (errors) => {
+            showAppToast(firstErrorMessage(errors), 'error', {
+                summary: 'Schedule',
+            })
+            router.reload({ only: ['schedules'], preserveScroll: true, preserveState: true })
+        },
     })
 }
 
@@ -466,8 +510,67 @@ function toMySQLFromInput(local: string) {
     return local.replace('T', ' ') + ':00'
 }
 
+function firstErrorMessage(errors: Record<string, string | string[]>) {
+    for (const value of Object.values(errors || {})) {
+        if (Array.isArray(value) && value.length) return String(value[0])
+        if (typeof value === 'string' && value.trim()) return value
+    }
+
+    return 'Unable to save this schedule right now.'
+}
+
+function isPriorScheduleDate(localDateTime: string) {
+    const parsed = parseLocalInputDate(localDateTime)
+    if (!parsed) return false
+
+    const now = new Date()
+    const candidate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    return candidate.getTime() < today.getTime()
+}
+
+function hasScheduleOverlap(start: Date, end: Date, ignoreId: number | null = null) {
+    const teamId = selectedTeamId.value
+    if (!teamId) return false
+
+    return ownerSchedules.value.some((item: any) => {
+        if (ignoreId && item.id === ignoreId) return false
+        if (item.team_id !== teamId) return false
+
+        const existingStart = new Date(item.start)
+        const existingEnd = new Date(item.end)
+
+        return start < existingEnd && end > existingStart
+    })
+}
+
 function saveSchedule() {
     if (!canManage.value) return
+
+    const start = parseLocalInputDate(form.value.start_time)
+    const end = parseLocalInputDate(form.value.end_time)
+
+    if (!start || !end) {
+        showAppToast('Please provide valid start and end times.', 'error', {
+            summary: 'Schedule',
+        })
+        return
+    }
+
+    if (isPriorScheduleDate(form.value.start_time)) {
+        showAppToast('Creating schedules for prior dates is not allowed.', 'error', {
+            summary: 'Schedule',
+        })
+        return
+    }
+
+    if (hasScheduleOverlap(start, end, editingId.value)) {
+        showAppToast('This schedule overlaps with an existing team schedule. Choose a different date or time.', 'error', {
+            summary: 'Schedule',
+        })
+        return
+    }
 
     const payload = {
         ...form.value,
@@ -479,10 +582,20 @@ function saveSchedule() {
     if (editingId.value) {
         router.put(`/coach/schedules/${editingId.value}`, payload, {
             onSuccess: finalizeCreation,
+            onError: (errors) => {
+                showAppToast(firstErrorMessage(errors), 'error', {
+                    summary: 'Schedule',
+                })
+            },
         })
     } else {
         router.post('/coach/schedules', payload, {
             onSuccess: finalizeCreation,
+            onError: (errors) => {
+                showAppToast(firstErrorMessage(errors), 'error', {
+                    summary: 'Schedule',
+                })
+            },
         })
     }
 }

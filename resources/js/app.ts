@@ -13,21 +13,36 @@ import { Transition, createApp, h } from 'vue';
 import SessionExpiredToast from '@/components/ui/SessionExpiredToast.vue';
 import { showAppToast } from '@/composables/useAppToast';
 import { useSessionExpired } from '@/composables/useSessionExpired';
-import { initTheme } from '@/composables/useTheme';
+import { initTheme, syncThemeContext } from '@/composables/useTheme';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ACVMIS';
 
-initTheme();
+function resolveThemeContext(page: any) {
+    const userId = page?.props?.auth?.user?.id;
+    const component = String(page?.component ?? '');
+    const isWorkspacePage = Boolean(userId)
+        && !component.startsWith('Auth/')
+        && !component.startsWith('Public/')
+        && !component.startsWith('Status/');
+
+    return {
+        userKey: userId ? String(userId) : null,
+        allowDarkMode: isWorkspacePage,
+    };
+}
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob<DefineComponent>('./pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
+        initTheme(resolveThemeContext(props.initialPage));
+
         router.on('success', (event) => {
             const flash = (event.detail.page.props as any)?.flash ?? {};
             showAppToast(String(flash.login_success ?? ''), 'success');
             showAppToast(String(flash.success ?? ''), 'success');
             showAppToast(String(flash.error ?? ''), 'error');
+            syncThemeContext(resolveThemeContext(event.detail.page));
         });
         const { showSessionExpired } = useSessionExpired();
 

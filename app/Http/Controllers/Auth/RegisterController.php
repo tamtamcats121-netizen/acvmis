@@ -7,6 +7,7 @@ use App\Mail\AccountPendingApprovalMail;
 use App\Models\Announcement;
 use App\Models\Coach;
 use App\Models\DocumentType;
+use App\Models\Sport;
 use App\Models\Student;
 use App\Models\StudentDocument;
 use App\Models\User;
@@ -15,6 +16,7 @@ use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class RegisterController extends Controller
 {
@@ -34,6 +36,20 @@ class RegisterController extends Controller
     ) {
     }
 
+    public function showStudentAthleteRegistration()
+    {
+        return Inertia::render('Auth/Student-AthleteRegister', [
+            'sports' => Sport::supported()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Sport $sport) => [
+                    'id' => (int) $sport->id,
+                    'name' => $sport->name,
+                ])
+                ->values(),
+        ]);
+    }
+
     public function registerStudentAthlete(Request $request)
     {
         // --- Validation ---
@@ -48,6 +64,7 @@ class RegisterController extends Controller
             'phone_number' => ['required', 'regex:/^\d{10}$/'],
             'current_grade_level' => 'required|in:11,12,1,2,3,4',
             'course_or_strand' => 'required|string|max:255',
+            'applied_sport_id' => ['required', 'integer', \Illuminate\Validation\Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'height' => 'required|numeric|min:50|max:260',
             'weight' => 'required|numeric|min:20|max:300',
             'emergency_contact_name' => 'nullable|string|max:255',
@@ -79,7 +96,7 @@ class RegisterController extends Controller
             });
 
             $this->sendPendingApprovalMail($user);
-            $this->notifyAdminsOfPendingAccount($user);
+            $this->notifyCoachesOfPendingAccount($user);
 
             // --- Redirect on success ---
             return inertia('Status/PendingApproval', [
@@ -168,6 +185,7 @@ class RegisterController extends Controller
                 'course_or_strand' => $request->course_or_strand,
                 'current_grade_level' => $request->current_grade_level,
                 'approval_status' => 'pending',
+                'applied_sport_id' => $request->applied_sport_id,
                 'student_status' => 'Enrolled',
                 'phone_number' => $request->phone_number,
                 'height' => $request->height,
@@ -263,28 +281,37 @@ class RegisterController extends Controller
         ]);
     }
 
-    private function notifyAdminsOfPendingAccount(User $user): void
+    private function notifyCoachesOfPendingAccount(User $user): void
     {
         if (!$user->requiresStudentApproval()) {
             return;
         }
 
-        $adminUserIds = User::query()
+        $appliedSportId = $user->student?->applied_sport_id;
+        if (!$appliedSportId) {
+            return;
+        }
+
+        $coachUserIds = User::query()
             ->where('account_state', 'active')
-            ->where('role', 'admin')
+            ->where('role', 'coach')
+            ->whereHas('coach', fn ($query) => $query
+                ->where('coach_status', 'Active')
+                ->where('sport_id', $appliedSportId))
             ->pluck('id')
             ->all();
 
-        if (empty($adminUserIds)) {
+        if (empty($coachUserIds)) {
             return;
         }
 
         $roleLabel = ucwords(str_replace('-', ' ', (string) $user->role));
+        $sportLabel = Sport::query()->where('id', $appliedSportId)->value('name') ?? 'Unknown Sport';
 
         $this->notifications->announceMany(
-            $adminUserIds,
-            'New Pending Account',
-            "{$user->name} registered as {$roleLabel} and is waiting for approval.\nEmail: {$user->email}",
+            $coachUserIds,
+            'New Student Application',
+            "{$user->name} registered as {$roleLabel} for {$sportLabel} and is waiting for coach review.\nEmail: {$user->email}",
             Announcement::TYPE_APPROVAL,
             $user->id,
             'notify_approvals'

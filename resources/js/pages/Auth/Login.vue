@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
+import InputText from 'primevue/inputtext';
+import Message from 'primevue/message';
+import Password from 'primevue/password';
 import { reactive, ref } from 'vue';
 
 import PublicLayout from '@/components/Public/PublicLayout.vue';
-import FieldError from '@/components/ui/form/FieldError.vue';
 import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 
@@ -16,7 +18,6 @@ const fieldErrors = reactive({
     password: '',
 });
 const isSubmitting = ref(false);
-const showPassword = ref(false);
 const flashSuccess = ref(String((page.props as any)?.flash?.success ?? ''));
 
 function pickFirstError(errors: Record<string, unknown>) {
@@ -112,62 +113,30 @@ function login() {
 
                         <div class="form-stack">
                             <div>
-                                <input
+                                <InputText
                                     v-model="email"
                                     type="email"
                                     placeholder="Email"
-                                    :class="['field-input', { 'is-error': !!fieldErrors.email }]"
-                                    :aria-invalid="fieldErrors.email ? 'true' : 'false'"
-                                    aria-describedby="login-email-error"
+                                    :class="['field-input', { 'p-invalid': !!fieldErrors.email }]"
                                 />
-                                <FieldError id="login-email-error" :message="fieldErrors.email" />
+                                <Message v-if="fieldErrors.email" severity="error" size="small" variant="simple" class="mt-1">
+                                    {{ fieldErrors.email }}
+                                </Message>
                             </div>
 
                             <div class="password-field">
-                                <div class="password-field__control">
-                                    <input
-                                        v-model="password"
-                                        :type="showPassword ? 'text' : 'password'"
-                                        placeholder="Password"
-                                        :class="['field-input', 'pr-10', { 'is-error': !!fieldErrors.password }]"
-                                        :aria-invalid="fieldErrors.password ? 'true' : 'false'"
-                                        aria-describedby="login-password-error"
-                                    />
-                                    <button
-                                        type="button"
-                                        class="toggle-eye absolute top-1/2 right-3 -translate-y-1/2"
-                                        :aria-label="showPassword ? 'Hide password' : 'Show password'"
-                                        @click="showPassword = !showPassword"
-                                    >
-                                        <svg
-                                            v-if="showPassword"
-                                            class="h-4 w-4"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.8"
-                                            aria-hidden="true"
-                                        >
-                                            <path d="M3 3l18 18" />
-                                            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                                            <path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c5 0 9.3 3.1 11 7-0.6 1.4-1.6 2.8-2.8 3.9" />
-                                            <path d="M6.7 6.7C4.7 8.1 3.3 10 2 12c1.6 3.9 6 7 10 7 1.4 0 2.8-0.3 4.1-0.9" />
-                                        </svg>
-                                        <svg
-                                            v-else
-                                            class="h-4 w-4"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.8"
-                                            aria-hidden="true"
-                                        >
-                                            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                                            <circle cx="12" cy="12" r="3" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <FieldError id="login-password-error" :message="fieldErrors.password" />
+                                <Password
+                                    v-model="password"
+                                    toggleMask
+                                    :feedback="false"
+                                    placeholder="Password"
+                                    inputClass="field-input w-full"
+                                    :invalid="!!fieldErrors.password"
+                                    class="w-full"
+                                />
+                                <Message v-if="fieldErrors.password" severity="error" size="small" variant="simple" class="mt-1">
+                                    {{ fieldErrors.password }}
+                                </Message>
                             </div>
 
                             <button type="button" class="forgot-link" @click="toForgotPassword" :disabled="isSubmitting">

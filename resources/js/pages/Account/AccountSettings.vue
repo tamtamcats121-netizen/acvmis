@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import InputText from 'primevue/inputtext';
+import Message from 'primevue/message';
+import Password from 'primevue/password';
+import { computed } from 'vue';
 
 import AccountShell from '@/components/Account/AccountShell.vue';
 import { showAppToast } from '@/composables/useAppToast';
@@ -15,10 +18,6 @@ const passwordForm = useForm({
     new_password: '',
     new_password_confirmation: '',
 });
-
-const showCurrentPassword = ref(false);
-const showNewPassword = ref(false);
-const showConfirmPassword = ref(false);
 
 const page = usePage();
 const currentEmail = computed(() => String(page.props.auth?.user?.email ?? ''));
@@ -198,115 +197,47 @@ function confirmDelete() {
 
             <div v-if="!mustChangePassword">
                 <label class="settings-label text-sm text-slate-500">Current Password</label>
-                <div class="relative">
-                    <input
-                        v-model="passwordForm.current_password"
-                        :type="showCurrentPassword ? 'text' : 'password'"
-                        class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 pr-10"
-                    />
-                    <button
-                        type="button"
-                        class="settings-icon absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                        :aria-label="showCurrentPassword ? 'Hide password' : 'Show password'"
-                        @click="showCurrentPassword = !showCurrentPassword"
-                    >
-                        <svg
-                            v-if="showCurrentPassword"
-                            class="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            aria-hidden="true"
-                        >
-                            <path d="M3 3l18 18" />
-                            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                            <path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c5 0 9.3 3.1 11 7-0.6 1.4-1.6 2.8-2.8 3.9" />
-                            <path d="M6.7 6.7C4.7 8.1 3.3 10 2 12c1.6 3.9 6 7 10 7 1.4 0 2.8-0.3 4.1-0.9" />
-                        </svg>
-                        <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                            <circle cx="12" cy="12" r="3" />
-                        </svg>
-                    </button>
-                </div>
-                <p v-if="passwordForm.errors.current_password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.current_password }}</p>
+                <Password
+                    v-model="passwordForm.current_password"
+                    toggleMask
+                    :feedback="false"
+                    inputClass="mt-1 w-full"
+                    :invalid="!!passwordForm.errors.current_password"
+                    class="w-full"
+                />
+                <Message v-if="passwordForm.errors.current_password" severity="error" size="small" variant="simple" class="mt-1">
+                    {{ passwordForm.errors.current_password }}
+                </Message>
             </div>
 
             <div>
                 <label class="settings-label text-sm text-slate-500">New Password</label>
-                <div class="relative">
-                    <input
-                        v-model="passwordForm.new_password"
-                        :type="showNewPassword ? 'text' : 'password'"
-                        class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 pr-10"
-                    />
-                    <button
-                        type="button"
-                        class="settings-icon absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                        :aria-label="showNewPassword ? 'Hide password' : 'Show password'"
-                        @click="showNewPassword = !showNewPassword"
-                    >
-                        <svg
-                            v-if="showNewPassword"
-                            class="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            aria-hidden="true"
-                        >
-                            <path d="M3 3l18 18" />
-                            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                            <path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c5 0 9.3 3.1 11 7-0.6 1.4-1.6 2.8-2.8 3.9" />
-                            <path d="M6.7 6.7C4.7 8.1 3.3 10 2 12c1.6 3.9 6 7 10 7 1.4 0 2.8-0.3 4.1-0.9" />
-                        </svg>
-                        <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                            <circle cx="12" cy="12" r="3" />
-                        </svg>
-                    </button>
-                </div>
-                <p v-if="passwordForm.errors.new_password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.new_password }}</p>
+                <Password
+                    v-model="passwordForm.new_password"
+                    toggleMask
+                    :feedback="false"
+                    inputClass="mt-1 w-full"
+                    :invalid="!!passwordForm.errors.new_password"
+                    class="w-full"
+                />
+                <Message v-if="passwordForm.errors.new_password" severity="error" size="small" variant="simple" class="mt-1">
+                    {{ passwordForm.errors.new_password }}
+                </Message>
             </div>
 
             <div>
                 <label class="settings-label text-sm text-slate-500">Confirm New Password</label>
-                <div class="relative">
-                    <input
-                        v-model="passwordForm.new_password_confirmation"
-                        :type="showConfirmPassword ? 'text' : 'password'"
-                        class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 pr-10"
-                    />
-                    <button
-                        type="button"
-                        class="settings-icon absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                        :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
-                        @click="showConfirmPassword = !showConfirmPassword"
-                    >
-                        <svg
-                            v-if="showConfirmPassword"
-                            class="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            aria-hidden="true"
-                        >
-                            <path d="M3 3l18 18" />
-                            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                            <path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c5 0 9.3 3.1 11 7-0.6 1.4-1.6 2.8-2.8 3.9" />
-                            <path d="M6.7 6.7C4.7 8.1 3.3 10 2 12c1.6 3.9 6 7 10 7 1.4 0 2.8-0.3 4.1-0.9" />
-                        </svg>
-                        <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                            <circle cx="12" cy="12" r="3" />
-                        </svg>
-                    </button>
-                </div>
-                <p v-if="passwordForm.errors.new_password_confirmation" class="mt-1 text-xs text-red-600">
+                <Password
+                    v-model="passwordForm.new_password_confirmation"
+                    toggleMask
+                    :feedback="false"
+                    inputClass="mt-1 w-full"
+                    :invalid="!!passwordForm.errors.new_password_confirmation"
+                    class="w-full"
+                />
+                <Message v-if="passwordForm.errors.new_password_confirmation" severity="error" size="small" variant="simple" class="mt-1">
                     {{ passwordForm.errors.new_password_confirmation }}
-                </p>
+                </Message>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -341,8 +272,10 @@ function confirmDelete() {
             <p class="settings-muted text-xs text-slate-500">Update the email address tied to your account. Changing it will require a new verification.</p>
             <div>
                 <label class="settings-label text-sm text-slate-500">Email Address</label>
-                <input v-model="emailForm.email" type="email" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-                <p v-if="emailForm.errors.email" class="mt-1 text-xs text-red-600">{{ emailForm.errors.email }}</p>
+                <InputText v-model="emailForm.email" type="email" class="mt-1 w-full" />
+                <Message v-if="emailForm.errors.email" severity="error" size="small" variant="simple" class="mt-1">
+                    {{ emailForm.errors.email }}
+                </Message>
             </div>
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <button
@@ -380,8 +313,7 @@ function confirmDelete() {
 }
 
 .settings-muted,
-.settings-label,
-.settings-icon {
+.settings-label {
     color: #64748b;
 }
 

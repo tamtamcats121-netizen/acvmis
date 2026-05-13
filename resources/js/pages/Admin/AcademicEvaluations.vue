@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3'
 import { computed, onMounted, reactive, ref } from 'vue'
 
 import BackLinkButton from '@/components/ui/BackLinkButton.vue'
+import { useTheme } from '@/composables/useTheme'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
@@ -96,6 +97,7 @@ const activeDocumentId = ref<number | null>(props.selectedDocumentId)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const perPage = ref(12)
+const { isDarkMode } = useTheme()
 
 const filters = reactive({
     search: '',
@@ -336,7 +338,7 @@ onMounted(() => {
             </div>
         </section>
 
-        <section class="page-card rounded-3xl border border-[#034485]/25 bg-white p-5">
+        <section class="page-card rounded-3xl border p-5" :class="isDarkMode ? 'border-slate-800 bg-black text-slate-100' : 'border-[#034485]/25 bg-white'">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 class="text-sm font-semibold text-slate-900">Evaluation Queue</h2>
@@ -347,12 +349,14 @@ onMounted(() => {
                         v-model="filters.search"
                         type="text"
                         placeholder="Search student or ID"
-                        class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700"
+                        class="w-full rounded-2xl border px-4 py-3 text-sm"
+                        :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-slate-300 text-slate-700'"
                         @keyup.enter="applyFilters"
                     />
                     <select
                         v-model="filters.status"
-                        class="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700"
+                        class="rounded-2xl border px-4 py-3 text-sm"
+                        :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-slate-300 text-slate-700'"
                     >
                         <option value="">All statuses</option>
                         <option value="eligible">Eligible</option>
@@ -377,30 +381,31 @@ onMounted(() => {
                         :key="row.document_id"
                         class="rounded-3xl border p-4 transition"
                         :class="row.document_id === activeDocumentId
-                            ? 'border-[#034485] bg-[#EAF4FF] shadow-sm'
-                            : 'border-slate-200 bg-white hover:border-[#034485]/35 hover:shadow-sm'"
+                            ? (isDarkMode ? 'border-[#4a90e2]/35 bg-[#0a2747] shadow-sm' : 'border-[#034485] bg-[#EAF4FF] shadow-sm')
+                            : (isDarkMode ? 'border-slate-800 bg-slate-950 hover:border-[#4a90e2]/25 hover:shadow-sm' : 'border-slate-200 bg-white hover:border-[#034485]/35 hover:shadow-sm')"
                     >
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div class="space-y-2">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <p class="text-sm font-semibold text-slate-900">{{ row.student_name }}</p>
+                                    <p class="text-sm font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-900'">{{ row.student_name }}</p>
                                     <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="statusTone(row.evaluation?.status)">
                                         {{ statusLabel(row.evaluation?.status) }}
                                     </span>
                                 </div>
-                                <p class="text-xs text-slate-500">
+                                <p class="text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">
                                     {{ row.student_id_number || 'No student ID' }}
                                     <span v-if="row.team_name">· {{ row.team_name }}</span>
                                 </p>
-                                <div class="grid gap-1 text-xs text-slate-600">
-                                    <div>Uploaded: <span class="font-semibold text-slate-800">{{ formatDateTime(row.uploaded_at) }}</span></div>
-                                    <div>Document: <span class="font-semibold text-slate-800">{{ row.document_type }}</span></div>
-                                    <div>Detected {{ metricLabel(row) }}: <span class="font-semibold text-slate-800">{{ row.ocr?.parsed_summary?.gwa ?? '-' }}</span></div>
+                                <div class="grid gap-1 text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
+                                    <div>Uploaded: <span class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ formatDateTime(row.uploaded_at) }}</span></div>
+                                    <div>Document: <span class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ row.document_type }}</span></div>
+                                    <div>Detected {{ metricLabel(row) }}: <span class="font-semibold" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ row.ocr?.parsed_summary?.gwa ?? '-' }}</span></div>
                                 </div>
                             </div>
                             <button
                                 type="button"
-                                class="rounded-2xl border border-[#034485]/20 bg-white px-4 py-2 text-xs font-semibold text-[#034485] hover:bg-[#034485]/5"
+                                class="rounded-2xl border px-4 py-2 text-xs font-semibold"
+                                :class="isDarkMode ? 'border-[#4a90e2]/25 bg-[#0a2747] text-sky-100 hover:bg-[#10345c]' : 'border-[#034485]/20 bg-white text-[#034485] hover:bg-[#034485]/5'"
                                 @click="selectRow(row)"
                             >
                                 {{ row.document_id === activeDocumentId ? 'Selected' : 'Review Submission' }}
@@ -408,18 +413,19 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div v-if="!rowsState.data.length" class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
+                    <div v-if="!rowsState.data.length" class="rounded-3xl border border-dashed px-5 py-10 text-center text-sm" :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-300' : 'border-slate-300 bg-slate-50 text-slate-500'">
                         No academic submissions found for this period.
                     </div>
 
-                    <div class="flex items-center justify-between text-sm text-slate-500">
+                    <div class="flex items-center justify-between text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-500'">
                         <p>
                             Showing {{ rowsState.meta.from || 0 }}-{{ rowsState.meta.to || 0 }} of {{ rowsState.meta.total }}
                         </p>
                         <div class="flex gap-2">
                             <button
                                 type="button"
-                                class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
+                                class="rounded-xl border px-3 py-1.5 disabled:opacity-40"
+                                :class="isDarkMode ? 'border-slate-700 bg-slate-950 hover:bg-slate-900' : 'border-slate-300 bg-white hover:bg-slate-50'"
                                 :disabled="rowsState.meta.current_page <= 1 || isLoading"
                                 @click="fetchRows(rowsState.meta.current_page - 1)"
                             >
@@ -427,7 +433,8 @@ onMounted(() => {
                             </button>
                             <button
                                 type="button"
-                                class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
+                                class="rounded-xl border px-3 py-1.5 disabled:opacity-40"
+                                :class="isDarkMode ? 'border-slate-700 bg-slate-950 hover:bg-slate-900' : 'border-slate-300 bg-white hover:bg-slate-50'"
                                 :disabled="rowsState.meta.current_page >= rowsState.meta.last_page || isLoading"
                                 @click="fetchRows(rowsState.meta.current_page + 1)"
                             >
@@ -437,8 +444,8 @@ onMounted(() => {
                     </div>
                 </section>
 
-                <section v-if="selectedRow" class="space-y-4 rounded-3xl border border-[#034485]/25 bg-slate-50/70 p-4 sm:p-5">
-                    <div class="rounded-3xl border border-[#034485]/20 bg-white p-4">
+                <section v-if="selectedRow" class="space-y-4 rounded-3xl border p-4 sm:p-5" :class="isDarkMode ? 'border-slate-800 bg-black' : 'border-[#034485]/25 bg-slate-50/70'">
+                    <div class="rounded-3xl border p-4" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-[#0a2747]' : 'border-[#034485]/20 bg-white'">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Student Details</p>
@@ -461,7 +468,7 @@ onMounted(() => {
                     </div>
 
                     <div class="grid gap-4 lg:grid-cols-2">
-                        <div class="rounded-3xl border border-slate-200 bg-white p-4">
+                        <div class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-white'">
                             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Submission</p>
                             <div class="mt-3 grid gap-2 text-sm text-slate-600">
                                 <div>Document type: <span class="font-medium text-slate-800">{{ selectedRow.document_type }}</span></div>
@@ -470,7 +477,7 @@ onMounted(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-3xl border border-slate-200 bg-white p-4">
+                        <div class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-white'">
                             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Current Evaluation</p>
                             <div class="mt-3 space-y-2 text-sm text-slate-600">
                                 <div class="flex items-center justify-between gap-3">
@@ -495,7 +502,7 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="rounded-3xl border border-slate-200 bg-white p-4">
+                    <div class="rounded-3xl border p-4" :class="isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-white'">
                         <div class="flex flex-wrap items-center gap-2">
                             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">OCR Result Summary</p>
                             <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationTone(selectedRow.ocr?.validation?.status)">
@@ -503,18 +510,18 @@ onMounted(() => {
                             </span>
                         </div>
                         <div class="mt-3 grid gap-3 md:grid-cols-2">
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-sm text-slate-600">
+                            <div class="rounded-2xl border p-3 text-sm" :class="isDarkMode ? 'border-slate-800 bg-black text-slate-200' : 'border-slate-200 bg-slate-50/70 text-slate-600'">
                                 <div>Extracted {{ metricLabel(selectedRow) }}: <span class="font-semibold text-slate-800">{{ selectedRow.ocr?.parsed_summary?.gwa ?? '-' }}</span></div>
                                 <div class="mt-1">Detected scale: <span class="font-semibold text-slate-800">{{ scaleLabel(selectedRow.ocr?.interpretation?.scale) }}</span></div>
                                 <div class="mt-1">Interpretation: <span class="font-semibold text-slate-800">{{ selectedRow.ocr?.interpretation?.label || '-' }}</span></div>
                             </div>
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-sm text-slate-600">
+                            <div class="rounded-2xl border p-3 text-sm" :class="isDarkMode ? 'border-slate-800 bg-black text-slate-200' : 'border-slate-200 bg-slate-50/70 text-slate-600'">
                                 <div>OCR confidence: <span class="font-semibold text-slate-800">{{ selectedRow.ocr?.mean_confidence ?? '-' }}</span></div>
                                 <div class="mt-1">Parser confidence: <span class="font-semibold text-slate-800">{{ selectedRow.ocr?.parsed_summary?.parser_confidence ?? '-' }}</span></div>
                                 <div class="mt-1">Processed at: <span class="font-semibold text-slate-800">{{ formatDateTime(selectedRow.ocr?.processed_at) }}</span></div>
                             </div>
                         </div>
-                        <div v-if="selectedRow.ocr?.validation?.summary" class="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-sm text-slate-600">
+                        <div v-if="selectedRow.ocr?.validation?.summary" class="mt-3 rounded-2xl border p-3 text-sm" :class="isDarkMode ? 'border-slate-800 bg-black text-slate-200' : 'border-slate-200 bg-slate-50/70 text-slate-600'">
                             {{ selectedRow.ocr.validation.summary }}
                         </div>
                         <div v-if="selectedRow.ocr?.validation?.flags?.length" class="mt-3 space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
@@ -524,7 +531,7 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="rounded-3xl border border-[#034485]/25 bg-white p-4">
+                    <div class="rounded-3xl border p-4" :class="isDarkMode ? 'border-[#4a90e2]/20 bg-slate-950' : 'border-[#034485]/25 bg-white'">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Final Decision</p>
@@ -543,14 +550,16 @@ onMounted(() => {
                                     step="0.01"
                                     min="0"
                                     max="100"
-                                    class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700"
+                                    class="w-full rounded-2xl border px-4 py-3 text-sm"
+                                    :class="isDarkMode ? 'border-slate-700 bg-black text-white' : 'border-slate-300 text-slate-700'"
                                 />
                             </label>
                             <label class="space-y-2">
                                 <span class="text-sm font-medium text-slate-700">Final Status</span>
                                 <select
                                     v-model="evaluationForm.status"
-                                    class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700"
+                                    class="w-full rounded-2xl border px-4 py-3 text-sm"
+                                    :class="isDarkMode ? 'border-slate-700 bg-black text-white' : 'border-slate-300 text-slate-700'"
                                 >
                                     <option value="">Use computed status</option>
                                     <option value="eligible">Eligible</option>
@@ -568,7 +577,8 @@ onMounted(() => {
                             <textarea
                                 v-model="evaluationForm.remarks"
                                 rows="4"
-                                class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700"
+                                class="w-full rounded-2xl border px-4 py-3 text-sm"
+                                :class="isDarkMode ? 'border-slate-700 bg-black text-white' : 'border-slate-300 text-slate-700'"
                                 placeholder="Enter remarks for the student record."
                             />
                         </label>
@@ -589,7 +599,7 @@ onMounted(() => {
                     </div>
                 </section>
 
-                <section v-else class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
+                <section v-else class="rounded-3xl border border-dashed px-6 py-12 text-center text-sm" :class="isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-300' : 'border-slate-300 bg-slate-50 text-slate-500'">
                     Select a submission from the queue to review its OCR summary and save the evaluation.
                 </section>
             </div>

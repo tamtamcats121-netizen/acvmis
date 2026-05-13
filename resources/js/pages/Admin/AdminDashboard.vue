@@ -29,12 +29,10 @@ type DashboardPayload = {
         attendance_present: number;
         attendance_total: number;
         no_response: number;
-        pending_approvals: number;
         active_teams: number;
         pending_academic_review: number;
     };
     pending_items: {
-        pending_student_approvals: number;
         pending_academic_reviews: number;
         teams_without_recent_attendance: number;
     };
@@ -140,12 +138,12 @@ type NavEntry = {
 const pages: NavEntry[] = [
     { name: 'Dashboard', route: '/AdminDashboard', iconPaths: ['M3 13h8V3H3z', 'M13 21h8v-6h-8z', 'M13 11h8V3h-8z', 'M3 21h8v-6H3z'] },
     {
-        name: 'User & Approval',
+        name: 'User Records',
         route: '/people',
         iconPaths: ['M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M8.5 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8', 'M20 8v6', 'M23 11h-6'],
     },
     {
-        name: 'Teams',
+        name: 'Team Monitoring',
         route: '/teams',
         iconPaths: [
             'M17 21v-2a4 4 0 0 0-3-3.87',
@@ -184,8 +182,8 @@ const pages: NavEntry[] = [
 
 const footerLinks = [
     { label: 'Dashboard', href: '/AdminDashboard' },
-    { label: 'User & Approval', href: '/people' },
-    { label: 'Teams', href: '/teams' },
+    { label: 'User Records', href: '/people' },
+    { label: 'Team Monitoring', href: '/teams' },
     { label: 'Operations', href: '/operations' },
     { label: 'Academics', href: '/academics' },
     { label: 'Documents', href: '/documents' },
@@ -196,17 +194,20 @@ const footerLinks = [
     { label: 'Settings', href: '/account/settings' },
 ];
 
-const adminBottomNavItems = [
-    { key: 'approvals', label: 'User & Approval', mobileLabel: 'Approval', route: '/people', icon: 'users' },
-    { key: 'teams', label: 'Teams', route: '/teams', icon: 'shield-users' },
+const adminBottomNavItems: Array<{
+    key: string;
+    label: string;
+    mobileLabel?: string;
+    route: string;
+    icon: 'users' | 'shield-users' | 'bar-chart-3' | 'graduation-cap';
+}> = [
+    { key: 'records', label: 'User Records', mobileLabel: 'Records', route: '/people', icon: 'users' },
+    { key: 'teams', label: 'Team Monitoring', route: '/teams', icon: 'shield-users' },
     { key: 'operations', label: 'Operations', route: '/operations', icon: 'bar-chart-3' },
     { key: 'academics', label: 'Academics', route: '/academics', icon: 'graduation-cap' },
-] as const;
+];
 
 const currentPageName = computed(() => {
-    if (currentPath.value === '/people/queue' || currentPath.value.startsWith('/people/queue/')) {
-        return 'User & Approval';
-    }
     if (currentPath.value === '/operations/attendance' || currentPath.value.startsWith('/operations/attendance/')) {
         return 'Operations';
     }
@@ -580,8 +581,12 @@ function toggleReportsNav() {
     reportsExpanded.value = !reportsExpanded.value;
 }
 
-function setReportsTriggerRef(el: Element | null) {
-    reportsTriggerRef.value = el instanceof HTMLElement ? el : null;
+function setReportsTriggerRef(el: Element | { $el?: Element | null } | null) {
+    reportsTriggerRef.value = el instanceof HTMLElement
+        ? el
+        : el && '$el' in el && el.$el instanceof HTMLElement
+            ? el.$el
+            : null;
 }
 
 function updateReportsHoverPosition() {
@@ -1395,7 +1400,7 @@ watch(
                         </div>
                     </section>
 
-                    <section class="grid grid-cols-1 gap-3 md:grid-cols-5">
+                    <section class="grid grid-cols-1 gap-3 md:grid-cols-4">
                         <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">{{ attendanceKpiLabel }}</p>
                             <p class="mt-2 text-2xl font-bold text-[#034485]">{{ attendanceKpiValue }}</p>
@@ -1404,10 +1409,6 @@ watch(
                         <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">No Response</p>
                             <p class="mt-2 text-2xl font-bold text-[#034485]">{{ dashboard.kpis.no_response }}</p>
-                        </article>
-                        <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Pending Approvals</p>
-                            <p class="mt-2 text-2xl font-bold text-[#034485]">{{ dashboard.kpis.pending_approvals }}</p>
                         </article>
                         <article class="page-card rounded-2xl border border-[#034485]/22 bg-white p-4">
                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Active Teams</p>
@@ -1431,18 +1432,18 @@ watch(
                             <button
                                 type="button"
                                 class="rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-4 text-left transition hover:bg-[#034485]/10"
-                                @click="goTo('/people/queue')"
+                                @click="goTo('/people')"
                             >
-                                <p class="text-sm font-semibold text-[#034485]">Approval Queue</p>
-                                <p class="mt-1 text-xs text-slate-600">Review pending student-athlete registrations.</p>
+                                <p class="text-sm font-semibold text-[#034485]">User Records</p>
+                                <p class="mt-1 text-xs text-slate-600">Review user information, account status, and history.</p>
                             </button>
                             <button
                                 type="button"
                                 class="rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-4 text-left transition hover:bg-[#034485]/10"
                                 @click="goTo('/teams')"
                             >
-                                <p class="text-sm font-semibold text-[#034485]">Teams</p>
-                                <p class="mt-1 text-xs text-slate-600">Manage active team records and rosters.</p>
+                                <p class="text-sm font-semibold text-[#034485]">Team Monitoring</p>
+                                <p class="mt-1 text-xs text-slate-600">Monitor created teams, rosters, and status by sport.</p>
                             </button>
                             <button
                                 type="button"
@@ -1537,20 +1538,10 @@ watch(
                                 <div>
                                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#034485]">Pending Items</p>
                                     <h4 class="mt-1 text-base font-semibold text-slate-900">Immediate Review Counts</h4>
-                                    <p class="mt-1 text-xs text-slate-600">Keep track of approvals, academic reviews, and teams that still need recent attendance posting.</p>
+                                    <p class="mt-1 text-xs text-slate-600">Keep track of academic reviews and teams that still need recent attendance posting.</p>
                                 </div>
 
                                 <div class="mt-4 space-y-3">
-                                    <div class="flex items-center justify-between rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-3">
-                                        <div>
-                                            <p class="text-sm font-semibold text-slate-900">Pending Student Approvals</p>
-                                            <p class="mt-1 text-xs text-slate-600">Accounts waiting for administrative approval.</p>
-                                        </div>
-                                        <span class="rounded-full bg-[#034485] px-3 py-1 text-xs font-semibold text-white">
-                                            {{ dashboard.pending_items.pending_student_approvals }}
-                                        </span>
-                                    </div>
-
                                     <div class="flex items-center justify-between rounded-2xl border border-[#034485]/18 bg-[#034485]/5 px-4 py-3">
                                         <div>
                                             <p class="text-sm font-semibold text-slate-900">Pending Academic Reviews</p>

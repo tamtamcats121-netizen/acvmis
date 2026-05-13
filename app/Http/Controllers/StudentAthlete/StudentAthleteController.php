@@ -57,6 +57,7 @@ class StudentAthleteController extends Controller
 
         // Find teams where the student is a member
         $teams = Team::query()
+            ->active()
             ->with('sport:id,name')
             ->whereHas('players', function($q) use ($student) {
                 $q->where('student_id', $student->id);
@@ -80,6 +81,7 @@ class StudentAthleteController extends Controller
         }
 
         $team = Team::query()
+            ->active()
             ->with([
                 'sport',
                 'coach.user',

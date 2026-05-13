@@ -145,18 +145,6 @@ class HandleInertiaRequests extends Middleware
                             $adminId = $request->user()->id;
                             $now = now();
 
-                            $pendingAccounts = \App\Models\Student::query()
-                                ->where('approval_status', 'pending')
-                                ->count();
-
-                            $teamChangeRequests = Announcement::query()
-                                ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
-                                ->select('announcement_recipients.*')
-                                ->where('user_id', $adminId)
-                                ->where('ae.title', 'Team Change Request')
-                                ->whereNull('read_at')
-                                ->count();
-
                             $scheduleCount = TeamSchedule::query()
                                 ->whereBetween('start_time', [$now, (clone $now)->addDays(7)])
                                 ->count();
@@ -186,18 +174,6 @@ class HandleInertiaRequests extends Middleware
                                 ->count();
 
                             $items = [
-                                [
-                                    'key' => 'pending_accounts',
-                                    'label' => 'Newly pending accounts',
-                                    'count' => $pendingAccounts,
-                                    'href' => '/people/queue',
-                                ],
-                                [
-                                    'key' => 'team_change_requests',
-                                    'label' => 'Team change requests',
-                                    'count' => $teamChangeRequests,
-                                    'href' => '/teams',
-                                ],
                                 [
                                     'key' => 'schedules',
                                     'label' => 'Schedules',

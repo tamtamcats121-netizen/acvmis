@@ -1,9 +1,9 @@
+import { coachPrimaryNav } from '@/config/coachNav'
+import { studentPrimaryNav } from '@/config/studentNav'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
 
-import { coachPrimaryNav } from '@/config/coachNav'
-import { studentPrimaryNav } from '@/config/studentNav'
 
 export type WorkspaceRole = 'admin' | 'coach' | 'student'
 

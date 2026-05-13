@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\AccountActionLog;
 use App\Models\Team;
 use App\Models\TeamPlayer;
-use App\Models\User;
 use App\Services\SystemNotificationService;
 use App\Services\TeamPlayerStatusService;
 use Illuminate\Http\Request;
@@ -86,6 +85,16 @@ class CoachTeamController extends Controller
                 'coach' => $team->coach, // will have first_name, last_name, etc.
                 'assistantCoach' => $team->assistantCoach,
                 'players' => $team->players->values(),
+                'invite' => [
+                    'code' => $team->join_code,
+                    'enabled' => (bool) $team->join_code_enabled,
+                    'expires_at' => optional($team->join_code_expires_at)?->toIso8601String(),
+                    'is_available' => $team->isCurrentYearActive(),
+                    'is_active' => $team->inviteCodeIsActive(),
+                    'join_url' => $team->join_code
+                        ? route('student.team_invites.show', ['code' => $team->join_code])
+                        : null,
+                ],
             ];
         }
 
@@ -221,82 +230,4 @@ class CoachTeamController extends Controller
         ]);
     }
 
-    public function requestChange(Request $request)
-    {
-        $validated = $request->validate([
-            'team_id' => 'nullable|integer',
-            'type' => 'required|in:assistant_add,assistant_remove,player_add,player_remove,team_change',
-            'target' => 'nullable|string|max:120',
-            'notes' => 'nullable|string|max:500',
-        ]);
-
-        $coach = $request->user()?->coach;
-        if (!$coach) {
-            abort(403);
-        }
-
-        $teams = Team::query()
-            ->forCoach($coach->id)
-            ->get();
-
-        if ($teams->isEmpty()) {
-            abort(403, 'No team assigned.');
-        }
-
-        $teamIds = $teams->pluck('id')->all();
-        $selectedTeamId = (int) ($validated['team_id'] ?? 0);
-        if (!$selectedTeamId || !in_array($selectedTeamId, $teamIds, true)) {
-            if (count($teamIds) === 1) {
-                $selectedTeamId = $teamIds[0];
-            } else {
-                return back()->withErrors(['team_id' => 'Please select a team.']);
-            }
-        }
-
-        $team = $teams->firstWhere('id', $selectedTeamId);
-        if (!$team) {
-            abort(403, 'Invalid team selection.');
-        }
-
-        $coachName = trim(($coach->first_name ?? '') . ' ' . ($coach->last_name ?? ''));
-        $title = match ($validated['type']) {
-            'assistant_add' => 'Assistant Coach Request',
-            'assistant_remove' => 'Assistant Coach Removal Request',
-            'player_add' => 'Athlete Add Request',
-            'player_remove' => 'Athlete Removal Request',
-            'team_change' => 'Team Change Request',
-            default => 'Team Request',
-        };
-
-        $target = trim((string) ($validated['target'] ?? ''));
-        $notes = trim((string) ($validated['notes'] ?? ''));
-        $messageLines = [
-            "Team: {$team->team_name}",
-            "Requested by: {$coachName}",
-        ];
-
-        if ($target !== '') {
-            $messageLines[] = "Target: {$target}";
-        }
-        if ($notes !== '') {
-            $messageLines[] = "Notes: {$notes}";
-        }
-
-        $adminUserIds = User::query()
-            ->where('account_state', 'active')
-            ->where('role', 'admin')
-            ->pluck('id')
-            ->all();
-
-        $this->notifications->announceMany(
-            $adminUserIds,
-            $title,
-            implode("\n", $messageLines),
-            'system',
-            $request->user()?->id ?? 0,
-            'notify_attendance_exceptions'
-        );
-
-        return back()->with('success', 'Request sent to admin.');
-    }
 }

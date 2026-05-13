@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
+import InputText from 'primevue/inputtext';
+import Message from 'primevue/message';
 import { computed } from 'vue';
 
 import PublicLayout from '@/components/Public/PublicLayout.vue';
-import FieldError from '@/components/ui/form/FieldError.vue';
 import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 
@@ -50,15 +51,15 @@ function toLogin() {
 
                         <div class="form-stack">
                             <div>
-                                <input
+                                <InputText
                                     v-model="form.email"
                                     type="email"
                                     placeholder="Email"
-                                    :class="['field-input', { 'is-error': !!form.errors.email }]"
-                                    :aria-invalid="form.errors.email ? 'true' : 'false'"
-                                    aria-describedby="forgot-email-error"
+                                    :class="['field-input', { 'p-invalid': !!form.errors.email }]"
                                 />
-                                <FieldError id="forgot-email-error" :message="form.errors.email" />
+                                <Message v-if="form.errors.email" severity="error" size="small" variant="simple" class="mt-1">
+                                    {{ form.errors.email }}
+                                </Message>
                             </div>
                         </div>
 

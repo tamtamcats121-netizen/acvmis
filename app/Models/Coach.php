@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Team;
+use App\Models\Sport;
 use App\Models\TeamStaffAssignment;
 
 class Coach extends Model
@@ -18,6 +19,7 @@ class Coach extends Model
         'gender',
         'home_address',
         'coach_status',
+        'sport_id',
     ];
 
     protected $with = ['user'];
@@ -85,5 +87,10 @@ class Coach extends Model
     public function trainingRequirements()
     {
         return $this->hasMany(TrainingRequirement::class, 'coach_id');
+    }
+
+    public function sport()
+    {
+        return $this->belongsTo(Sport::class, 'sport_id');
     }
 }

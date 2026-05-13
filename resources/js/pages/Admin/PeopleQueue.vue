@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
+import InputText from 'primevue/inputtext';
+import Select from 'primevue/select';
+import Textarea from 'primevue/textarea';
 import { computed, ref, watch } from 'vue';
 
 import EmptyResultsState from '@/components/ui/EmptyResultsState.vue';
@@ -116,6 +119,12 @@ const stats = computed(() => ({
     incomplete_total: props.stats?.incomplete_total ?? 0,
     rejected_total: props.stats?.rejected_total ?? 0,
 }));
+const sortOptions = [
+    { label: 'Newest First', value: 'newest' },
+    { label: 'Oldest First', value: 'oldest' },
+    { label: 'Name A-Z', value: 'name_asc' },
+    { label: 'Name Z-A', value: 'name_desc' },
+];
 const queue = computed(() => props.queue);
 const isRejectedView = computed(() => status.value === 'rejected');
 const selectedUser = computed(() => queue.value.data.find((user) => user.id === selectedUserId.value) ?? queue.value.data[0] ?? null);
@@ -443,22 +452,19 @@ function rejectUser() {
                 </button>
             </div>
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-12">
-                <input
+                <InputText
                     v-model="search"
-                    type="text"
                     placeholder="Search by name, email, or applicant status"
-                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-9"
+                    class="w-full lg:col-span-9"
                 />
 
-                <select
+                <Select
                     v-model="sort"
-                    class="w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20 lg:col-span-3"
-                >
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="name_asc">Name A-Z</option>
-                    <option value="name_desc">Name Z-A</option>
-                </select>
+                    :options="sortOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    class="w-full lg:col-span-3"
+                />
             </div>
         </section>
 
@@ -959,11 +965,12 @@ function rejectUser() {
                     >.
                 </p>
 
-                <textarea
+                <Textarea
                     v-model="rejectRemarks"
                     rows="4"
                     placeholder="Enter remarks for the application review, if applicable"
-                    class="mt-3 w-full rounded-lg border border-[#034485]/20 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#034485] focus:ring-2 focus:ring-[#034485]/20"
+                    autoResize
+                    class="mt-3 w-full"
                 />
 
                 <div class="mt-5 flex justify-end gap-2">

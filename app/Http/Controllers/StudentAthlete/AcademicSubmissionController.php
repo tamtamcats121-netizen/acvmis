@@ -267,6 +267,7 @@ class AcademicSubmissionController extends Controller
             ->all();
 
         $coachUserIds = Team::query()
+            ->active()
             ->whereHas('players', fn ($q) => $q->where('student_id', $student->id))
             ->with([
                 'coach' => fn ($query) => $query->select('coaches.id', 'coaches.user_id'),

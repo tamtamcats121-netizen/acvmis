@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3'
+import FileUpload from 'primevue/fileupload'
+import Message from 'primevue/message'
+import Textarea from 'primevue/textarea'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import { showAppToast } from '@/composables/useAppToast'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
 
 defineOptions({
@@ -207,8 +210,8 @@ function resetSubmissionModal() {
     isScanning.value = false
 }
 
-function handleFileChange(event: Event) {
-    file.value = (event.target as HTMLInputElement).files?.[0] ?? null
+function handlePrimeFileSelect(files: File[] | undefined) {
+    file.value = files?.[0] ?? null
 }
 
 function removeFile() {
@@ -894,19 +897,18 @@ function cardMotion(order: number) {
                             </p>
                         </div>
 
-                        <div v-if="submitError" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        <Message v-if="submitError" severity="error" class="rounded-2xl">
                             {{ submitError }}
-                        </div>
+                        </Message>
 
                         <div class="space-y-3">
                             <div>
                                 <p class="text-sm font-semibold text-slate-900">Upload Document</p>
                                 <p class="text-xs text-slate-500">Choose one PDF or image file to scan.</p>
                             </div>
-                            <label
-                                class="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-[#034485]/25 bg-[linear-gradient(135deg,rgba(3,68,133,0.03),rgba(3,68,133,0.08))] px-6 py-8 text-center transition hover:border-[#034485]/45 hover:bg-[linear-gradient(135deg,rgba(3,68,133,0.05),rgba(3,68,133,0.1))]"
+                            <div
+                                class="flex min-h-[180px] flex-col items-center justify-center rounded-[28px] border border-dashed border-[#034485]/25 bg-[linear-gradient(135deg,rgba(3,68,133,0.03),rgba(3,68,133,0.08))] px-6 py-8 text-center"
                             >
-                                <input type="file" accept=".pdf,image/png,image/jpeg,image/jpg" class="hidden" @change="handleFileChange" />
                                 <div class="space-y-2">
                                     <div class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#034485] text-white">
                                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -918,7 +920,15 @@ function cardMotion(order: number) {
                                     <p class="text-sm font-semibold text-slate-900">{{ file ? 'Replace selected document' : 'Click to upload a PDF, PNG, or JPG' }}</p>
                                     <p class="text-xs text-slate-500">Clear image scans work best for automatic {{ metricWithFallback() }} extraction.</p>
                                 </div>
-                            </label>
+                                <FileUpload
+                                    mode="basic"
+                                    customUpload
+                                    chooseLabel="Choose Document"
+                                    accept=".pdf,image/png,image/jpeg,image/jpg"
+                                    class="mt-4"
+                                    @select="(event) => handlePrimeFileSelect(event.files)"
+                                />
+                            </div>
                         </div>
 
                         <div v-if="file" class="rounded-[28px] border border-slate-200 bg-slate-50/80 p-4">
@@ -957,12 +967,13 @@ function cardMotion(order: number) {
 
                         <div class="space-y-2">
                             <label for="academic-notes" class="text-sm font-semibold text-slate-900">Notes</label>
-                            <textarea
+                            <Textarea
                                 id="academic-notes"
                                 v-model="notes"
                                 rows="3"
                                 placeholder="Add optional context for the administrator."
-                                class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-[#034485]/40 focus:ring-2 focus:ring-[#034485]/10"
+                                autoResize
+                                class="w-full"
                             />
                         </div>
 

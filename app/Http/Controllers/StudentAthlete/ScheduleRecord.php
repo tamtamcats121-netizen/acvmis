@@ -28,7 +28,9 @@ class ScheduleRecord extends Controller
             ]);
         }
 
-        $teams = Team::with('sport')
+        $teams = Team::query()
+            ->active()
+            ->with('sport')
             ->whereHas('players', function ($q) use ($student) {
                 $q->where('student_id', $student->id);
             })

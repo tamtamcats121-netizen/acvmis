@@ -142,8 +142,7 @@ class CreateTeamController extends Controller
                 'headCoachAssignment',
                 'assistantCoachAssignment',
             ])
-            ->withCount('players')
-            ->whereNull('archived_at');
+            ->withCount('players');
 
         if ($search !== '') {
             $baseQuery->where(function ($q) use ($search) {
@@ -219,35 +218,6 @@ class CreateTeamController extends Controller
             )
         );
 
-        $requestTitles = [
-            'Team Change Request',
-            'Assistant Coach Request',
-            'Assistant Coach Removal Request',
-            'Athlete Add Request',
-            'Athlete Removal Request',
-        ];
-        $teamChangeRequests = Announcement::query()
-            ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
-            ->select('announcement_recipients.*')
-            ->with('event.creator:id,first_name,middle_name,last_name')
-            ->where('user_id', auth()->id())
-            ->whereIn('ae.title', $requestTitles)
-            ->whereNull('read_at')
-            ->orderByDesc('ae.published_at')
-            ->limit(12)
-            ->get()
-            ->map(function (Announcement $announcement) {
-                return [
-                    'id' => $announcement->id,
-                    'title' => $announcement->title,
-                    'message' => $announcement->message,
-                    'is_read' => !empty($announcement->read_at),
-                    'published_at' => $announcement->published_at?->toDateTimeString(),
-                    'requested_by' => $announcement->event?->creator?->name,
-                ];
-            })
-            ->values();
-
         return Inertia::render('Admin/TeamsIndex', [
             'teams' => [
                 'data' => $pagination->items(),
@@ -273,8 +243,8 @@ class CreateTeamController extends Controller
                 'sports' => Sport::supported()->orderBy('name')->get(['id', 'name']),
                 'years' => Team::query()->select('year')->whereNotNull('year')->distinct()->orderByDesc('year')->pluck('year'),
             ],
-            'readOnly' => auth()->user()?->role !== 'admin',
-            'teamChangeRequests' => $teamChangeRequests,
+            'readOnly' => true,
+            'canArchive' => true,
         ]);
     }
 
@@ -368,7 +338,8 @@ class CreateTeamController extends Controller
                     ->orderByDesc('year')
                     ->pluck('year'),
             ],
-            'readOnly' => auth()->user()?->role !== 'admin',
+            'readOnly' => true,
+            'canArchive' => true,
         ]);
     }
 
@@ -409,7 +380,7 @@ class CreateTeamController extends Controller
 
         return Inertia::render('Admin/TeamRoster', [
             'team' => $this->serializeRosterTeam($team),
-            'readOnly' => auth()->user()?->role !== 'admin',
+            'readOnly' => true,
         ]);
     }
 
@@ -431,7 +402,7 @@ class CreateTeamController extends Controller
         return Inertia::render('Admin/TeamCoachManager', [
             'team' => $this->serializeRosterTeam($team),
             'coaches' => $payload['coaches'],
-            'readOnly' => auth()->user()?->role !== 'admin',
+            'readOnly' => true,
         ]);
     }
 
@@ -454,7 +425,7 @@ class CreateTeamController extends Controller
             'team' => $this->serializeRosterTeam($team),
             'players' => $payload['players'],
             'maxPlayers' => $this->maxPlayersForSport((int) $team->sport_id),
-            'readOnly' => auth()->user()?->role !== 'admin',
+            'readOnly' => true,
         ]);
     }
 
@@ -859,16 +830,6 @@ class CreateTeamController extends Controller
         return back()->with('success', 'Player reactivated.');
     }
 
-    public function approveRequest(Announcement $announcement)
-    {
-        return $this->resolveRequest($announcement, 'approved');
-    }
-
-    public function rejectRequest(Announcement $announcement)
-    {
-        return $this->resolveRequest($announcement, 'rejected');
-    }
-
     private function buildFormPayload(?Team $team = null): array
     {
         $editingTeamId = $team?->id;
@@ -1130,18 +1091,34 @@ class CreateTeamController extends Controller
             'coach' => $team->coach ? [
                 'id' => $team->coach->id,
                 'user_id' => $team->coach->user_id,
+                'first_name' => $team->coach->first_name,
+                'last_name' => $team->coach->last_name,
                 'name' => $this->resolveCoachDisplayName($team->coach),
                 'email' => $team->coach->user?->email,
+                'phone_number' => $team->coach->phone_number,
                 'avatar' => $team->coach->user?->avatar,
                 'coach_status' => $team->coach->coach_status,
+                'user' => $team->coach->user ? [
+                    'id' => $team->coach->user->id,
+                    'email' => $team->coach->user->email,
+                    'avatar' => $team->coach->user->avatar,
+                ] : null,
             ] : null,
             'assistantCoach' => $team->assistantCoach ? [
                 'id' => $team->assistantCoach->id,
                 'user_id' => $team->assistantCoach->user_id,
+                'first_name' => $team->assistantCoach->first_name,
+                'last_name' => $team->assistantCoach->last_name,
                 'name' => $this->resolveCoachDisplayName($team->assistantCoach),
                 'email' => $team->assistantCoach->user?->email,
+                'phone_number' => $team->assistantCoach->phone_number,
                 'avatar' => $team->assistantCoach->user?->avatar,
                 'coach_status' => $team->assistantCoach->coach_status,
+                'user' => $team->assistantCoach->user ? [
+                    'id' => $team->assistantCoach->user->id,
+                    'email' => $team->assistantCoach->user->email,
+                    'avatar' => $team->assistantCoach->user->avatar,
+                ] : null,
             ] : null,
             'players' => $team->players
                 ->sortBy(fn ($player) => strtolower(($player->student?->last_name ?? '') . ' ' . ($player->student?->first_name ?? '')))
@@ -1161,82 +1138,28 @@ class CreateTeamController extends Controller
                     'athlete_position' => $player->athlete_position,
                     'player_status' => $player->player_status ?? TeamPlayer::STATUS_ACTIVE,
                     'manual_inactive' => (bool) $player->manual_inactive,
+                    'student' => $player->student ? [
+                        'id' => $player->student->id,
+                        'first_name' => $player->student->first_name,
+                        'last_name' => $player->student->last_name,
+                        'student_id_number' => $player->student->student_id_number,
+                        'course_or_strand' => $player->student->course_or_strand,
+                        'current_grade_level' => $player->student->current_grade_level,
+                        'academic_level_label' => $player->student->academic_level_label,
+                        'phone_number' => $player->student->phone_number,
+                        'gender' => $player->student->gender,
+                        'height' => $player->student->height,
+                        'weight' => $player->student->weight,
+                        'emergency_contact_name' => $player->student->emergency_contact_name,
+                        'emergency_contact_relationship' => $player->student->emergency_contact_relationship,
+                        'emergency_contact_phone' => $player->student->emergency_contact_phone,
+                        'user' => $player->student->user ? [
+                            'email' => $player->student->user->email,
+                            'avatar' => $player->student->user->avatar,
+                        ] : null,
+                    ] : null,
                 ]),
         ];
-    }
-
-    private function resolveRequest(Announcement $announcement, string $decision)
-    {
-        $this->authorizeMutation();
-
-        abort_unless((int) $announcement->user_id === (int) auth()->id(), 403);
-
-        $announcement->loadMissing('event.creator');
-
-        if (empty($announcement->read_at)) {
-            $announcement->forceFill([
-                'read_at' => now(),
-            ])->save();
-        }
-
-        $requesterId = (int) ($announcement->created_by ?? 0);
-        if ($requesterId <= 0) {
-            return back()->with('error', 'Unable to resolve the request because the requesting coach account is unavailable.');
-        }
-
-        $parsed = $this->parseRequestMessage((string) $announcement->message);
-        $decisionLabel = $decision === 'approved' ? 'approved' : 'rejected';
-        $title = sprintf('%s %s', (string) $announcement->title, $decision === 'approved' ? 'Approved' : 'Rejected');
-        $teamLabel = $parsed['team'] !== '' ? $parsed['team'] : 'your team';
-        $message = "Your {$announcement->title} for {$teamLabel} was {$decisionLabel}.";
-
-        if ($parsed['notes'] !== '') {
-            $message .= " Original note: {$parsed['notes']}.";
-        }
-
-        $this->notifications->announce(
-            $requesterId,
-            $title,
-            $message,
-            'approval',
-            auth()->id(),
-            'notify_attendance_exceptions'
-        );
-
-        return back()->with('success', "Team change request {$decisionLabel}.");
-    }
-
-    /**
-     * @return array{team:string,requestedBy:string,target:string,notes:string}
-     */
-    private function parseRequestMessage(string $message): array
-    {
-        $data = [
-            'team' => '',
-            'requestedBy' => '',
-            'target' => '',
-            'notes' => '',
-        ];
-
-        $lines = collect(explode("\n", $message))
-            ->map(fn ($line) => trim((string) $line))
-            ->filter()
-            ->values();
-
-        foreach ($lines as $line) {
-            $lower = mb_strtolower($line);
-            if (str_starts_with($lower, 'team:')) {
-                $data['team'] = trim(substr($line, 5));
-            } elseif (str_starts_with($lower, 'requested by:')) {
-                $data['requestedBy'] = trim(substr($line, 13));
-            } elseif (str_starts_with($lower, 'target:')) {
-                $data['target'] = trim(substr($line, 7));
-            } elseif (str_starts_with($lower, 'notes:')) {
-                $data['notes'] = trim(substr($line, 6));
-            }
-        }
-
-        return $data;
     }
 
     private function resolveCoachDisplayName(Coach $coach): string

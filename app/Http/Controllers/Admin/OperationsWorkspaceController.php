@@ -19,6 +19,7 @@ class OperationsWorkspaceController extends Controller
     public function index(Request $request)
     {
         $filters = $this->validatedFilters($request);
+        $filters['tab'] = 'calendar';
 
         return Inertia::render('Admin/OperationsWorkspace', [
             'filters' => [
@@ -26,8 +27,8 @@ class OperationsWorkspaceController extends Controller
                 'options' => $this->filterOptions(),
             ],
             'tabs' => [
-                'active' => $filters['tab'],
-                'available' => ['calendar', 'attendance', 'exceptions'],
+                'active' => 'calendar',
+                'available' => ['calendar'],
             ],
             'calendarSchedules' => $this->calendarSchedules($filters),
             'attendanceRecords' => $this->paginatedRecords($filters, false),
@@ -509,6 +510,13 @@ class OperationsWorkspaceController extends Controller
         $query = DB::table('team_schedules as ts')
             ->join('teams as t', 't.id', '=', 'ts.team_id')
             ->leftJoin('sports as sp', 'sp.id', '=', 't.sport_id')
+            ->leftJoin('team_staff_assignments as tsa', function ($join) {
+                $join->on('tsa.team_id', '=', 't.id')
+                    ->where('tsa.role', '=', 'head')
+                    ->whereNull('tsa.ends_at');
+            })
+            ->leftJoin('coaches as hc', 'hc.id', '=', 'tsa.coach_id')
+            ->leftJoin('users as cu', 'cu.id', '=', 'hc.user_id')
             ->leftJoin('team_players as tp', 'tp.team_id', '=', 't.id')
             ->leftJoin('schedule_attendances as sa', function ($join) {
                 $join->on('sa.schedule_id', '=', 'ts.id')
@@ -519,8 +527,10 @@ class OperationsWorkspaceController extends Controller
                 'ts.title',
                 'ts.type',
                 'ts.venue',
+                'ts.notes',
                 't.team_name',
                 DB::raw("COALESCE(sp.name, 'Unknown') as sport_name"),
+                DB::raw("TRIM(CONCAT(COALESCE(cu.first_name, ''), ' ', COALESCE(cu.last_name, ''))) as coach_name"),
                 'ts.start_time',
                 'ts.end_time',
             ])
@@ -535,14 +545,23 @@ class OperationsWorkspaceController extends Controller
                 'ts.title',
                 'ts.type',
                 'ts.venue',
+                'ts.notes',
                 't.team_name',
                 'sp.name',
+                'cu.first_name',
+                'cu.last_name',
                 'ts.start_time',
                 'ts.end_time',
             ])
             ->orderBy('ts.start_time');
 
-        $this->applyCommonFilters($query, $calendarFilters, false);
+        $this->applyCommonFilters($query, $calendarFilters);
+
+        if (!empty($calendarFilters['status']) && $calendarFilters['status'] === 'no_response') {
+            $query->havingRaw('SUM(CASE WHEN sa.id IS NULL THEN 1 ELSE 0 END) > 0');
+        } elseif (!empty($calendarFilters['status'])) {
+            $query->havingRaw("SUM(CASE WHEN sa.status = ? THEN 1 ELSE 0 END) > 0", [$calendarFilters['status']]);
+        }
 
         return $query->get()
             ->map(fn ($row) => [
@@ -550,8 +569,10 @@ class OperationsWorkspaceController extends Controller
                 'title' => $row->title,
                 'type' => $row->type,
                 'venue' => $row->venue,
+                'notes' => $row->notes,
                 'team_name' => $row->team_name,
                 'sport' => $row->sport_name,
+                'coach_name' => trim((string) ($row->coach_name ?? '')) ?: 'Unassigned',
                 'start' => Carbon::parse($row->start_time)->toIso8601String(),
                 'end' => Carbon::parse($row->end_time)->toIso8601String(),
                 'counts' => [
@@ -571,6 +592,7 @@ class OperationsWorkspaceController extends Controller
         return [
             'sports' => Sport::supported()->orderBy('name')->get(['id', 'name']),
             'teams' => Team::query()->with('sport:id,name')
+                ->whereNull('archived_at')
                 ->orderBy('team_name')
                 ->get(['id', 'team_name', 'sport_id'])
                 ->map(fn ($team) => [
@@ -581,6 +603,7 @@ class OperationsWorkspaceController extends Controller
                 ->values(),
             'coaches' => Coach::query()
                 ->join('users', 'users.id', '=', 'coaches.user_id')
+                ->where('users.role', 'coach')
                 ->orderBy('users.last_name')
                 ->orderBy('users.first_name')
                 ->get(['coaches.id', 'users.first_name', 'users.last_name'])
@@ -734,13 +757,49 @@ class OperationsWorkspaceController extends Controller
 
         if ($includeSearch && !empty($filters['search'])) {
             $search = trim((string) $filters['search']);
-            $query->where(function ($builder) use ($search) {
+            $normalizedStatus = strtolower(str_replace(' ', '_', $search));
+
+            $query->where(function ($builder) use ($search, $normalizedStatus) {
                 $builder->where('ts.title', 'like', "%{$search}%")
+                    ->orWhere('ts.venue', 'like', "%{$search}%")
+                    ->orWhere('ts.type', 'like', "%{$search}%")
                     ->orWhere('t.team_name', 'like', "%{$search}%")
                     ->orWhere('sp.name', 'like', "%{$search}%")
-                    ->orWhere('su.first_name', 'like', "%{$search}%")
-                    ->orWhere('su.last_name', 'like', "%{$search}%")
-                    ->orWhere('st.student_id_number', 'like', "%{$search}%");
+                    ->orWhereRaw("DATE_FORMAT(ts.start_time, '%Y-%m-%d') LIKE ?", ["%{$search}%"])
+                    ->orWhereRaw("DATE_FORMAT(ts.start_time, '%b %e, %Y') LIKE ?", ["%{$search}%"])
+                    ->orWhereRaw("DATE_FORMAT(ts.start_time, '%M %e, %Y') LIKE ?", ["%{$search}%"])
+                    ->orWhereExists(function ($subQuery) use ($search) {
+                        $subQuery->selectRaw('1')
+                            ->from('team_staff_assignments as tsa')
+                            ->join('coaches as c', 'c.id', '=', 'tsa.coach_id')
+                            ->join('users as cu', 'cu.id', '=', 'c.user_id')
+                            ->whereColumn('tsa.team_id', 't.id')
+                            ->whereNull('tsa.ends_at')
+                            ->where(function ($coachQuery) use ($search) {
+                                $coachQuery->where('cu.first_name', 'like', "%{$search}%")
+                                    ->orWhere('cu.last_name', 'like', "%{$search}%");
+                            });
+                    })
+                    ->orWhereExists(function ($subQuery) use ($search) {
+                        $subQuery->selectRaw('1')
+                            ->from('team_players as search_tp')
+                            ->join('students as search_st', 'search_st.id', '=', 'search_tp.student_id')
+                            ->join('users as search_su', 'search_su.id', '=', 'search_st.user_id')
+                            ->whereColumn('search_tp.team_id', 't.id')
+                            ->where(function ($studentQuery) use ($search) {
+                                $studentQuery->where('search_su.first_name', 'like', "%{$search}%")
+                                    ->orWhere('search_su.last_name', 'like', "%{$search}%")
+                                    ->orWhere('search_st.student_id_number', 'like', "%{$search}%");
+                            });
+                    });
+
+                if (in_array($normalizedStatus, ['present', 'absent', 'late', 'excused', 'no_response'], true)) {
+                    if ($normalizedStatus === 'no_response') {
+                        $builder->orWhereNull('sa.id');
+                    } else {
+                        $builder->orWhere('sa.status', $normalizedStatus);
+                    }
+                }
             });
         }
     }

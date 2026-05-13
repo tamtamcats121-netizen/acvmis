@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import InputText from 'primevue/inputtext';
+import Message from 'primevue/message';
+import Password from 'primevue/password';
+import { computed } from 'vue';
 
 import PublicLayout from '@/components/Public/PublicLayout.vue';
-import FieldError from '@/components/ui/form/FieldError.vue';
 import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 
@@ -13,8 +15,6 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
-const showPassword = ref(false);
-const showConfirmPassword = ref(false);
 
 const form = useForm({
     email: props.email ?? '',
@@ -53,56 +53,36 @@ function toLogin() {
                         <FormAlert tone="error" :message="generalError" />
 
                         <div class="form-stack">
-                            <input v-model="form.email" type="email" class="field-input" readonly />
+                            <InputText v-model="form.email" type="email" class="field-input" readonly />
 
                             <div class="password-field">
-                                <div class="password-field__control">
-                                    <input
-                                        v-model="form.password"
-                                        :type="showPassword ? 'text' : 'password'"
-                                        placeholder="New password"
-                                        :class="['field-input', 'pr-10', { 'is-error': !!form.errors.password }]"
-                                        :aria-invalid="form.errors.password ? 'true' : 'false'"
-                                        aria-describedby="reset-password-error"
-                                    />
-                                    <button
-                                        type="button"
-                                        class="toggle-eye absolute top-1/2 right-3 -translate-y-1/2"
-                                        :aria-label="showPassword ? 'Hide password' : 'Show password'"
-                                        @click="showPassword = !showPassword"
-                                    >
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                                            <circle cx="12" cy="12" r="3" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <FieldError id="reset-password-error" :message="form.errors.password" />
+                                <Password
+                                    v-model="form.password"
+                                    toggleMask
+                                    :feedback="false"
+                                    placeholder="New password"
+                                    inputClass="field-input w-full"
+                                    :invalid="!!form.errors.password"
+                                    class="w-full"
+                                />
+                                <Message v-if="form.errors.password" severity="error" size="small" variant="simple" class="mt-1">
+                                    {{ form.errors.password }}
+                                </Message>
                             </div>
 
                             <div class="password-field">
-                                <div class="password-field__control">
-                                    <input
-                                        v-model="form.password_confirmation"
-                                        :type="showConfirmPassword ? 'text' : 'password'"
-                                        placeholder="Confirm new password"
-                                        :class="['field-input', 'pr-10', { 'is-error': !!form.errors.password_confirmation }]"
-                                        :aria-invalid="form.errors.password_confirmation ? 'true' : 'false'"
-                                        aria-describedby="reset-password-confirmation-error"
-                                    />
-                                    <button
-                                        type="button"
-                                        class="toggle-eye absolute top-1/2 right-3 -translate-y-1/2"
-                                        :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
-                                        @click="showConfirmPassword = !showConfirmPassword"
-                                    >
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                                            <circle cx="12" cy="12" r="3" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <FieldError id="reset-password-confirmation-error" :message="form.errors.password_confirmation" />
+                                <Password
+                                    v-model="form.password_confirmation"
+                                    toggleMask
+                                    :feedback="false"
+                                    placeholder="Confirm new password"
+                                    inputClass="field-input w-full"
+                                    :invalid="!!form.errors.password_confirmation"
+                                    class="w-full"
+                                />
+                                <Message v-if="form.errors.password_confirmation" severity="error" size="small" variant="simple" class="mt-1">
+                                    {{ form.errors.password_confirmation }}
+                                </Message>
                             </div>
                         </div>
 

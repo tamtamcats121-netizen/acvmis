@@ -21,24 +21,45 @@ const howItWorksSteps = [
     'Wait for administrative review and account approval before using restricted system features.',
     'After approval, use the system regularly for schedules, attendance confirmation, and academic updates.',
 ];
-const aboutHighlights = [
+const aboutStoryCards = [
     {
-        title: 'Institutional Purpose',
-        description:
-            'AC-VMIS centralizes varsity administration by maintaining official schedules, attendance records, academic compliance documents, and role-based communication within one organized institutional system.',
-    },
-    {
-        title: 'Primary Users',
-        items: [
-            'Student-athletes who need clear access to official schedules, attendance records, assigned requirements, and academic status',
-            'Coaches who manage team schedules, attendance documentation, training requirements, and roster coordination',
-            'Administrators who oversee account approvals, academic review workflows, institutional records, and reporting',
+        title: 'Asian College Heritage',
+        paragraphs: [
+            'Asian College traces its roots to the Asian Institute of Electronics, founded in 1972 by Dr. Constancio A. Sia and Gloria Durano Sia with the vision of providing accessible and quality education in technology and professional fields. From its first batch of students in 1973, the institution continued to grow into a student-centered and industry-relevant college committed to developing future leaders.',
         ],
     },
     {
-        title: 'System Scope',
+        title: 'Dumaguete Campus',
+        paragraphs: [
+            'The Dumaguete campus provides a supportive learning environment with classrooms, a library, gymnasium, soccer field, laboratories, and other spaces that support both academic and extracurricular development.',
+        ],
+    },
+    {
+        title: 'Varsity Management System',
+        paragraphs: [
+            "The Asian College Varsity Management Information System supports this commitment by helping administrators, coaches, and student-athletes manage varsity records, schedules, attendance, academic compliance, training requirements, submitted documents, and communication in one secure system. Through AC-VMIS, varsity management becomes more organized, transparent, and efficient while supporting the school's goal of developing leaders in I.T. and management.",
+            'AC-VMIS is a centralized student-athlete management system designed to help schools organize team operations, academic compliance, schedules, attendance, and document tracking in one secure platform. It supports administrators, coaches, and student-athletes by making key processes more efficient, transparent, and easier to manage.',
+            'The system helps institutions streamline varsity management by connecting roster oversight, academic submissions, attendance monitoring, and team coordination into a single digital workspace.',
+        ],
+    },
+];
+const aboutHighlights = [
+    {
+        title: 'Vision',
         description:
-            'AC-VMIS is a varsity management and record-keeping platform that supports operational coordination, documentation, and reporting. It does not replace official academic, medical, legal, or disciplinary procedures.',
+            'To be a transformative educational institution committed to the success of its graduates through quality instruction, relevant research, and strong community engagement.',
+    },
+    {
+        title: 'Mission',
+        description: 'To educate and develop globally competitive future leaders.',
+    },
+    {
+        title: 'Core Values',
+        items: ['Academic Excellence', 'Integrity', 'Self-Leadership'],
+    },
+    {
+        title: 'Tagline',
+        description: 'Developing Leaders in I.T. and Management',
     },
 ];
 const featureCards = [
@@ -466,15 +487,26 @@ watch(mobileMenuOpen, (open) => {
                 <div class="about-section mx-auto max-w-6xl">
                     <div class="about-hero">
                         <div class="about-intro">
-                            <p class="section-kicker"><span class="title-chip">About AC-VMIS</span></p>
+                            <p class="section-kicker"><span class="title-chip">About Asian College and AC-VMIS</span></p>
                             <h2>
-                                <span class="title-chip title-chip-blue">An institutional system for organized varsity administration across teams and departments.</span>
+                                <span class="title-chip title-chip-blue">A school-centered varsity system built around education, leadership, and organized team management.</span>
                             </h2>
-                            <p class="section-copy">
-                                AC-VMIS supports structured varsity operations for student-athletes, coaches, and administrators through accurate records, controlled access, and consistent institutional processes.
-                            </p>
                         </div>
+                    </div>
 
+                    <div class="about-story-grid">
+                        <article
+                            v-for="(item, index) in aboutStoryCards"
+                            :key="item.title"
+                            class="about-story-card"
+                            :class="{ 'about-story-card-wide': index === 2 }"
+                            :style="{ transitionDelay: `${index * 110}ms` }"
+                        >
+                            <h3>{{ item.title }}</h3>
+                            <div class="about-story-copy">
+                                <p v-for="paragraph in item.paragraphs" :key="paragraph">{{ paragraph }}</p>
+                            </div>
+                        </article>
                     </div>
 
                     <div class="about-grid">
@@ -484,7 +516,6 @@ watch(mobileMenuOpen, (open) => {
                             class="about-card"
                             :style="{ transitionDelay: `${index * 100}ms` }"
                         >
-                            <p class="about-card-eyebrow">0{{ index + 1 }}</p>
                             <h3>{{ item.title }}</h3>
                             <p v-if="item.description">{{ item.description }}</p>
                             <ul v-else class="about-list">
@@ -498,7 +529,6 @@ watch(mobileMenuOpen, (open) => {
             <section id="features" class="features-wrap welcome-reveal public-anchor-section">
                 <div class="section-shell features-minimal mx-auto max-w-6xl">
                     <p class="features-kicker"><span class="title-chip">System Services</span></p>
-                    <h2><span class="title-chip">Core services that support daily varsity operations, academic compliance, and institutional record management.</span></h2>
                     <p class="features-copy">
                         Each service is designed to support routine varsity responsibilities through one coordinated system for scheduling, documentation, communication, and reporting.
                     </p>
@@ -710,28 +740,6 @@ watch(mobileMenuOpen, (open) => {
                         </div>
                     </nav>
 
-                    <section class="footer-col" aria-label="Institution">
-                        <p class="footer-heading"><span class="title-chip">Institution</span></p>
-                        <div class="footer-info">
-                            <div>
-                                <p class="footer-info-title"><span class="title-chip">Vision</span></p>
-                                <p class="footer-info-text">
-                                    To be a transformative educational institution committed to the success of its graduates through quality
-                                    instruction, relevant research, and strong community engagement.
-                                </p>
-                            </div>
-                            <div>
-                                <p class="footer-info-title"><span class="title-chip">Mission</span></p>
-                                <p class="footer-info-text">To educate and develop globally competitive future leaders.</p>
-                            </div>
-                            <div>
-                                <p class="footer-info-title"><span class="title-chip">Core Values</span></p>
-                                <p class="footer-info-text">Academic Excellence</p>
-                                <p class="footer-info-text">Integrity</p>
-                                <p class="footer-info-text">Self-Leadership</p>
-                            </div>
-                        </div>
-                    </section>
                 </div>
 
                 <div class="footer-bottom-row">
@@ -1824,12 +1832,12 @@ watch(mobileMenuOpen, (open) => {
 
 .about-section {
     display: grid;
-    gap: 1.15rem;
+    gap: 1.25rem;
 }
 
 .about-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.8fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 1rem;
     align-items: stretch;
 }
@@ -1837,6 +1845,10 @@ watch(mobileMenuOpen, (open) => {
 .about-intro {
     display: grid;
     gap: 0.5rem;
+    justify-items: center;
+    max-width: 58rem;
+    margin: 0 auto;
+    text-align: center;
 }
 
 .about-spotlight {
@@ -1978,6 +1990,63 @@ watch(mobileMenuOpen, (open) => {
     font-size: var(--body-md);
 }
 
+.about-story-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.about-story-card {
+    position: relative;
+    display: grid;
+    gap: 0.75rem;
+    min-height: 100%;
+    padding: clamp(1.1rem, 2.5vw, 1.45rem);
+    border-radius: 18px;
+    border: 1px solid rgba(3, 68, 133, 0.16);
+    background: #ffffff;
+    box-shadow: 0 24px 46px -38px rgba(3, 68, 133, 0.34);
+    text-align: center;
+    transition:
+        transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 260ms ease,
+        opacity 420ms ease;
+}
+
+.about-story-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(3, 68, 133, 0.3);
+    box-shadow: 0 30px 54px -38px rgba(3, 68, 133, 0.42);
+}
+
+.about-story-card-wide {
+    grid-column: 1 / -1;
+    max-width: 58rem;
+    justify-self: center;
+}
+
+.about-story-card h3 {
+    margin: 0;
+    color: var(--page-text);
+    font-size: 1.12rem;
+    line-height: 1.28;
+    font-weight: 800;
+}
+
+.about-story-copy {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.about-story-copy p {
+    margin: 0;
+    color: var(--page-text-muted);
+    font-size: 0.97rem;
+    line-height: 1.78;
+}
+
 .info-grid,
 .steps-grid {
     display: grid;
@@ -1994,8 +2063,9 @@ watch(mobileMenuOpen, (open) => {
 
 .about-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1rem;
+    margin-bottom: clamp(1.5rem, 4vw, 2.75rem);
 }
 
 .about-card {
@@ -2019,15 +2089,6 @@ watch(mobileMenuOpen, (open) => {
     transform: translateY(-6px);
     border-color: rgba(3, 68, 133, 0.28);
     box-shadow: 0 30px 54px -38px rgba(3, 68, 133, 0.42);
-}
-
-.about-card-eyebrow {
-    margin: 0;
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--brand-blue);
 }
 
 .about-card h3 {
@@ -2073,12 +2134,14 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .about-section.welcome-reveal .about-spotlight,
+.about-section.welcome-reveal .about-story-card,
 .about-section.welcome-reveal .about-card {
     opacity: 0;
     transform: translateY(18px);
 }
 
 .about-section.is-visible .about-spotlight,
+.about-section.is-visible .about-story-card,
 .about-section.is-visible .about-card {
     opacity: 1;
     transform: translateY(0);
@@ -2091,6 +2154,14 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .about-section.is-visible .about-card {
+    transition:
+        opacity 520ms ease,
+        transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 260ms ease;
+}
+
+.about-section.is-visible .about-story-card {
     transition:
         opacity 520ms ease,
         transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -2683,7 +2754,7 @@ watch(mobileMenuOpen, (open) => {
 
 .footer-grid {
     display: grid;
-    grid-template-columns: 1.35fr 1fr 1fr 1fr 1.1fr;
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 0.8fr));
     gap: 1.2rem;
 }
 
@@ -2792,27 +2863,6 @@ watch(mobileMenuOpen, (open) => {
     cursor: pointer;
 }
 
-.footer-info {
-    margin-top: 0.65rem;
-    display: grid;
-    gap: 0.7rem;
-    color: #ffffff;
-    font-size: 0.84rem;
-    line-height: 1.5;
-}
-
-.footer-info-title {
-    color: #ffffff;
-    font-weight: 700;
-    font-size: 0.76rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.footer-info-text {
-    margin-top: 0.25rem;
-}
-
 .footer-bottom-row {
     margin-top: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -2890,8 +2940,13 @@ watch(mobileMenuOpen, (open) => {
     }
 
     .about-hero,
+    .about-story-grid,
     .about-grid {
         grid-template-columns: 1fr;
+    }
+
+    .about-story-card-wide {
+        max-width: none;
     }
 
     .support-hub-grid {

@@ -40,28 +40,22 @@ const helpContent = computed<HelpContent>(() => {
   if (role.value === 'admin') {
     return {
       roleLabel: 'Administrator',
-      roleSummary: 'Manage approvals, coach accounts, team structures, and daily varsity operations from one workspace.',
+      roleSummary: 'Monitor AC-VMIS records, coach accounts, team activity, and institutional oversight from one workspace.',
       focusLabel: 'Best place to start',
       topTaskLabel: 'High-priority admin actions',
-      taskSummary: 'Shortcuts for the tasks administrators usually need to complete quickly during active operations.',
+      taskSummary: 'Shortcuts for the tasks administrators usually need when monitoring users, teams, and system activity.',
       tasks: [
         {
-          title: 'Review pending registrations',
-          description: 'Approve, reject, or follow up on newly submitted student-athlete accounts from the people queue.',
-          href: '/people/queue',
-          cta: 'Open Queue',
-        },
-        {
           title: 'Create coach accounts',
-          description: 'Provision official coach access, assign teams, and manage onboarding credentials from the people workspace.',
+          description: 'Provision official coach access, assign a supported sport, and manage onboarding credentials from the records workspace.',
           href: '/people',
           cta: 'Manage Coaches',
         },
         {
-          title: 'Maintain active teams',
-          description: 'Create teams, edit roster assignments, archive former teams, or restore archived records when needed.',
+          title: 'Monitor teams',
+          description: 'Review coach-created teams, current sport assignments, active rosters, and archive status without editing team composition directly.',
           href: '/teams',
-          cta: 'Go to Teams',
+          cta: 'Open Team Monitoring',
         },
         {
           title: 'Monitor operations',
@@ -73,15 +67,15 @@ const helpContent = computed<HelpContent>(() => {
       faqs: [
         {
           question: 'Why is a newly registered student-athlete unable to log in yet?',
-          answer: 'Student-athlete accounts remain pending until an administrator approves them. Check the Users Queue, review submitted details and requirements, then approve the account so the student-athlete can access the dashboard.',
+          answer: 'Student-athlete accounts now stay pending until a coach from the same sport reviews the application. Admin can monitor the user record, but the sport coach confirms tryout fit and approves or rejects the account.',
         },
         {
           question: 'How should coach accounts be handled in AC-VMIS?',
-          answer: 'Coach accounts are admin-managed. Coaches should not self-register publicly. Create them from the admin side, assign the role server-side, and provide onboarding through the generated temporary credentials or activation flow.',
+          answer: 'Coach accounts remain admin-managed. Create them from the admin side, assign the coach to Basketball, Soccer, or Volleyball, and provide onboarding through the generated temporary credentials or activation flow.',
         },
         {
-          question: 'What should I do if a coach or player is missing during team assignment?',
-          answer: 'Only eligible and available users should appear. If someone is already assigned to another active team, the system should block reassignment. If they are inactive, unapproved, or archived, resolve that state first before assigning them.',
+          question: 'What should I do if a coach or player is missing from a team?',
+          answer: 'Team creation and roster assignment now happen on the coach side. Admin should confirm the user record, sport assignment, approval state, and account status first, then ask the assigned sport coach to complete the operational update if needed.',
         },
       ],
       supportNotes: [
@@ -100,6 +94,18 @@ const helpContent = computed<HelpContent>(() => {
       topTaskLabel: 'Daily coaching actions',
       taskSummary: 'These are the most common tasks coaches perform before, during, and after team activities.',
       tasks: [
+        {
+          title: 'Review student applications',
+          description: 'Open sport-based student applications, confirm tryout fit, and approve or reject pending registrants for your assigned sport.',
+          href: '/coach/applications',
+          cta: 'Open Applications',
+        },
+        {
+          title: 'Manage your teams',
+          description: 'Create teams only for your assigned sport, build rosters, and keep team status accurate throughout the season.',
+          href: '/coach/teams/manage',
+          cta: 'Manage Teams',
+        },
         {
           title: 'Review your team roster',
           description: 'Check players, roles, and status changes so your roster stays accurate before training or competition.',
@@ -125,8 +131,8 @@ const helpContent = computed<HelpContent>(() => {
           answer: 'Open Coach Schedule, choose the active or completed schedule, and use the attendance sheet modal to mark each athlete before saving the record.',
         },
         {
-          question: 'Can I change my roster directly?',
-          answer: 'You can update player positions and status for your team, but broader roster or staffing changes should follow the team request workflow so the admin side can review and preserve data integrity.',
+          question: 'Can I approve players and build the roster directly?',
+          answer: 'Yes. Coaches now review student-athlete applications for their assigned sport and can create teams under that sport. Only approved student-athletes from the same sport who are not already in another active team will appear for roster assignment.',
         },
         {
           question: 'Where do I check athlete academic visibility?',
@@ -176,7 +182,7 @@ const helpContent = computed<HelpContent>(() => {
     faqs: [
       {
         question: 'Why can’t I access the dashboard right after registering?',
-        answer: 'Your account must be reviewed and approved first. While your registration is still pending, you may only see the approval-status page until the admin side completes validation.',
+        answer: 'Your account must be reviewed by a coach from the same sport you selected during registration. While your application is pending, you may only see the approval-status page until the coach approves your registration.',
       },
       {
         question: 'What should I do if my attendance is incorrect?',
