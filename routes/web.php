@@ -196,8 +196,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.invites.store');
     Route::post('/admin/coaches', [AdminController::class, 'storeCoach'])
         ->name('admin.coaches.store');
-    Route::post('/admin/coaches/{user}/regenerate-onboarding', [AdminController::class, 'regenerateCoachOnboarding'])
-        ->name('admin.coaches.regenerate-onboarding');
+    Route::post('/admin/coaches/{user}/activation-link', [AdminController::class, 'sendCoachActivationLink'])
+        ->name('admin.coaches.activation-link');
     Route::delete('/admin/users/{user}', [AdminController::class, 'destroyUser'])
         ->name('admin.users.destroy');
 

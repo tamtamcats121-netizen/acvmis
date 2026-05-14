@@ -18,6 +18,8 @@ const props = defineProps<{
         notes: string | null
         start: string | null
         end: string | null
+        status: 'upcoming' | 'in_progress' | 'completed'
+        can_manage_requirements: boolean
     }
     team: {
         id: number
@@ -62,6 +64,23 @@ const submitting = ref(false)
 
 const selectedCount = computed(() => form.student_ids.length)
 const groupedRequirements = computed(() => props.requirements)
+const canEditRequirements = computed(() => props.canManage && props.schedule.can_manage_requirements && props.schedule.status === 'upcoming')
+const scheduleStatusLabel = computed(() => {
+    if (props.schedule.status === 'in_progress') return 'In Progress'
+    if (props.schedule.status === 'completed') return 'Completed'
+    return 'Upcoming'
+})
+const readOnlyMessage = computed(() => {
+    if (props.schedule.status === 'in_progress') {
+        return 'This schedule is already in progress. Training requirements are view-only once the session starts.'
+    }
+
+    if (props.schedule.status === 'completed') {
+        return 'This schedule is completed. Training requirements are kept as a read-only record.'
+    }
+
+    return ''
+})
 
 function formatPHT(value: string | null) {
     if (!value) return '-'
@@ -82,6 +101,8 @@ function isSelected(studentId: number) {
 }
 
 function toggleStudent(studentId: number) {
+    if (!canEditRequirements.value) return
+
     if (isSelected(studentId)) {
         form.student_ids = form.student_ids.filter((id) => id !== studentId)
         return
@@ -91,6 +112,8 @@ function toggleStudent(studentId: number) {
 }
 
 function toggleAllStudents() {
+    if (!canEditRequirements.value) return
+
     if (selectedCount.value === props.students.length) {
         form.student_ids = []
         return
@@ -107,7 +130,15 @@ function resetForm() {
 }
 
 function submit() {
-    if (!props.canManage || submitting.value) return
+    if (!canEditRequirements.value || submitting.value) {
+        if (!canEditRequirements.value) {
+            showAppToast('Training requirements can only be assigned before the schedule starts.', 'error', {
+                summary: 'Training Requirements',
+            })
+        }
+
+        return
+    }
 
     submitting.value = true
 
@@ -131,7 +162,12 @@ function submit() {
 }
 
 function removeRequirement(requirementId: number) {
-    if (!props.canManage) return
+    if (!canEditRequirements.value) {
+        showAppToast('Training requirements are view-only after the schedule starts.', 'error', {
+            summary: 'Training Requirements',
+        })
+        return
+    }
 
     router.delete(`/coach/schedules/${props.schedule.id}/training-requirements/${requirementId}`, {
         preserveScroll: true,
@@ -153,23 +189,31 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
 
 <template>
     <div class="space-y-5">
+        <div class="flex justify-start">
+            <Link
+                href="/coach/schedule"
+                class="rounded-full border border-[#034485]/20 bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#f3f8ff]"
+            >
+                Back to Schedule
+            </Link>
+        </div>
+
         <section class="rounded-3xl border border-[#034485]/35 bg-[#034485] p-6 text-white shadow-[0_20px_44px_-28px_rgba(3,68,133,0.45)]">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Schedule-Based Training Requirements</p>
                     <h1 class="mt-2 text-2xl font-bold">Training Requirements</h1>
                     <p class="mt-2 max-w-3xl text-sm leading-6 text-white/85">
-                        Assign schedule-specific training instructions to one or more student-athletes and keep a printable coach record.
+                        {{ canEditRequirements
+                            ? 'Assign schedule-specific training instructions to one or more student-athletes and keep a printable coach record.'
+                            : 'Review schedule-specific training instructions and keep a printable coach record.' }}
                     </p>
                 </div>
 
                 <div class="flex flex-wrap gap-2">
-                    <Link
-                        href="/coach/schedule"
-                        class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                        Back to Schedule
-                    </Link>
+                    <span class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white">
+                        {{ scheduleStatusLabel }}
+                    </span>
                     <a
                         :href="printUrl"
                         target="_blank"
@@ -186,8 +230,12 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
             {{ flashSuccess }}
         </p>
 
+        <p v-if="readOnlyMessage" class="rounded-2xl border border-[#034485]/20 bg-[#edf4ff] px-4 py-3 text-sm font-semibold text-[#034485]">
+            {{ readOnlyMessage }}
+        </p>
+
         <section class="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
-            <div class="space-y-4">
+            <div v-if="canEditRequirements" class="space-y-4">
                 <div class="rounded-3xl border border-[#034485]/18 bg-white p-5 shadow-sm">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -198,6 +246,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                             type="button"
                             class="rounded-full border border-[#034485]/22 px-3 py-1 text-xs font-semibold text-[#034485] transition hover:bg-[#f3f8ff]"
                             @click="toggleAllStudents"
+                            :disabled="!canEditRequirements"
                         >
                             {{ selectedCount === students.length ? 'Clear All' : 'Select All' }}
                         </button>
@@ -217,6 +266,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                                     :checked="isSelected(student.student_id)"
                                     type="checkbox"
                                     class="mt-1 h-4 w-4 rounded border-slate-300 text-[#034485] focus:ring-[#034485]"
+                                    :disabled="!canEditRequirements"
                                     @change="toggleStudent(student.student_id)"
                                 />
                                 <div class="min-w-0">
@@ -237,6 +287,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                             <input
                                 v-model="form.title"
                                 type="text"
+                                :disabled="!canEditRequirements"
                                 class="mt-2 w-full rounded-2xl border border-[#034485]/18 bg-[#f7fbff] px-4 py-3 text-sm text-slate-900 focus:border-[#034485] focus:outline-none focus:ring-2 focus:ring-[#034485]/10"
                                 placeholder="e.g. Free Throw Drill"
                             />
@@ -246,6 +297,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                             <label class="text-xs font-semibold uppercase tracking-wide text-[#034485]">Category</label>
                             <select
                                 v-model="form.category"
+                                :disabled="!canEditRequirements"
                                 class="mt-2 w-full rounded-2xl border border-[#034485]/18 bg-[#f7fbff] px-4 py-3 text-sm text-slate-900 focus:border-[#034485] focus:outline-none focus:ring-2 focus:ring-[#034485]/10"
                             >
                                 <option v-for="category in categories" :key="category" :value="category">
@@ -259,6 +311,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                             <textarea
                                 v-model="form.description"
                                 rows="5"
+                                :disabled="!canEditRequirements"
                                 class="mt-2 w-full rounded-2xl border border-[#034485]/18 bg-[#f7fbff] px-4 py-3 text-sm text-slate-900 focus:border-[#034485] focus:outline-none focus:ring-2 focus:ring-[#034485]/10"
                                 placeholder="Add the specific drill, recovery task, tactical instruction, or follow-up activity."
                             />
@@ -276,7 +329,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                         <button
                             type="button"
                             class="rounded-full bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#033a70] disabled:cursor-not-allowed disabled:opacity-60"
-                            :disabled="submitting || !canManage"
+                            :disabled="submitting || !canEditRequirements"
                             @click="submit"
                         >
                             {{ submitting ? 'Saving...' : 'Save Requirement' }}
@@ -285,7 +338,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                 </div>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-4" :class="canEditRequirements ? '' : 'xl:col-span-2'">
                 <div class="rounded-3xl border border-[#034485]/18 bg-white p-5 shadow-sm">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
@@ -329,7 +382,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                                         <th class="px-4 py-3">Title</th>
                                         <th class="px-4 py-3">Description</th>
                                         <th class="px-4 py-3">Created</th>
-                                        <th v-if="canManage" class="px-4 py-3">Action</th>
+                                        <th v-if="canEditRequirements" class="px-4 py-3">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -350,7 +403,7 @@ const flashSuccess = computed(() => String((page.props as any)?.flash?.success ?
                                         <td class="px-4 py-3 font-semibold text-slate-800">{{ requirement.title }}</td>
                                         <td class="px-4 py-3 text-slate-600">{{ requirement.description || 'No description provided.' }}</td>
                                         <td class="px-4 py-3 text-xs text-slate-500">{{ requirement.created_at || '-' }}</td>
-                                        <td v-if="canManage" class="px-4 py-3">
+                                        <td v-if="canEditRequirements" class="px-4 py-3">
                                             <button
                                                 type="button"
                                                 class="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50"

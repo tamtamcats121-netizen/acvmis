@@ -8,6 +8,7 @@ use App\Models\Sport;
 use App\Models\Student;
 use App\Models\Team;
 use App\Models\TeamPlayer;
+use App\Models\TeamStaffAssignment;
 use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -93,6 +94,25 @@ class CoachTeamManagementController extends Controller
             'copy_players' => 'nullable|boolean',
             'copy_assistant_coach' => 'nullable|boolean',
         ]);
+
+        $existingTeam = Team::query()
+            ->where('sport_id', (int) $coach->sport_id)
+            ->where('year', $validated['year'])
+            ->whereHas('staffAssignments', function ($assignmentQuery) use ($coach) {
+                $assignmentQuery
+                    ->where('coach_id', (int) $coach->id)
+                    ->where('role', TeamStaffAssignment::ROLE_HEAD)
+                    ->whereNull('ends_at');
+            })
+            ->first(['id', 'team_name', 'year']);
+
+        if ($existingTeam) {
+            $sportName = $coach->sport?->name ?? 'this sport';
+
+            throw ValidationException::withMessages([
+                'year' => "You already have a {$validated['year']} {$sportName} team. Edit or delete \"{$existingTeam->team_name}\" before creating another one.",
+            ]);
+        }
 
         $templateTeam = $this->resolveTemplateTeam(
             $coach->id,

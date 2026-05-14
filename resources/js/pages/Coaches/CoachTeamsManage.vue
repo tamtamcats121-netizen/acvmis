@@ -8,6 +8,7 @@ import Textarea from 'primevue/textarea'
 import { computed, watch } from 'vue'
 
 import AppAvatar from '@/components/common/AppAvatar.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import { useTheme } from '@/composables/useTheme'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 
@@ -142,6 +143,12 @@ const isEditMode = computed(() => Boolean(props.selectedTeam?.id) && !createMode
 const isArchived = computed(() => Boolean(props.selectedTeam?.archived_at))
 const currentPlayerCount = computed(() => rosterForm.player_ids.length)
 const selectedTemplate = computed(() => props.seasonTemplates.find((team) => String(team.id) === String(createForm.clone_from_team_id)) ?? null)
+const duplicateCreateYearTeam = computed(() => {
+    const selectedYear = String(createForm.year ?? '').trim()
+    if (!selectedYear) return null
+
+    return props.teams.find((team) => String(team.year ?? '').trim() === selectedYear) ?? null
+})
 const seasonTemplateOptions = computed(() =>
     props.seasonTemplates.map((team) => ({
         label: team.label,
@@ -195,6 +202,15 @@ function onDetailsAvatarNativeSelect(event: Event) {
 }
 
 function submitCreate() {
+    if (duplicateCreateYearTeam.value) {
+        const sportName = props.sport?.name ?? 'this sport'
+        const message = `You already have a ${createForm.year} ${sportName} team. Edit or delete "${duplicateCreateYearTeam.value.team_name}" before creating another one.`
+
+        createForm.setError('year', message)
+        showAppToast(message, 'error', { summary: 'Team Already Exists' })
+        return
+    }
+
     createForm
         .transform((data) => ({
             ...data,
@@ -204,6 +220,14 @@ function submitCreate() {
         .post('/coach/teams', {
             forceFormData: true,
             preserveScroll: true,
+            onError: (errors) => {
+                const firstError = Object.values(errors)[0]
+                showAppToast(
+                    typeof firstError === 'string' ? firstError : 'Unable to create this team right now.',
+                    'error',
+                    { summary: 'Create Team' }
+                )
+            },
         })
 }
 

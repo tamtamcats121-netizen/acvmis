@@ -56,7 +56,7 @@ type UserRow = {
         needs_action_label: string | null
     }
     actions: {
-        can_regenerate_credentials: boolean
+        can_send_activation_link: boolean
         can_deactivate: boolean
         can_reactivate: boolean
         can_delete: boolean
@@ -104,7 +104,6 @@ type SportOption = {
 
 type CoachOnboardingFlash = {
     email: string
-    temporary_password: string
     email_sent: boolean
     activation_url: string
 }
@@ -193,10 +192,10 @@ const actionMenuItems = computed(() => {
         },
     ]
 
-    if (user.actions.can_regenerate_credentials) {
+    if (user.actions.can_send_activation_link) {
         items.push({
-            label: 'Regenerate Coach Credentials',
-            icon: 'pi pi-refresh',
+            label: 'Send Activation Link',
+            icon: 'pi pi-send',
             command: () => regenerateCoachCredentials(user),
         })
     }
@@ -417,8 +416,8 @@ function submitCreateCoach() {
             const flash = (visit.props as any)?.flash?.coach_onboarding as CoachOnboardingFlash | undefined
             createCoachFeedback.value = flash
                 ? (flash.email_sent
-                    ? `Coach account created. Onboarding details were sent to ${flash.email}.`
-                    : `Coach account created, but the onboarding email could not be sent to ${flash.email}.`)
+                    ? `Coach account created. Activation link was sent to ${flash.email}.`
+                    : `Coach account created, but the activation email could not be sent to ${flash.email}.`)
                 : 'The coach account has been created successfully.'
             showAppToast(createCoachFeedback.value, 'success')
             closeCreateCoach()
@@ -432,7 +431,7 @@ function submitCreateCoach() {
 }
 
 function regenerateCoachCredentials(user: UserRow) {
-    if (!user.actions.can_regenerate_credentials) return
+    if (!user.actions.can_send_activation_link) return
     regenerateTarget.value = user
 }
 
@@ -440,21 +439,21 @@ function confirmRegenerateCoachCredentials() {
     if (!regenerateTarget.value) return
 
     actionLoadingId.value = regenerateTarget.value.id
-    router.post(`/admin/coaches/${regenerateTarget.value.id}/regenerate-onboarding`, {}, {
+    router.post(`/admin/coaches/${regenerateTarget.value.id}/activation-link`, {}, {
         preserveScroll: true,
         onSuccess: (visit) => {
             const flash = (visit.props as any)?.flash?.coach_onboarding as CoachOnboardingFlash | undefined
             createCoachFeedback.value = flash
                 ? (flash.email_sent
-                    ? `Coach access credentials were regenerated and sent to ${flash.email}.`
-                    : `Coach access credentials were regenerated, but the onboarding email could not be sent to ${flash.email}.`)
-                : 'Coach access credentials have been regenerated.'
+                    ? `Coach activation link was sent to ${flash.email}.`
+                    : `Coach activation link was created, but the email could not be sent to ${flash.email}.`)
+                : 'Coach activation link has been sent.'
             showAppToast(createCoachFeedback.value, 'success')
             regenerateTarget.value = null
         },
         onError: (errors) => {
             const firstError = Object.values(errors)[0]
-            showAppToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to regenerate coach credentials.'), 'error')
+            showAppToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to send the coach activation link.'), 'error')
         },
         onFinish: () => {
             actionLoadingId.value = null
@@ -775,15 +774,15 @@ function confirmDeleteUser() {
 
         <ConfirmDialog
             :open="Boolean(regenerateTarget)"
-            title="Regenerate Coach Credentials"
-            confirmText="Regenerate"
+            title="Send Coach Activation Link"
+            confirmText="Send Link"
             :loading="actionLoadingId === regenerateTarget?.id"
             @update:open="regenerateTarget = null"
             @confirm="confirmRegenerateCoachCredentials"
         >
             <div class="space-y-2 text-sm text-slate-700">
-                <p>This will issue a fresh onboarding link and replacement credentials for the selected coach account.</p>
-                <p>The coach can use the new access details to sign in again and continue with sport or team assignment later.</p>
+                <p>This will email a secure activation link to the selected coach account.</p>
+                <p>The coach will set their own password through the link. No temporary password will be generated or shared.</p>
             </div>
         </ConfirmDialog>
 
@@ -822,7 +821,7 @@ function confirmDeleteUser() {
         <ConfirmDialog
             :open="createCoachOpen"
             title="Create Coach Account"
-            confirmText="Create Account"
+            confirmText="Create & Send Activation Link"
             :loading="createCoachForm.processing"
             @update:open="(value) => { createCoachOpen = value; if (!value) closeCreateCoach() }"
             @confirm="submitCreateCoach"
@@ -830,7 +829,7 @@ function confirmDeleteUser() {
             <div class="space-y-4">
                 <div class="space-y-1 text-sm text-slate-700">
                     <p>Create a coach account directly from the admin directory.</p>
-                    <p>Enter the coach’s profile details and contact information. The account can later be assigned to a sport or active team.</p>
+                    <p>Enter the coach’s profile details and assigned sport. The coach will receive a secure activation link by email and set their own password.</p>
                 </div>
                 <div class="grid gap-3">
                     <div>

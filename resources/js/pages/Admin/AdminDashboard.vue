@@ -6,16 +6,13 @@ import VueApexCharts from 'vue3-apexcharts';
 
 import AdminBottomNav from '@/components/admin/AdminBottomNav.vue';
 import RoleFooter from '@/components/ui/RoleFooter.vue';
-import Spinner from '@/components/ui/spinner/Spinner.vue';
 import UserAccountMenu from '@/components/UserAccountMenu.vue';
-import { useInertiaLoading } from '@/composables/useInertiaLoading';
 import { useTheme } from '@/composables/useTheme';
 
 const SIDEBAR_PREF_KEY = 'ac-vmis-admin-sidebar-collapsed';
 
 const slots = useSlots();
 const page = usePage();
-const { isLoading } = useInertiaLoading();
 const { isDarkMode } = useTheme();
 
 type DashboardPayload = {
@@ -1267,9 +1264,6 @@ watch(
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <div v-if="isLoading" class="admin-shell__loading-pill inline-flex items-center" aria-label="Loading" title="Loading">
-                        <Spinner class="h-3.5 w-3.5 text-[#1f2937]" />
-                    </div>
                     <div
                         class="relative"
                         @mouseenter="openNotifications"

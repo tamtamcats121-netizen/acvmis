@@ -128,6 +128,16 @@ class AcademicEligibilityController extends Controller
             'term' => 'required|in:1st_sem,2nd_sem,summer',
             'starts_on' => 'required|date',
             'ends_on' => 'required|date|after_or_equal:starts_on',
+        ], [
+            'school_year.required' => 'The school year field is required.',
+            'school_year.max' => 'The school year field must not be greater than 9 characters.',
+            'term.required' => 'The term field is required.',
+            'term.in' => 'The selected term is invalid.',
+            'starts_on.required' => 'The starts on field is required.',
+            'starts_on.date' => 'The starts on field must be a valid date.',
+            'ends_on.required' => 'The ends on field is required.',
+            'ends_on.date' => 'The ends on field must be a valid date.',
+            'ends_on.after_or_equal' => 'The ends on field must be a date after or equal to starts on.',
         ]);
 
         AcademicPeriod::create([

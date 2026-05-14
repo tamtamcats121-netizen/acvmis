@@ -298,7 +298,8 @@ class CoachScheduleController extends Controller
 
         return redirect()->route('coach.schedule.index', [
             'team_id' => $ownerTeam->id,
-        ])->with('success', 'Schedule created successfully.');
+        ])->with('success', 'Schedule created successfully.')
+            ->with('created_schedule_id', $created->id);
     }
     public function update(Request $request, $id)
     {

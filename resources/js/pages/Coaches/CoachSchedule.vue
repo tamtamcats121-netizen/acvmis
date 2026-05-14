@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import DatePicker from 'primevue/datepicker'
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { VueCal } from 'vue-cal'
@@ -20,6 +20,8 @@ const props = defineProps<{
     teams: Array<{ id: number; team_name: string; sport: string }>
     selectedTeamId: number | null
 }>()
+
+const page = usePage()
 
 // Layout mode
 const layout = ref<'list' | 'calendar'>('list')
@@ -111,12 +113,29 @@ const { isDarkMode } = useTheme()
 const APP_TIMEZONE = 'Asia/Manila'
 const deleteDialogOpen = ref(false)
 const pendingDeleteId = ref<number | null>(null)
+const trainingPromptOpen = ref(false)
+const pendingTrainingScheduleId = ref<number | null>(null)
 const sportsLegend = computed(() =>
     supportedSports.map((sport) => ({
         key: sport,
         label: sport.charAt(0).toUpperCase() + sport.slice(1),
         color: sportColor(sport),
     }))
+)
+
+watch(
+    () => (page.props as any)?.flash?.created_schedule_id,
+    (scheduleId) => {
+        const parsedId = Number(scheduleId)
+        if (!Number.isFinite(parsedId) || parsedId <= 0) return
+
+        const createdSchedule = props.schedules.find((item: any) => Number(item.id) === parsedId)
+        if (createdSchedule && scheduleStatus(createdSchedule) !== 'upcoming') return
+
+        pendingTrainingScheduleId.value = parsedId
+        trainingPromptOpen.value = true
+    },
+    { immediate: true },
 )
 
 function cardMotion(order: number) {
@@ -394,6 +413,26 @@ function openCalendar(url: string | null | undefined) {
 
 function openTrainingRequirements(item: any) {
     router.get(`/schedules/${item.id}/training-requirements`)
+}
+
+function openPromptTrainingRequirements() {
+    if (!pendingTrainingScheduleId.value) return
+
+    const scheduleId = pendingTrainingScheduleId.value
+    trainingPromptOpen.value = false
+    pendingTrainingScheduleId.value = null
+    router.get(`/schedules/${scheduleId}/training-requirements`)
+}
+
+function updateTrainingPromptOpen(value: boolean) {
+    trainingPromptOpen.value = value
+    if (!value) {
+        pendingTrainingScheduleId.value = null
+    }
+}
+
+function trainingRequirementsActionLabel(item: any) {
+    return scheduleStatus(item) === 'upcoming' ? 'Training Requirements' : 'View Training Requirements'
 }
 
 const groupedSchedules = computed(() => {
@@ -1055,7 +1094,7 @@ onBeforeUnmount(() => {
                                     @click="openTrainingRequirements(item)"
                                     class="rounded-md border border-[#034485]/25 bg-white px-3 py-1.5 text-xs font-semibold text-[#034485] hover:border-[#034485]/45 hover:bg-[#f7fbff]"
                                 >
-                                    Training Requirements
+                                    {{ trainingRequirementsActionLabel(item) }}
                                 </button>
                                 <button
                                     v-if="item.is_owner && !isLocked(item)"
@@ -1205,7 +1244,7 @@ onBeforeUnmount(() => {
                             class="rounded-md border border-[#034485]/25 bg-[#edf4ff] px-3 py-2 text-xs font-semibold text-[#034485] hover:border-[#034485]/45 hover:bg-[#ddeaff]"
                             @click="selectedSchedule ? openTrainingRequirements(selectedSchedule) : undefined"
                         >
-                            Assign Training Requirements
+                            {{ selectedSchedule && scheduleStatus(selectedSchedule) === 'upcoming' ? 'Assign Training Requirements' : 'View Training Requirements' }}
                         </button>
                     </div>
                 </div>
@@ -1563,6 +1602,17 @@ onBeforeUnmount(() => {
         confirm-variant="destructive"
         @update:open="deleteDialogOpen = $event"
         @confirm="confirmDeleteSchedule"
+    />
+
+    <ConfirmDialog
+        :open="trainingPromptOpen"
+        title="Schedule created"
+        description="Do you want to add training requirements now?"
+        confirm-text="Add Training Requirements"
+        cancel-text="Maybe Later"
+        confirm-variant="default"
+        @update:open="updateTrainingPromptOpen"
+        @confirm="openPromptTrainingRequirements"
     />
 </template>
 

@@ -8,6 +8,7 @@ use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\TeamSchedule;
 use App\Models\TrainingRequirement;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,33 @@ use Inertia\Response;
 
 class TrainingRequirementController extends Controller
 {
+    private function scheduleStatus(TeamSchedule $schedule): string
+    {
+        $tz = config('app.timezone');
+        $start = Carbon::parse($schedule->start_time, $tz);
+        $end = Carbon::parse($schedule->end_time, $tz);
+        $now = Carbon::now($tz);
+
+        if ($end->lt($now)) {
+            return 'completed';
+        }
+
+        if ($start->lte($now) && $end->gte($now)) {
+            return 'in_progress';
+        }
+
+        return 'upcoming';
+    }
+
+    private function abortUnlessUpcoming(TeamSchedule $schedule): void
+    {
+        abort_unless(
+            $this->scheduleStatus($schedule) === 'upcoming',
+            422,
+            'Training requirements can only be assigned before the schedule starts.'
+        );
+    }
+
     private function viewableScheduleForUser(Request $request, TeamSchedule $schedule): TeamSchedule
     {
         $user = $request->user();
@@ -126,6 +154,8 @@ class TrainingRequirementController extends Controller
         })->values();
 
         $coach = $request->user()?->coach;
+        $status = $this->scheduleStatus($schedule);
+        $canManage = $request->user()?->role === 'coach' && $status === 'upcoming';
 
         return Inertia::render('Coaches/TrainingRequirements', [
             'schedule' => [
@@ -136,6 +166,8 @@ class TrainingRequirementController extends Controller
                 'notes' => $schedule->notes,
                 'start' => optional($schedule->start_time)?->toIso8601String(),
                 'end' => optional($schedule->end_time)?->toIso8601String(),
+                'status' => $status,
+                'can_manage_requirements' => $canManage,
             ],
             'team' => [
                 'id' => $team->id,
@@ -149,7 +181,7 @@ class TrainingRequirementController extends Controller
             'categories' => TrainingRequirement::CATEGORIES,
             'students' => $roster,
             'requirements' => $this->requirementRows($schedule),
-            'canManage' => $request->user()?->role === 'coach',
+            'canManage' => $canManage,
             'printUrl' => route('training-requirements.print', $schedule),
         ]);
     }
@@ -157,6 +189,7 @@ class TrainingRequirementController extends Controller
     public function store(Request $request, TeamSchedule $schedule): RedirectResponse
     {
         [$coach, $team, $schedule] = $this->manageableScheduleForCoach($request, $schedule);
+        $this->abortUnlessUpcoming($schedule);
 
         $validated = $request->validate([
             'student_ids' => 'required|array|min:1',
@@ -196,6 +229,7 @@ class TrainingRequirementController extends Controller
     public function destroy(Request $request, TeamSchedule $schedule, TrainingRequirement $trainingRequirement): RedirectResponse
     {
         [$coach, , $schedule] = $this->manageableScheduleForCoach($request, $schedule);
+        $this->abortUnlessUpcoming($schedule);
 
         abort_unless((int) $trainingRequirement->schedule_id === (int) $schedule->id, 404);
         abort_unless((int) $trainingRequirement->coach_id === (int) $coach->id || $request->user()?->role === 'admin', 403);

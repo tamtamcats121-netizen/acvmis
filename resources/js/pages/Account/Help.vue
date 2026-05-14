@@ -47,7 +47,7 @@ const helpContent = computed<HelpContent>(() => {
       tasks: [
         {
           title: 'Create coach accounts',
-          description: 'Provision official coach access, assign a supported sport, and manage onboarding credentials from the records workspace.',
+          description: 'Provision official coach access, assign a supported sport, and send secure activation links from the records workspace.',
           href: '/people',
           cta: 'Manage Coaches',
         },
@@ -71,7 +71,7 @@ const helpContent = computed<HelpContent>(() => {
         },
         {
           question: 'How should coach accounts be handled in AC-VMIS?',
-          answer: 'Coach accounts remain admin-managed. Create them from the admin side, assign the coach to Basketball, Soccer, or Volleyball, and provide onboarding through the generated temporary credentials or activation flow.',
+          answer: 'Coach accounts remain admin-managed. Create them from the admin side, assign the coach to Basketball, Soccer, or Volleyball, and send a secure activation link so the coach can set their own password.',
         },
         {
           question: 'What should I do if a coach or player is missing from a team?',
