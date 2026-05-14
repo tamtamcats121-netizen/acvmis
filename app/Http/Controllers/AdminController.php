@@ -1135,42 +1135,23 @@ class AdminController extends Controller
 
             return $user;
         });
-        $activationToken = Password::broker()->createToken($newUser);
-        $activationUrl = route('coach.onboarding.activate', [
-            'email' => $newUser->email,
-            'token' => $activationToken,
-        ]);
-
-        $this->notifications->announce(
-            $newUser->id,
-            'Coach Account Created',
-            'Your coach account has been provisioned by the administrator. Please use the activation link sent to your email to set your password.',
-            Announcement::TYPE_APPROVAL,
-            Auth::id(),
-            'notify_approvals',
-            false
-        );
-
-        $emailSent = $this->notifications->sendUserEmail(
+        $delivery = $this->deliverCoachActivationLink(
             $newUser,
-            new CoachOnboardingMail($newUser, url('/Login'), $activationUrl),
-            [
-                'defer' => false,
-                'respect_preferences' => false,
-                'context' => [
-                    'communication' => 'coach_onboarding',
-                    'user_id' => $newUser->id,
-                    'admin_id' => Auth::id(),
-                ],
-            ]
+            'coach_onboarding',
+            'Coach Account Created',
+            'Your coach account has been provisioned by the administrator. Please use the activation link sent to your email to set your password.'
         );
+
+        $message = $delivery['activation_url']
+            ? 'The coach account has been created successfully. An activation link has been sent when email delivery is available.'
+            : 'The coach account has been created, but the activation link could not be sent. Please try Send Activation Link again or check mail settings.';
 
         return back()
-            ->with('success', 'The coach account has been created successfully. An activation link has been sent when email delivery is available.')
+            ->with('success', $message)
             ->with('coach_onboarding', [
                 'email' => $newUser->email,
-                'email_sent' => $emailSent,
-                'activation_url' => $activationUrl,
+                'email_sent' => $delivery['email_sent'],
+                'activation_url' => $delivery['activation_url'],
             ]);
     }
 
@@ -1191,43 +1172,102 @@ class AdminController extends Controller
             ]);
         });
 
-        $activationToken = Password::broker()->createToken($user);
-        $activationUrl = route('coach.onboarding.activate', [
-            'email' => $user->email,
-            'token' => $activationToken,
-        ]);
-
-        $this->notifications->announce(
-            $user->id,
-            'Coach Activation Link Sent',
-            'A secure coach account activation link was sent by the administrator.',
-            Announcement::TYPE_APPROVAL,
-            Auth::id(),
-            'notify_approvals',
-            false
-        );
-
-        $emailSent = $this->notifications->sendUserEmail(
+        $delivery = $this->deliverCoachActivationLink(
             $user,
-            new CoachOnboardingMail($user, url('/Login'), $activationUrl),
-            [
-                'defer' => false,
-                'respect_preferences' => false,
-                'context' => [
-                    'communication' => 'coach_activation_link',
-                    'user_id' => $user->id,
-                    'admin_id' => Auth::id(),
-                ],
-            ]
+            'coach_activation_link',
+            'Coach Activation Link Sent',
+            'A secure coach account activation link was sent by the administrator.'
         );
+
+        if (!$delivery['activation_url']) {
+            return back()->withErrors([
+                'user_action' => 'The activation link could not be generated. Please check password reset and mail settings.',
+            ]);
+        }
 
         return back()
-            ->with('success', 'Coach activation link has been sent.')
+            ->with('success', $delivery['email_sent'] ? 'Coach activation link has been sent.' : 'Activation link was generated, but email delivery failed. Please check mail settings.')
             ->with('coach_onboarding', [
                 'email' => $user->email,
-                'email_sent' => $emailSent,
-                'activation_url' => $activationUrl,
+                'email_sent' => $delivery['email_sent'],
+                'activation_url' => $delivery['activation_url'],
             ]);
+    }
+
+    private function deliverCoachActivationLink(User $user, string $communication, string $title, string $message): array
+    {
+        $activationUrl = null;
+        $emailSent = false;
+
+        try {
+            $activationToken = Password::broker()->createToken($user);
+            $activationUrl = route('coach.onboarding.activate', [
+                'email' => $user->email,
+                'token' => $activationToken,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Coach activation token generation failed.', [
+                'communication' => $communication,
+                'user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'activation_url' => null,
+                'email_sent' => false,
+            ];
+        }
+
+        try {
+            $this->notifications->announce(
+                $user->id,
+                $title,
+                $message,
+                Announcement::TYPE_APPROVAL,
+                Auth::id(),
+                'notify_approvals',
+                false
+            );
+        } catch (\Throwable $e) {
+            Log::error('Coach activation notification failed.', [
+                'communication' => $communication,
+                'user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            $emailSent = $this->notifications->sendUserEmail(
+                $user,
+                new CoachOnboardingMail($user, url('/Login'), $activationUrl),
+                [
+                    'defer' => false,
+                    'respect_preferences' => false,
+                    'context' => [
+                        'communication' => $communication,
+                        'user_id' => $user->id,
+                        'admin_id' => Auth::id(),
+                    ],
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Coach activation email delivery failed.', [
+                'communication' => $communication,
+                'user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return [
+            'activation_url' => $activationUrl,
+            'email_sent' => $emailSent,
+        ];
     }
 
     private function dashboardRange(string $period): array
