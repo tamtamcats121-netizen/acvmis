@@ -21,7 +21,7 @@ const currentYear = new Date().getFullYear()
     :class="props.bottomNav ? 'pb-[calc(env(safe-area-inset-bottom,0px)+5.25rem)] md:pb-5' : 'pb-5'"
   >
     <div class="mx-auto w-full max-w-[1240px] px-4 pt-5 sm:px-6 lg:px-10">
-      <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div class="space-y-3">
         <section class="space-y-3">
           <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-white">AC-VMIS</p>
           <div class="space-y-2">
@@ -46,17 +46,6 @@ const currentYear = new Date().getFullYear()
             </p>
           </div>
         </section>
-
-        <nav v-if="props.links.length" aria-label="Role footer links" class="flex flex-wrap gap-2 text-[11px] font-semibold text-white">
-          <a
-            v-for="link in props.links"
-            :key="link.href"
-            :href="link.href"
-            class="rounded-full border border-white/20 px-3 py-1.5 transition hover:border-white/40 hover:bg-white/10"
-          >
-            {{ link.label }}
-          </a>
-        </nav>
       </div>
 
       <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[10px] text-white">

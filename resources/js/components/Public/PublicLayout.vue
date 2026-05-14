@@ -244,7 +244,7 @@ watch(mobileMenuOpen, (open) => {
             </div>
         </main>
 
-        <footer class="site-footer relative z-10 px-4 pb-5 sm:px-6 lg:px-10" :class="{ 'site-footer-auth': isAuthPage }">
+        <footer class="site-footer relative z-10 px-4 pb-5 sm:px-6 lg:px-10" :class="{ 'site-footer-auth': isAuthPage, 'site-footer-status': isStatusPage }">
             <div class="footer-shell mx-auto max-w-6xl">
                 <div class="footer-grid">
                     <section class="footer-col footer-col-brand">
@@ -550,12 +550,41 @@ watch(mobileMenuOpen, (open) => {
 .site-footer-auth .contact-icon,
 .site-footer-auth .footer-heading,
 .site-footer-auth .footer-link,
-.site-footer-auth .footer-bottom-row {
-    color: var(--footer-text-strong) !important;
+.site-footer-auth .footer-bottom-row,
+.site-footer-auth .title-chip,
+.site-footer-auth .social-icon-link,
+.site-footer-status .footer-brand,
+.site-footer-status .footer-copy,
+.site-footer-status .footer-contact,
+.site-footer-status .contact-icon,
+.site-footer-status .footer-heading,
+.site-footer-status .footer-link,
+.site-footer-status .footer-bottom-row,
+.site-footer-status .title-chip,
+.site-footer-status .social-icon-link {
+    color: #ffffff !important;
 }
 
-.site-footer-auth .footer-link:hover {
-    color: var(--footer-text-strong) !important;
+.site-footer-auth .footer-link:hover,
+.site-footer-status .footer-link:hover {
+    color: #ffffff !important;
+}
+
+.site-footer-auth .title-chip,
+.site-footer-status .title-chip {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+}
+
+.site-footer-auth .footer-bottom-row p,
+.site-footer-auth .footer-contact span,
+.site-footer-status .footer-bottom-row p,
+.site-footer-status .footer-contact span,
+.site-footer-status .footer-link-list,
+.site-footer-status .footer-link-list *,
+.site-footer-status .footer-shell,
+.site-footer-status .footer-shell * {
+    color: #ffffff !important;
 }
 
 .site-header {
