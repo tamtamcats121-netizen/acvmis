@@ -17,6 +17,11 @@
         You will receive another notification once the review process has been completed.
     </p>
 
+    <p>
+        You can open the AC-VMIS website here:
+        <a href="{{ url('/') }}" style="color: #034485;">{{ url('/') }}</a>
+    </p>
+
     <p style="margin-top: 24px;">Thank you,<br>Asian College Varsity MIS</p>
 </body>
 </html>

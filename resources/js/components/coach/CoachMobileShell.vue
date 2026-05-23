@@ -3,7 +3,6 @@ import { router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import CoachBottomNav from '@/components/coach/CoachBottomNav.vue';
-import RoleFooter from '@/components/ui/RoleFooter.vue';
 import UserAccountMenu from '@/components/UserAccountMenu.vue';
 import { useTheme } from '@/composables/useTheme';
 import { coachPrimaryNav, coachSecondaryNav } from '@/config/coachNav';
@@ -70,17 +69,6 @@ const primaryItems = coachPrimaryNav;
 const secondaryItems = coachSecondaryNav;
 const hasSecondaryItems = secondaryItems.length > 0;
 const navToggleLabel = computed(() => (isNavCollapsed.value ? 'Expand sidebar' : 'Collapse sidebar'));
-
-const footerLinks = [
-    { label: 'Dashboard', href: '/coach/dashboard' },
-    { label: 'Student Applications', href: '/coach/applications' },
-    { label: 'Team', href: '/coach/team' },
-    { label: 'Schedule & Attendance', href: '/coach/schedule' },
-    { label: 'Team Documents', href: '/coach/documents' },
-    { label: 'Announcements', href: '/announcements' },
-    { label: 'Profile', href: '/account/profile' },
-    { label: 'Settings', href: '/account/settings' },
-];
 
 const activeLabel = computed(() => {
     const all = [...primaryItems, ...secondaryItems];
@@ -638,12 +626,6 @@ watch(isNavCollapsed, (collapsed) => {
                 <slot />
             </main>
 
-            <RoleFooter
-                title="Coach"
-                description="Manage schedules, attendance checks, roster coordination, and academic visibility in one place."
-                :links="footerLinks"
-                :bottom-nav="true"
-            />
         </div>
 
         <CoachBottomNav :items="primaryItems" :is-active="isActive" />

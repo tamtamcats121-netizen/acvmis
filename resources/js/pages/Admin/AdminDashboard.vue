@@ -5,7 +5,6 @@ import { computed, onMounted, onUnmounted, ref, useSlots, watch } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
 
 import AdminBottomNav from '@/components/admin/AdminBottomNav.vue';
-import RoleFooter from '@/components/ui/RoleFooter.vue';
 import UserAccountMenu from '@/components/UserAccountMenu.vue';
 import { useTheme } from '@/composables/useTheme';
 
@@ -181,20 +180,6 @@ const pages: NavEntry[] = [
             { name: 'Academics', route: '/reports/academics' },
         ],
     },
-];
-
-const footerLinks = [
-    { label: 'Dashboard', href: '/AdminDashboard' },
-    { label: 'User Records', href: '/people' },
-    { label: 'Team Monitoring', href: '/teams' },
-    { label: 'Operations', href: '/operations' },
-    { label: 'Academics', href: '/academics' },
-    { label: 'Documents', href: '/documents' },
-    { label: 'Audit Trail', href: '/audit-trail' },
-    { label: 'Reports', href: '/reports/attendance' },
-    { label: 'Announcements', href: '/announcements' },
-    { label: 'Profile', href: '/account/profile' },
-    { label: 'Settings', href: '/account/settings' },
 ];
 
 const adminBottomNavItems: Array<{
@@ -1683,11 +1668,6 @@ watch(
                 </div>
             </main>
 
-            <RoleFooter
-                title="AC VMIS"
-                description="Manage varsity operations, attendance, and academic workflows from one dashboard."
-                :links="footerLinks"
-            />
         </div>
 
         <AdminBottomNav :items="adminBottomNavItems" :is-active="isActive" />

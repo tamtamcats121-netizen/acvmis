@@ -22,6 +22,11 @@
         <a href="{{ $actionUrl }}" style="color: #0f766e;">Open AC-VMIS Notifications</a>
     </p>
 
+    <p>
+        AC-VMIS website:
+        <a href="{{ url('/') }}" style="color: #034485;">{{ url('/') }}</a>
+    </p>
+
     <p style="margin-top: 24px;">Thank you,<br>{{ config('app.name') }}</p>
 </body>
 </html>

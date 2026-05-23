@@ -5,7 +5,6 @@ import { computed, onMounted, onUnmounted, ref, useSlots, watch } from 'vue'
 import VueApexCharts from 'vue3-apexcharts'
 
 import StudentBottomNav from '@/components/student/StudentBottomNav.vue'
-import RoleFooter from '@/components/ui/RoleFooter.vue'
 import UserAccountMenu from '@/components/UserAccountMenu.vue'
 import { useTheme } from '@/composables/useTheme'
 import { studentPrimaryNav, studentSecondaryNav } from '@/config/studentNav'
@@ -132,18 +131,6 @@ const notificationsCount = computed(() => {
     }
     return unreadCount.value
 })
-
-const footerLinks = [
-    { label: 'Dashboard', href: '/StudentAthleteDashboard' },
-    { label: 'My Schedule', href: '/MySchedule' },
-    { label: 'My Team', href: '/MyTeam' },
-    { label: 'Join Team', href: '/join-team' },
-    { label: 'Academics', href: '/AcademicSubmissions' },
-    { label: 'My Documents', href: '/documents/my' },
-    { label: 'Announcements', href: '/announcements' },
-    { label: 'Profile', href: '/account/profile' },
-    { label: 'Settings', href: '/account/settings' },
-]
 
 const activeLabel = computed(() => {
     const all = [...primaryItems, ...secondaryItems]
@@ -1137,11 +1124,6 @@ watch(mobileMenuOpen, (open) => {
 
             </main>
 
-            <RoleFooter
-                title="Student-Athlete Workspace"
-                description="Review schedules, attendance, and academic submissions."
-                :links="footerLinks"
-            />
         </div>
 
         <StudentBottomNav :items="primaryItems" :is-active="isActive" />

@@ -726,6 +726,14 @@ function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
 }
 
+async function parseJsonResponse(response: Response) {
+    try {
+        return await response.json()
+    } catch {
+        return null
+    }
+}
+
 function attendanceModalWidthClass() {
     return modalMode.value === 'attendance' ? 'max-w-6xl' : 'max-w-2xl'
 }
@@ -742,7 +750,7 @@ async function loadAttendanceRoster(scheduleId: number) {
             credentials: 'same-origin',
         })
 
-        const data = await response.json()
+        const data = await parseJsonResponse(response)
         if (!response.ok) {
             attendanceError.value = data?.message ?? 'Unable to load attendance roster.'
             return
@@ -835,9 +843,11 @@ async function saveAttendanceSheet() {
             }),
         })
 
-        const data = await response.json()
+        const data = await parseJsonResponse(response)
         if (!response.ok) {
-            attendanceError.value = data?.message ?? 'Unable to save attendance sheet.'
+            attendanceError.value = response.status === 419
+                ? 'Your session expired for security. Please refresh the page, sign in if asked, then save attendance again.'
+                : data?.message ?? 'Unable to save attendance sheet.'
             showAppToast(attendanceError.value, 'error', {
                 summary: 'Attendance',
             })

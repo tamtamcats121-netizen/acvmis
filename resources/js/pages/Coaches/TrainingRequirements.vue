@@ -140,6 +140,13 @@ function submit() {
         return
     }
 
+    if (form.student_ids.length === 0) {
+        showAppToast('No student selected.', 'error', {
+            summary: 'Training Requirements',
+        })
+        return
+    }
+
     submitting.value = true
 
     router.post(`/coach/schedules/${props.schedule.id}/training-requirements`, form, {
@@ -150,8 +157,11 @@ function submit() {
             })
             resetForm()
         },
-        onError: () => {
-            showAppToast('Unable to save training requirements right now.', 'error', {
+        onError: (errors: Record<string, string | string[]>) => {
+            const studentError = errors.student_ids
+            const fallback = Array.isArray(studentError) ? studentError[0] : studentError
+
+            showAppToast(String(fallback || 'Unable to save training requirements right now.'), 'error', {
                 summary: 'Training Requirements',
             })
         },

@@ -11,5 +11,6 @@
     <p>This link is intended only for you. If it expires, ask the administrator to resend your activation link.</p>
     <p><a href="{{ $activationUrl }}">Activate Coach Account</a></p>
     <p><a href="{{ $loginUrl }}">Open AC-VMIS Sign-In Page</a></p>
+    <p>AC-VMIS website: <a href="{{ url('/') }}">{{ url('/') }}</a></p>
 </body>
 </html>

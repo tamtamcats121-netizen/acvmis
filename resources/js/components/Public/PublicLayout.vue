@@ -260,21 +260,6 @@ watch(mobileMenuOpen, (open) => {
                             </svg>
                             <span>varsity.support@asiancollege.edu.ph</span>
                         </p>
-                        <p class="footer-contact">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon" aria-hidden="true">
-                                <path
-                                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.77.66 2.6a2 2 0 0 1-.45 2.11L8 9.9a16 16 0 0 0 6.1 6.1l1.47-1.32a2 2 0 0 1 2.11-.45c.83.32 1.7.54 2.6.66A2 2 0 0 1 22 16.92z"
-                                />
-                            </svg>
-                            <span>+63 000 000 0000</span>
-                        </p>
-                        <div class="footer-socials" aria-label="Social Links">
-                            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="social-icon-link" aria-label="Facebook">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="social-icon" aria-hidden="true">
-                                    <path d="M15 3h-2a4 4 0 0 0-4 4v2H7v4h2v8h4v-8h2.5l.5-4H13V7a1 1 0 0 1 1-1h2V3z" />
-                                </svg>
-                            </a>
-                        </div>
                     </section>
 
                     <nav class="footer-col" aria-label="Public Pages">
@@ -318,7 +303,7 @@ watch(mobileMenuOpen, (open) => {
     --public-panel-border: color-mix(in srgb, var(--color-brand) 22%, white);
     --public-panel-border-strong: color-mix(in srgb, var(--color-brand) 34%, white);
     --public-panel-shadow: 0 18px 40px -28px rgba(8, 28, 52, 0.34);
-    --public-footer-bg: #dc2626;
+    --public-footer-bg: linear-gradient(90deg, rgba(3, 68, 133, 0.95), rgba(3, 68, 133, 0.82)), url('/images/footer-athletes.png');
     --footer-text-strong: rgba(255, 255, 255, 0.96);
     --footer-text-soft: rgba(255, 255, 255, 0.78);
     font-family: Poppins, 'Segoe UI', sans-serif;
@@ -407,10 +392,13 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .site-footer {
-    margin-top: 1rem;
-    padding-top: 1.2rem;
+    margin-top: 0.75rem;
+    padding-top: 0.85rem;
     border-top: 1px solid rgba(255, 255, 255, 0.22);
-    background: var(--public-footer-bg);
+    background-image: var(--public-footer-bg);
+    background-position: center, 72% center;
+    background-repeat: no-repeat, no-repeat;
+    background-size: cover, cover;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     margin-left: 1.5rem;
     margin-right: 1.5rem;
@@ -430,7 +418,7 @@ watch(mobileMenuOpen, (open) => {
 .footer-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 0.8fr));
-    gap: 1.2rem;
+    gap: 0.85rem;
 }
 
 .footer-col {
@@ -448,16 +436,16 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-copy {
-    margin-top: 0.55rem;
+    margin-top: 0.35rem;
     color: var(--footer-text-soft);
-    line-height: 1.6;
-    font-size: var(--text-sm);
+    line-height: 1.45;
+    font-size: 0.82rem;
 }
 
 .footer-contact {
-    margin-top: 0.45rem;
+    margin-top: 0.3rem;
     color: var(--footer-text-soft);
-    font-size: var(--text-sm);
+    font-size: 0.8rem;
     display: flex;
     align-items: flex-start;
     gap: 0.35rem;
@@ -471,37 +459,6 @@ watch(mobileMenuOpen, (open) => {
     flex-shrink: 0;
 }
 
-.footer-socials {
-    margin-top: 0.85rem;
-    display: flex;
-    gap: 0.5rem;
-}
-
-.social-icon-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.1rem;
-    height: 2.1rem;
-    border-radius: var(--radius-full);
-    border: 1px solid rgba(255, 255, 255, 0.26);
-    color: var(--footer-text-strong);
-    text-decoration: none;
-    background: rgba(255, 255, 255, 0.06);
-    box-shadow: var(--shadow-xs);
-}
-
-.social-icon-link:hover {
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.4);
-    box-shadow: var(--shadow-sm);
-}
-
-.social-icon {
-    width: 1.05rem;
-    height: 1.05rem;
-}
-
 .footer-heading {
     color: var(--footer-text-soft);
     text-transform: uppercase;
@@ -511,16 +468,16 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-link-list {
-    margin-top: 0.65rem;
+    margin-top: 0.45rem;
     display: grid;
-    gap: 0.5rem;
+    gap: 0.32rem;
     overflow-wrap: anywhere;
 }
 
 .footer-link {
     color: var(--footer-text-soft);
     text-decoration: none;
-    font-size: var(--text-sm);
+    font-size: 0.82rem;
     overflow-wrap: anywhere;
 }
 
@@ -537,9 +494,9 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-bottom-row {
-    margin-top: 1rem;
+    margin-top: 0.75rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    padding-top: 0.75rem;
+    padding-top: 0.55rem;
     color: var(--footer-text-soft);
     font-size: var(--text-xs);
 }
@@ -552,7 +509,6 @@ watch(mobileMenuOpen, (open) => {
 .site-footer-auth .footer-link,
 .site-footer-auth .footer-bottom-row,
 .site-footer-auth .title-chip,
-.site-footer-auth .social-icon-link,
 .site-footer-status .footer-brand,
 .site-footer-status .footer-copy,
 .site-footer-status .footer-contact,
@@ -560,8 +516,7 @@ watch(mobileMenuOpen, (open) => {
 .site-footer-status .footer-heading,
 .site-footer-status .footer-link,
 .site-footer-status .footer-bottom-row,
-.site-footer-status .title-chip,
-.site-footer-status .social-icon-link {
+.site-footer-status .title-chip {
     color: #ffffff !important;
 }
 
@@ -1022,7 +977,7 @@ watch(mobileMenuOpen, (open) => {
 
     .footer-grid {
         grid-template-columns: 1fr;
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
     .footer-bottom-row {

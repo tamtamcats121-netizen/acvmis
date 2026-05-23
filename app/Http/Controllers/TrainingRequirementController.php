@@ -197,6 +197,9 @@ class TrainingRequirementController extends Controller
             'title' => 'required|string|max:255',
             'category' => 'required|string|in:' . implode(',', TrainingRequirement::CATEGORIES),
             'description' => 'nullable|string|max:2000',
+        ], [
+            'student_ids.required' => 'No student selected.',
+            'student_ids.min' => 'No student selected.',
         ]);
 
         $teamStudentIds = $this->rosterForTeam($team)
@@ -222,8 +225,7 @@ class TrainingRequirementController extends Controller
         }
 
         return redirect()
-            ->route('training-requirements.show', $schedule)
-            ->with('success', 'Training requirements assigned successfully.');
+            ->route('training-requirements.show', $schedule);
     }
 
     public function destroy(Request $request, TeamSchedule $schedule, TrainingRequirement $trainingRequirement): RedirectResponse

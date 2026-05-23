@@ -36,6 +36,10 @@
                             <p style="margin:0 0 24px;font-size:13px;line-height:1.7;word-break:break-all;color:#034485;">
                                 <a href="{{ $verificationUrl }}" style="color:#034485;">{{ $verificationUrl }}</a>
                             </p>
+                            <p style="margin:0 0 24px;font-size:13px;line-height:1.7;color:#475569;">
+                                AC-VMIS website:
+                                <a href="{{ url('/') }}" style="color:#034485;">{{ url('/') }}</a>
+                            </p>
                             <p style="margin:0;font-size:14px;line-height:1.7;color:#475569;">
                                 If you did not request this, you may ignore this message.
                             </p>

@@ -12,5 +12,6 @@
     @endif
 
     <p>If you believe this decision requires clarification, please contact the appropriate support office.</p>
+    <p>Open AC-VMIS here: <a href="{{ url('/') }}">{{ url('/') }}</a></p>
 </body>
 </html>

@@ -16,6 +16,7 @@ use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class RegisterController extends Controller
@@ -62,6 +63,7 @@ class RegisterController extends Controller
             'date_of_birth' => 'required|date',
             'gender' => 'required|in:Male,Female,Other',
             'phone_number' => ['required', 'regex:/^\d{10}$/'],
+            'home_address' => 'required|string|max:255',
             'current_grade_level' => 'required|in:11,12,1,2,3,4',
             'course_or_strand' => 'required|string|max:255',
             'applied_sport_id' => ['required', 'integer', \Illuminate\Validation\Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
@@ -103,8 +105,16 @@ class RegisterController extends Controller
                 'successMessage' => 'Registration submitted successfully.'
             ]);
         } catch (\Exception $e) {
-            // --- Catch errors and display ---
-            return back()->withErrors(['error' => 'The registration could not be completed: ' . $e->getMessage()])
+            Log::error('Student-athlete registration failed.', [
+                'email' => $request->input('email'),
+                'student_id_number' => $request->input('student_id_number'),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'error' => 'The registration could not be completed. Please review the highlighted fields and try again.',
+            ])
                 ->withInput();
         }
     }
@@ -175,28 +185,24 @@ class RegisterController extends Controller
 
     private function createStudent(Request $request, User $user): Student
     {
-        try {
-            return Student::create([
-                'user_id' => $user->id,
-                'student_id_number' => $request->student_id_number,
-                'date_of_birth' => $request->date_of_birth,
-                'gender' => $request->gender,
-                'home_address' => $request->home_address,
-                'course_or_strand' => $request->course_or_strand,
-                'current_grade_level' => $request->current_grade_level,
-                'approval_status' => 'pending',
-                'applied_sport_id' => $request->applied_sport_id,
-                'student_status' => 'Enrolled',
-                'phone_number' => $request->phone_number,
-                'height' => $request->height,
-                'weight' => $request->weight,
-                'emergency_contact_name' => $request->emergency_contact_name,
-                'emergency_contact_relationship' => $request->emergency_contact_relationship,
-                'emergency_contact_phone' => $request->emergency_contact_phone,
-            ]);
-        } catch (\Exception $e) {
-            throw new \Exception('Failed to create Student record: ' . $e->getMessage());
-        }
+        return Student::create([
+            'user_id' => $user->id,
+            'student_id_number' => $request->student_id_number,
+            'date_of_birth' => $request->date_of_birth,
+            'gender' => $request->gender,
+            'home_address' => $request->home_address,
+            'course_or_strand' => $request->course_or_strand,
+            'current_grade_level' => $request->current_grade_level,
+            'approval_status' => 'pending',
+            'applied_sport_id' => $request->applied_sport_id,
+            'student_status' => 'Enrolled',
+            'phone_number' => $request->phone_number,
+            'height' => $request->height,
+            'weight' => $request->weight,
+            'emergency_contact_name' => $request->emergency_contact_name,
+            'emergency_contact_relationship' => $request->emergency_contact_relationship,
+            'emergency_contact_phone' => $request->emergency_contact_phone,
+        ]);
     }
 
     public function checkStudentIdAvailability(Request $request)
@@ -266,7 +272,15 @@ class RegisterController extends Controller
 
             return redirect('/Login')->with('success', 'The coach account has been registered successfully. You may now sign in.');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'The registration could not be completed: ' . $e->getMessage()])->withInput();
+            Log::error('Coach registration failed.', [
+                'email' => $request->input('email'),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'error' => 'The registration could not be completed. Please review the form and try again.',
+            ])->withInput();
         }
     }
 

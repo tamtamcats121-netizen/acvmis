@@ -78,12 +78,8 @@ function formatFilterDate(value: Date | null): string {
     return `${year}-${month}-${day}`
 }
 
-function statusTone(status: string | null | undefined) {
-    const normalized = String(status ?? '').toLowerCase()
-    if (normalized === 'reviewed') return 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
-    if (normalized === 'needs_review') return 'border-amber-500/35 bg-amber-500/10 text-amber-300'
-    if (normalized === 'auto_processed') return 'border-sky-500/35 bg-sky-500/10 text-sky-300'
-    return 'border-slate-500/35 bg-slate-500/10 text-slate-200'
+function statusTone() {
+    return 'border-[#034485] bg-[#034485] text-white'
 }
 
 function labelize(value: string | null | undefined) {

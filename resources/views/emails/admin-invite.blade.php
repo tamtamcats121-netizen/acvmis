@@ -11,6 +11,7 @@
     <p>
         <a href="{{ $acceptUrl }}">Accept the administrator invitation</a>
     </p>
+    <p>AC-VMIS website: <a href="{{ url('/') }}">{{ url('/') }}</a></p>
     <p>If you were not expecting this invitation, you can safely ignore this email.</p>
 </body>
 </html>

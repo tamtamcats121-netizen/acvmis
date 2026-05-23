@@ -700,21 +700,6 @@ watch(mobileMenuOpen, (open) => {
                             </svg>
                             <span>varsity.support@asiancollege.edu.ph</span>
                         </p>
-                        <p class="footer-contact">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon" aria-hidden="true">
-                                <path
-                                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.77.66 2.6a2 2 0 0 1-.45 2.11L8 9.9a16 16 0 0 0 6.1 6.1l1.47-1.32a2 2 0 0 1 2.11-.45c.83.32 1.7.54 2.6.66A2 2 0 0 1 22 16.92z"
-                                />
-                            </svg>
-                            <span>+63 000 000 0000</span>
-                        </p>
-                        <div class="footer-socials" aria-label="Social Links">
-                            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="social-icon-link" aria-label="Facebook">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="social-icon" aria-hidden="true">
-                                    <path d="M15 3h-2a4 4 0 0 0-4 4v2H7v4h2v8h4v-8h2.5l.5-4H13V7a1 1 0 0 1 1-1h2V3z" />
-                                </svg>
-                            </a>
-                        </div>
                     </section>
 
                     <nav class="footer-col" aria-label="Public Pages">
@@ -2310,6 +2295,39 @@ watch(mobileMenuOpen, (open) => {
     gap: 1.2rem;
 }
 
+@media (min-width: 1024px) {
+    .how-it-works-grid {
+        grid-template-columns: repeat(5, minmax(0, 220px));
+        align-items: stretch;
+        gap: 1rem 0.85rem;
+    }
+
+    .how-it-works-card:nth-child(1) {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .how-it-works-card:nth-child(2) {
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    .how-it-works-card:nth-child(3) {
+        grid-column: 5;
+        grid-row: 1;
+    }
+
+    .how-it-works-card:nth-child(4) {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    .how-it-works-card:nth-child(5) {
+        grid-column: 4;
+        grid-row: 2;
+    }
+}
+
 .info-card {
     display: grid;
     gap: 0.7rem;
@@ -2733,11 +2751,14 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .site-footer {
-    margin-top: 1rem;
-    padding-top: clamp(1rem, 3vw, 1.5rem);
-    padding-bottom: 1.3rem;
+    margin-top: 0.75rem;
+    padding-top: clamp(0.75rem, 2vw, 1rem);
+    padding-bottom: 0.95rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    background: #dc2626;
+    background-image: linear-gradient(90deg, rgba(3, 68, 133, 0.95), rgba(3, 68, 133, 0.82)), url('/images/footer-athletes.png');
+    background-position: center, 72% center;
+    background-repeat: no-repeat, no-repeat;
+    background-size: cover, cover;
     border-radius: 18px 18px 0 0;
     margin-left: 1.5rem;
     margin-right: 1.5rem;
@@ -2755,7 +2776,7 @@ watch(mobileMenuOpen, (open) => {
 .footer-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 0.8fr));
-    gap: 1.2rem;
+    gap: 0.85rem;
 }
 
 .footer-col {
@@ -2773,16 +2794,16 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-copy {
-    margin-top: 0.55rem;
+    margin-top: 0.35rem;
     color: #ffffff;
-    line-height: 1.6;
-    font-size: 0.92rem;
+    line-height: 1.45;
+    font-size: 0.82rem;
 }
 
 .footer-contact {
-    margin-top: 0.45rem;
+    margin-top: 0.3rem;
     color: #ffffff;
-    font-size: 0.84rem;
+    font-size: 0.8rem;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -2795,40 +2816,6 @@ watch(mobileMenuOpen, (open) => {
     flex-shrink: 0;
 }
 
-.social-col {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding-top: 1.45rem;
-}
-
-.footer-socials {
-    margin-top: 0.85rem;
-    display: flex;
-    gap: 0.5rem;
-}
-
-.social-icon-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.1rem;
-    height: 2.1rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    color: #ffffff;
-    text-decoration: none;
-}
-
-.social-icon-link:hover {
-    background: rgba(255, 255, 255, 0.15);
-}
-
-.social-icon {
-    width: 1.05rem;
-    height: 1.05rem;
-}
-
 .footer-heading {
     color: #ffffff;
     text-transform: uppercase;
@@ -2838,16 +2825,16 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-link-list {
-    margin-top: 0.65rem;
+    margin-top: 0.45rem;
     display: grid;
-    gap: 0.5rem;
+    gap: 0.32rem;
     overflow-wrap: anywhere;
 }
 
 .footer-link {
     color: #ffffff;
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     overflow-wrap: anywhere;
 }
 
@@ -2864,9 +2851,9 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .footer-bottom-row {
-    margin-top: 1rem;
+    margin-top: 0.75rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    padding-top: 0.75rem;
+    padding-top: 0.55rem;
     color: #ffffff;
     font-size: 0.78rem;
 }

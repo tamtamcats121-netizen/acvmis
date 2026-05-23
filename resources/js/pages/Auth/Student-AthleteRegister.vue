@@ -209,7 +209,13 @@ function validateStudentIdFormat(value: string) {
 }
 
 function normalizePhoneNumber(value: string) {
-    return value.replace(/\D/g, '').slice(0, 10);
+    const digits = value.replace(/\D/g, '');
+
+    if (digits.length === 11 && digits.startsWith('0')) {
+        return digits.slice(1);
+    }
+
+    return digits.slice(0, 10);
 }
 
 function resolveHeightCm(): number | null {
@@ -316,10 +322,9 @@ function validateField(field: string): boolean {
         return true;
     }
 
-    if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand', 'applied_sport_id'].includes(field)) {
+    if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'home_address', 'current_grade_level', 'course_or_strand', 'applied_sport_id'].includes(field)) {
         if (field === 'phone_number') {
             const phone = normalizePhoneNumber(String(value || ''));
-            form.phone_number = phone;
 
             if (!phone) {
                 setFieldError(field, 'Mobile number is required.');
@@ -477,16 +482,14 @@ watch(
 );
 
 watch(
-    () => form.phone_number,
-    (value) => {
-        const normalized = normalizePhoneNumber(String(value || ''));
-        if (normalized !== value) {
-            form.phone_number = normalized;
-            return;
-        }
-
+    () => [form.phone_number, form.home_address],
+    () => {
         if (submitAttempted.value || touchedFields.phone_number) {
             validateField('phone_number');
+        }
+
+        if (submitAttempted.value || touchedFields.home_address) {
+            validateField('home_address');
         }
     },
 );
@@ -502,7 +505,7 @@ watch(
 function validateStep(currentStep: Step): boolean {
     const checks: Record<Step, string[]> = {
         1: ['email', 'password', 'password_confirmation', 'student_id_number'],
-        2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand', 'applied_sport_id', 'height', 'weight_kg'],
+        2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'home_address', 'current_grade_level', 'course_or_strand', 'applied_sport_id', 'height', 'weight_kg'],
         3: ['academic_document_file', 'medical_document_file'],
     };
 
@@ -769,7 +772,7 @@ function submit() {
     formData.append('last_name', form.last_name);
     formData.append('date_of_birth', form.date_of_birth);
     formData.append('gender', form.gender);
-    formData.append('phone_number', form.phone_number);
+    formData.append('phone_number', normalizePhoneNumber(form.phone_number));
     formData.append('home_address', form.home_address);
     formData.append('current_grade_level', form.current_grade_level);
     formData.append('course_or_strand', form.course_or_strand);
@@ -1041,20 +1044,24 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Phone Number</label>
-                            <InputText
+                            <InputMask
                                 v-model="form.phone_number"
-                                type="tel"
-                                inputmode="numeric"
-                                maxlength="10"
+                                mask="0999-999-9999"
                                 :class="['field w-full', { 'p-invalid': shouldShowError('phone_number') }]"
-                                placeholder="9XXXXXXXXX"
+                                placeholder="09XX-XXX-XXXX"
                                 @blur="touchAndValidate('phone_number')"
                             />
                             <Message v-if="shouldShowError('phone_number')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.phone_number }}</Message>
                         </div>
                         <div>
-                            <label class="label">Home Address (Optional)</label>
-                            <InputText v-model="form.home_address" class="field w-full" />
+                            <label class="label">Home Address</label>
+                            <InputText
+                                v-model="form.home_address"
+                                :class="['field w-full', { 'p-invalid': shouldShowError('home_address') }]"
+                                placeholder="Street, barangay, city/province"
+                                @blur="touchAndValidate('home_address')"
+                            />
+                            <Message v-if="shouldShowError('home_address')" severity="error" size="small" variant="simple" class="mt-1">{{ fieldErrors.home_address }}</Message>
                         </div>
                     </div>
 
@@ -1648,13 +1655,16 @@ onBeforeUnmount(() => {
 .site-footer {
     margin-top: 0.5rem;
     border-top: 1px solid var(--color-border-strong);
-    background: linear-gradient(180deg, var(--color-overlay) 0%, var(--color-overlay) 100%);
+    background-image: linear-gradient(90deg, rgba(3, 68, 133, 0.95), rgba(3, 68, 133, 0.82)), url('/images/footer-athletes.png');
+    background-position: center, 72% center;
+    background-repeat: no-repeat, no-repeat;
+    background-size: cover, cover;
     padding-top: 1rem;
 }
 
 .footer-shell {
     padding: 0.2rem 0 0;
-    color: var(--color-text-secondary);
+    color: #ffffff;
 }
 
 .footer-grid {

@@ -71,6 +71,10 @@ function joinTeam() {
         },
     })
 }
+
+function goDashboard() {
+    router.get('/StudentAthleteDashboard')
+}
 </script>
 
 <template>
@@ -79,6 +83,16 @@ function joinTeam() {
         :class="isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-[#f4f8fc] text-slate-900'"
     >
         <div class="mx-auto max-w-4xl space-y-5">
+            <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition"
+                :class="isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100 hover:border-sky-500 hover:text-sky-200' : 'border-[#034485]/20 bg-white text-[#034485] hover:border-[#034485]/40 hover:bg-[#eef5ff]'"
+                @click="goDashboard"
+            >
+                <span aria-hidden="true">←</span>
+                Back to Dashboard
+            </button>
+
             <section class="overflow-hidden rounded-3xl border border-[#034485]/35 bg-[#034485] text-white shadow-[0_24px_60px_-36px_rgba(3,68,133,0.55)]">
                 <div class="p-6 sm:p-8">
                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Join Team</p>
