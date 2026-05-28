@@ -250,15 +250,6 @@ function confirmDelete() {
                 </button>
             </div>
 
-            <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
-                <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm font-semibold text-slate-900">Two-Factor Authentication</p>
-                        <p class="text-xs text-slate-500">Static placeholder for upcoming 2FA configuration.</p>
-                    </div>
-                    <span class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-500">Coming Soon</span>
-                </div>
-            </div>
         </form>
 
         <form

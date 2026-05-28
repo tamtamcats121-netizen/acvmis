@@ -1,0 +1,270 @@
+dbms	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CONSTRAINT_TYPE	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+mysql	acvmis	academic_document_ocr_runs	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	academic_document_id	2	bigint	NULL	FOREIGN KEY	acvmis	student_documents	id
+mysql	acvmis	academic_document_ocr_runs	ocr_engine	3	varchar	50	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	ocr_engine_version	4	varchar	50	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	run_status	5	enum	12	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	raw_text	6	longtext	4294967295	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	mean_confidence	7	decimal	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	validation_status	8	enum	13	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	validation_summary	9	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	validation_flags	10	longtext	4294967295	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	validation_checked_at	11	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	processed_at	12	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	error_message	13	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	created_at	14	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_ocr_runs	updated_at	15	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_parsed_summaries	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	academic_document_parsed_summaries	academic_document_ocr_run_id	2	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	academic_document_parsed_summaries	academic_document_ocr_run_id	2	bigint	NULL	FOREIGN KEY	acvmis	academic_document_ocr_runs	id
+mysql	acvmis	academic_document_parsed_summaries	gwa	3	decimal	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_parsed_summaries	total_units	4	decimal	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_parsed_summaries	parser_status	5	enum	12	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_parsed_summaries	parser_confidence	6	decimal	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_parsed_summaries	created_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_document_parsed_summaries	updated_at	8	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	student_id	2	bigint	NULL	FOREIGN KEY	acvmis	students	id
+mysql	acvmis	academic_eligibility_evaluations	student_id	2	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	academic_period_id	3	bigint	NULL	FOREIGN KEY	acvmis	academic_periods	id
+mysql	acvmis	academic_eligibility_evaluations	academic_period_id	3	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	document_id	4	bigint	NULL	FOREIGN KEY	acvmis	student_documents	id
+mysql	acvmis	academic_eligibility_evaluations	academic_document_ocr_run_id	5	bigint	NULL	FOREIGN KEY	acvmis	academic_document_ocr_runs	id
+mysql	acvmis	academic_eligibility_evaluations	gpa	6	decimal	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	evaluation_source	7	enum	19	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	final_status	8	enum	14	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	review_required	9	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	evaluated_by	10	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	academic_eligibility_evaluations	evaluated_at	11	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	remarks	12	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	created_at	13	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_eligibility_evaluations	updated_at	14	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_periods	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	academic_periods	school_year	2	varchar	9	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	academic_periods	term	3	enum	7	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	academic_periods	starts_on	4	date	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_periods	ends_on	5	date	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_periods	created_at	6	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	academic_periods	updated_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	account_action_logs	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	account_action_logs	user_id	2	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	account_action_logs	admin_id	3	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	account_action_logs	admin_id	3	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	account_action_logs	action	4	varchar	80	NULL	NULL	NULL	NULL
+mysql	acvmis	account_action_logs	remarks	5	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	account_action_logs	created_at	6	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	account_action_logs	updated_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	admin_invites	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	admin_invites	email	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	admin_invites	token_hash	3	varchar	64	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	admin_invites	created_by	4	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	admin_invites	expires_at	5	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	admin_invites	used_at	6	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	admin_invites	created_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	admin_invites	updated_at	8	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_events	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	announcement_events	title	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_events	message	3	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_events	type	4	enum	8	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_events	published_at	5	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_events	created_by	6	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	announcement_events	created_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_events	updated_at	8	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_recipients	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	announcement_recipients	event_id	2	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	announcement_recipients	event_id	2	bigint	NULL	FOREIGN KEY	acvmis	announcement_events	id
+mysql	acvmis	announcement_recipients	user_id	3	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	announcement_recipients	user_id	3	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	announcement_recipients	read_at	4	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_recipients	created_at	5	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	announcement_recipients	updated_at	6	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	cache	key	1	varchar	255	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	cache	value	2	mediumtext	16777215	NULL	NULL	NULL	NULL
+mysql	acvmis	cache	expiration	3	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	cache_locks	key	1	varchar	255	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	cache_locks	owner	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	cache_locks	expiration	3	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	coaches	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	coaches	user_id	2	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	coaches	user_id	2	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	coaches	phone_number	3	varchar	20	NULL	NULL	NULL	NULL
+mysql	acvmis	coaches	date_of_birth	4	date	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	coaches	gender	5	enum	6	NULL	NULL	NULL	NULL
+mysql	acvmis	coaches	home_address	6	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	coaches	coach_status	7	enum	8	NULL	NULL	NULL	NULL
+mysql	acvmis	coaches	sport_id	8	bigint	NULL	FOREIGN KEY	acvmis	sports	id
+mysql	acvmis	coaches	created_at	9	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	coaches	updated_at	10	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	document_types	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	document_types	context	2	enum	17	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	document_types	code	3	varchar	50	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	document_types	label	4	varchar	120	NULL	NULL	NULL	NULL
+mysql	acvmis	failed_jobs	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	failed_jobs	uuid	2	varchar	255	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	failed_jobs	connection	3	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	failed_jobs	queue	4	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	failed_jobs	payload	5	longtext	4294967295	NULL	NULL	NULL	NULL
+mysql	acvmis	failed_jobs	exception	6	longtext	4294967295	NULL	NULL	NULL	NULL
+mysql	acvmis	failed_jobs	failed_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	jobs	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	jobs	queue	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	jobs	payload	3	longtext	4294967295	NULL	NULL	NULL	NULL
+mysql	acvmis	jobs	attempts	4	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	jobs	reserved_at	5	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	jobs	available_at	6	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	jobs	created_at	7	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	id	1	varchar	255	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	job_batches	name	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	total_jobs	3	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	pending_jobs	4	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	failed_jobs	5	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	failed_job_ids	6	longtext	4294967295	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	options	7	mediumtext	16777215	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	cancelled_at	8	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	created_at	9	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	job_batches	finished_at	10	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	migrations	id	1	int	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	migrations	migration	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	migrations	batch	3	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	password_reset_tokens	email	1	varchar	255	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	password_reset_tokens	token	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	password_reset_tokens	created_at	3	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	schedule_id	2	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	schedule_id	2	bigint	NULL	FOREIGN KEY	acvmis	team_schedules	id
+mysql	acvmis	schedule_attendances	student_id	3	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	student_id	3	bigint	NULL	FOREIGN KEY	acvmis	students	id
+mysql	acvmis	schedule_attendances	status	4	enum	7	NULL	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	verification_method	5	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	recorded_by	6	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	schedule_attendances	recorded_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	verified_at	8	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	notes	9	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	override_reason	10	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	created_at	11	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	schedule_attendances	updated_at	12	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	sessions	id	1	varchar	255	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	sessions	user_id	2	bigint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	sessions	ip_address	3	varchar	45	NULL	NULL	NULL	NULL
+mysql	acvmis	sessions	user_agent	4	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	sessions	payload	5	longtext	4294967295	NULL	NULL	NULL	NULL
+mysql	acvmis	sessions	last_activity	6	int	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	sports	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	sports	name	2	varchar	255	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	sports	created_at	3	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	sports	updated_at	4	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	students	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	students	user_id	2	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	students	user_id	2	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	students	student_id_number	3	varchar	255	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	students	date_of_birth	4	date	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	students	gender	5	enum	6	NULL	NULL	NULL	NULL
+mysql	acvmis	students	home_address	6	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	students	course_or_strand	7	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	students	current_grade_level	8	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	students	approval_status	9	enum	8	NULL	NULL	NULL	NULL
+mysql	acvmis	students	applied_sport_id	10	bigint	NULL	FOREIGN KEY	acvmis	sports	id
+mysql	acvmis	students	student_status	11	enum	9	NULL	NULL	NULL	NULL
+mysql	acvmis	students	phone_number	12	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	students	height	13	decimal	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	students	weight	14	decimal	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	students	emergency_contact_name	15	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	students	emergency_contact_relationship	16	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	students	emergency_contact_phone	17	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	students	created_at	18	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	students	updated_at	19	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	student_approval_histories	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	student_approval_histories	student_id	2	bigint	NULL	FOREIGN KEY	acvmis	students	id
+mysql	acvmis	student_approval_histories	coach_id	3	bigint	NULL	FOREIGN KEY	acvmis	coaches	id
+mysql	acvmis	student_approval_histories	decision	4	enum	8	NULL	NULL	NULL	NULL
+mysql	acvmis	student_approval_histories	remarks	5	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	student_approval_histories	created_at	6	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	student_approval_histories	updated_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	student_documents	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	student_documents	student_id	2	bigint	NULL	FOREIGN KEY	acvmis	students	id
+mysql	acvmis	student_documents	document_type_id	3	bigint	NULL	FOREIGN KEY	acvmis	document_types	id
+mysql	acvmis	student_documents	academic_period_id	4	bigint	NULL	FOREIGN KEY	acvmis	academic_periods	id
+mysql	acvmis	student_documents	file_path	5	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	student_documents	uploaded_by	6	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	student_documents	uploaded_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	student_documents	notes	8	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	student_documents	review_status	9	enum	14	NULL	NULL	NULL	NULL
+mysql	acvmis	student_documents	reviewed_by	10	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	student_documents	reviewed_at	11	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	student_documents	created_at	12	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	student_documents	updated_at	13	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	teams	team_name	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	team_avatar	3	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	sport_id	4	bigint	NULL	FOREIGN KEY	acvmis	sports	id
+mysql	acvmis	teams	year	5	year	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	description	6	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	archived_at	7	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	archived_by	8	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	teams	created_at	9	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	updated_at	10	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	join_code	11	varchar	20	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	teams	join_code_enabled	12	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	teams	join_code_expires_at	13	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_players	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	team_players	team_id	2	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	team_players	team_id	2	bigint	NULL	FOREIGN KEY	acvmis	teams	id
+mysql	acvmis	team_players	student_id	3	bigint	NULL	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	team_players	student_id	3	bigint	NULL	FOREIGN KEY	acvmis	students	id
+mysql	acvmis	team_players	jersey_number	4	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	team_players	athlete_position	5	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	team_players	player_status	6	enum	9	NULL	NULL	NULL	NULL
+mysql	acvmis	team_players	manual_inactive	7	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_players	created_at	8	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_players	updated_at	9	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_schedules	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	team_schedules	team_id	2	bigint	NULL	FOREIGN KEY	acvmis	teams	id
+mysql	acvmis	team_schedules	title	3	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	team_schedules	type	4	enum	8	NULL	NULL	NULL	NULL
+mysql	acvmis	team_schedules	venue	5	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	team_schedules	start_time	6	datetime	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_schedules	end_time	7	datetime	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_schedules	notes	8	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	team_schedules	created_at	9	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_schedules	updated_at	10	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_staff_assignments	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	team_staff_assignments	team_id	2	bigint	NULL	FOREIGN KEY	acvmis	teams	id
+mysql	acvmis	team_staff_assignments	coach_id	3	bigint	NULL	FOREIGN KEY	acvmis	coaches	id
+mysql	acvmis	team_staff_assignments	role	4	enum	9	NULL	NULL	NULL	NULL
+mysql	acvmis	team_staff_assignments	starts_at	5	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_staff_assignments	ends_at	6	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_staff_assignments	created_by	7	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	team_staff_assignments	created_at	8	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	team_staff_assignments	updated_at	9	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	training_requirements	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	training_requirements	schedule_id	2	bigint	NULL	FOREIGN KEY	acvmis	team_schedules	id
+mysql	acvmis	training_requirements	student_id	3	bigint	NULL	FOREIGN KEY	acvmis	students	id
+mysql	acvmis	training_requirements	coach_id	4	bigint	NULL	FOREIGN KEY	acvmis	coaches	id
+mysql	acvmis	training_requirements	title	5	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	training_requirements	category	6	varchar	50	NULL	NULL	NULL	NULL
+mysql	acvmis	training_requirements	description	7	text	65535	NULL	NULL	NULL	NULL
+mysql	acvmis	training_requirements	created_at	8	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	training_requirements	updated_at	9	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	users	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	users	first_name	2	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	users	middle_name	3	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	users	last_name	4	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	users	email	5	varchar	255	UNIQUE	NULL	NULL	NULL
+mysql	acvmis	users	email_verified_at	6	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	users	password	7	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	users	must_change_password	8	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	users	role	9	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	users	account_state	10	enum	11	NULL	NULL	NULL	NULL
+mysql	acvmis	users	avatar	11	varchar	255	NULL	NULL	NULL	NULL
+mysql	acvmis	users	created_at	12	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	users	updated_at	13	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	user_settings	id	1	bigint	NULL	PRIMARY KEY	NULL	NULL	NULL
+mysql	acvmis	user_settings	user_id	2	bigint	NULL	FOREIGN KEY	acvmis	users	id
+mysql	acvmis	user_settings	notification_email_enabled	3	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	user_settings	notify_approvals	4	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	user_settings	notify_schedule_changes	5	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	user_settings	notify_attendance_changes	6	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	user_settings	notify_academic_alerts	7	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	user_settings	notify_attendance_exceptions	8	tinyint	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	user_settings	created_at	9	timestamp	NULL	NULL	NULL	NULL	NULL
+mysql	acvmis	user_settings	updated_at	10	timestamp	NULL	NULL	NULL	NULL	NULL
