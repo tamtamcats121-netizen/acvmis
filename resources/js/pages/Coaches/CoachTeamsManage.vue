@@ -5,9 +5,10 @@ import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import AppAvatar from '@/components/common/AppAvatar.vue'
+import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { showAppToast } from '@/composables/useAppToast'
 import { useTheme } from '@/composables/useTheme'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
@@ -92,6 +93,8 @@ const props = defineProps<{
 }>()
 
 const { isDarkMode } = useTheme()
+const archiveConfirmOpen = ref(false)
+const isArchiving = ref(false)
 
 const createForm = useForm({
     team_name: '',
@@ -271,7 +274,22 @@ function removeAssistant() {
 
 function archiveTeam() {
     if (!props.selectedTeam) return
-    router.post(`/coach/teams/${props.selectedTeam.id}/archive`, {}, { preserveScroll: true })
+    archiveConfirmOpen.value = true
+}
+
+function confirmArchiveTeam() {
+    if (!props.selectedTeam) return
+
+    isArchiving.value = true
+    router.post(`/coach/teams/${props.selectedTeam.id}/archive`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            archiveConfirmOpen.value = false
+        },
+        onFinish: () => {
+            isArchiving.value = false
+        },
+    })
 }
 
 function reactivateTeam() {
@@ -723,6 +741,16 @@ function canAssignAssistant(option: AssistantCoachOption) {
                 </section>
             </div>
         </div>
+
+        <ConfirmDialog
+            v-model:open="archiveConfirmOpen"
+            title="Archive Team"
+            :description="props.selectedTeam ? `Archive ${props.selectedTeam.team_name}? This team will be hidden from active team management and can be restored later.` : 'Archive this team?'"
+            confirm-text="Archive"
+            confirm-variant="destructive"
+            :loading="isArchiving"
+            @confirm="confirmArchiveTeam"
+        />
     </div>
 </template>
 
