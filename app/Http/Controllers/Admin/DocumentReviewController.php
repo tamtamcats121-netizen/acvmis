@@ -7,6 +7,7 @@ use App\Models\AcademicPeriod;
 use App\Models\DocumentType;
 use App\Models\StudentDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class DocumentReviewController extends Controller
@@ -85,6 +86,17 @@ class DocumentReviewController extends Controller
                 ]),
             'documents' => $documents->through(fn (StudentDocument $document) => $this->serializeDocument($document)),
         ]);
+    }
+
+    public function markReviewed(StudentDocument $document)
+    {
+        $document->update([
+            'review_status' => StudentDocument::REVIEW_STATUS_REVIEWED,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        return back()->with('success', 'Document marked as reviewed.');
     }
 
     private function serializeDocument(StudentDocument $document): array

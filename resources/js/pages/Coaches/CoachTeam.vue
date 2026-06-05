@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import AppAvatar from '@/components/common/AppAvatar.vue'
+import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { useSportColors } from '@/composables/useSportColors'
 import { useTheme } from '@/composables/useTheme'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
@@ -54,6 +55,8 @@ const detailsOpen = ref(false)
 const selectedPlayer = ref<PlayerRow | null>(null)
 const copiedField = ref<string | null>(null)
 const inviteMenuOpen = ref(false)
+const pendingInviteAction = ref<'regenerate' | 'disable' | null>(null)
+const inviteActionLoading = ref(false)
 let restoreBodyOverflow: string | null = null
 let restoreHtmlOverflow: string | null = null
 
@@ -71,6 +74,27 @@ const inviteCode = computed(() => String(teamInvite.value?.code ?? ''))
 const inviteLink = computed(() => String(teamInvite.value?.join_url ?? ''))
 const inviteAvailable = computed(() => Boolean(teamInvite.value?.is_available))
 const inviteActive = computed(() => Boolean(teamInvite.value?.is_active))
+const inviteActionDialogTitle = computed(() => {
+    if (pendingInviteAction.value === 'disable') return 'Disable Invite Code'
+    return 'Regenerate Invite Code'
+})
+const inviteActionDialogDescription = computed(() => {
+    if (pendingInviteAction.value === 'disable') {
+        return 'Disable this team invite code? Students will no longer be able to join with this link.'
+    }
+
+    return 'Regenerate this team invite code? The old code will stop working.'
+})
+const inviteActionConfirmText = computed(() => {
+    if (pendingInviteAction.value === 'disable') return 'Disable Code'
+    return 'Regenerate Code'
+})
+const inviteActionDialogOpen = computed({
+    get: () => pendingInviteAction.value !== null,
+    set: (open: boolean) => {
+        if (!open) closeInviteActionDialog()
+    },
+})
 
 watch(
     () => props.team?.players,
@@ -252,24 +276,40 @@ function generateInviteCode() {
 
 function regenerateInviteCode() {
     if (!props.team?.id) return
-    if (!window.confirm('Regenerate this team invite code? The old code will stop working.')) return
-    router.post(`/coach/teams/${props.team.id}/invite-code/regenerate`, {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            inviteMenuOpen.value = false
-        },
-    })
+    pendingInviteAction.value = 'regenerate'
 }
 
 function disableInviteCode() {
     if (!props.team?.id) return
-    if (!window.confirm('Disable this team invite code? Students will no longer be able to join with this link.')) return
-    router.delete(`/coach/teams/${props.team.id}/invite-code`, {
+    pendingInviteAction.value = 'disable'
+}
+
+function closeInviteActionDialog() {
+    if (inviteActionLoading.value) return
+    pendingInviteAction.value = null
+}
+
+function confirmInviteAction() {
+    if (!props.team?.id || !pendingInviteAction.value) return
+
+    inviteActionLoading.value = true
+    const requestOptions = {
         preserveScroll: true,
         onSuccess: () => {
             inviteMenuOpen.value = false
+            pendingInviteAction.value = null
         },
-    })
+        onFinish: () => {
+            inviteActionLoading.value = false
+        },
+    }
+
+    if (pendingInviteAction.value === 'regenerate') {
+        router.post(`/coach/teams/${props.team.id}/invite-code/regenerate`, {}, requestOptions)
+        return
+    }
+
+    router.delete(`/coach/teams/${props.team.id}/invite-code`, requestOptions)
 }
 
 function copyInviteLink() {
@@ -883,6 +923,15 @@ function openJoinPage() {
         </transition>
         </Teleport>
 
+        <ConfirmDialog
+            v-model:open="inviteActionDialogOpen"
+            :title="inviteActionDialogTitle"
+            :description="inviteActionDialogDescription"
+            :confirm-text="inviteActionConfirmText"
+            confirm-variant="destructive"
+            :loading="inviteActionLoading"
+            @confirm="confirmInviteAction"
+        />
     </div>
 </template>
 

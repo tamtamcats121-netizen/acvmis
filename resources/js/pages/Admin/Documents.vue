@@ -6,8 +6,9 @@ import DatePicker from 'primevue/datepicker'
 import InputText from 'primevue/inputtext'
 import Paginator from 'primevue/paginator'
 import Select from 'primevue/select'
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
+import { showAppToast } from '@/composables/useAppToast'
 import { useTheme } from '@/composables/useTheme'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
@@ -64,6 +65,7 @@ const props = defineProps<{
 
 const { isDarkMode } = useTheme()
 const filters = reactive({ ...props.filters })
+const reviewingDocumentId = ref<number | null>(null)
 let searchDebounce: ReturnType<typeof setTimeout> | null = null
 
 function parseFilterDate(value: string): Date | null {
@@ -166,6 +168,27 @@ function formatDateTime(value: string | null) {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
+    })
+}
+
+function markReviewed(document: DocumentRow) {
+    reviewingDocumentId.value = document.id
+
+    router.put(`/documents/${document.id}/review`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAppToast('Document marked as reviewed.', 'success', {
+                summary: 'Review Updated',
+            })
+        },
+        onError: () => {
+            showAppToast('Unable to mark this document as reviewed right now.', 'error', {
+                summary: 'Review Failed',
+            })
+        },
+        onFinish: () => {
+            reviewingDocumentId.value = null
+        },
     })
 }
 </script>
@@ -296,6 +319,15 @@ function formatDateTime(value: string | null) {
                             >
                                 Download
                             </a>
+                            <button
+                                v-if="data.review_status !== 'reviewed'"
+                                type="button"
+                                class="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                :disabled="reviewingDocumentId === data.id"
+                                @click="markReviewed(data)"
+                            >
+                                {{ reviewingDocumentId === data.id ? 'Reviewing...' : 'Mark Reviewed' }}
+                            </button>
                         </div>
                     </template>
                 </Column>

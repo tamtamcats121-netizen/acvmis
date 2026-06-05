@@ -20,7 +20,7 @@ function goLogin() {
                 <h2>Registration Submitted Successfully</h2>
                 <p class="status-text">
                     Your registration is currently <span class="status-pending">pending review</span>.
-                    An administrator will review your submitted information. You may sign in after your account has been approved.
+                    The coach assigned to your selected sport will review your submitted information. You may sign in after your account has been approved.
                 </p>
 
                 <div class="status-actions">

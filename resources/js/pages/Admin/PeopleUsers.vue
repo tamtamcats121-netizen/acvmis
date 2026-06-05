@@ -525,7 +525,7 @@ function confirmDeleteUser() {
 </script>
 
 <template>
-    <Head title="User Directory" />
+    <Head title="User Records" />
 
     <div class="space-y-5">
         <section class="overflow-hidden rounded-[2rem] border border-[#02376b] bg-[#034485] p-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
