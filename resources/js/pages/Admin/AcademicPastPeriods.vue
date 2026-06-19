@@ -32,14 +32,14 @@ function termLabel(termCode: string) {
 </script>
 
 <template>
-    <Head title="Period History" />
+    <Head title="Academic Period History" />
 
     <div class="space-y-5">
         <section class="page-card rounded-xl border border-[#034485]/45 bg-[#034485] p-5 text-white">
             <div class="flex flex-wrap items-center gap-3">
                 <BackLinkButton href="/academics" label="Back to Academics" />
                 <div>
-                    <h1 class="text-2xl font-bold text-white">Period History</h1>
+                    <h1 class="text-2xl font-bold text-white">Academic Period History</h1>
                     <p class="text-sm text-white/80">Closed academic periods kept for reference and archived evaluation access.</p>
                 </div>
             </div>

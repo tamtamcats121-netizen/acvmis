@@ -241,14 +241,14 @@ function openEvaluationsWorkspace() {
                             <path d="M3 4v6h6" />
                             <path d="M12 7v5l3 3" />
                         </svg>
-                        Period History
+                        Academic Period History
                     </button>
                 </div>
 
                 <div class="mt-4 rounded-2xl border border-[#034485]/35 bg-white p-4">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <p class="text-xs text-slate-500">The current active period is shown here. Closed periods move to Period History.</p>
+                            <p class="text-xs text-slate-500">The current active period is shown here. Closed periods move to Academic Period History.</p>
                         </div>
                         <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                             <button
@@ -293,7 +293,7 @@ function openEvaluationsWorkspace() {
                         </button>
                     </div>
                     <div v-else class="mt-3 rounded-2xl border border-dashed border-[#034485]/25 bg-[#034485]/5 p-4 text-sm text-slate-500">
-                        No open or upcoming academic period is available right now. Closed periods are kept in Period History.
+                        No open or upcoming academic period is available right now. Closed periods are kept in Academic Period History.
                     </div>
                 </div>
             </section>
