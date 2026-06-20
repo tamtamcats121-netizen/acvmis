@@ -2,7 +2,7 @@
 
 ## System Overview
 
-AC-VMIS, or Asian College Varsity Management Information System, is a web-based platform for managing varsity student-athletes, coaches, teams, schedules, attendance, academic eligibility, documents, announcements, and reports. The system organizes daily varsity operations into role-based workspaces for administrators, coaches, and student-athletes.
+AC-VMIS, or Assumption College Varsity Management Information System, is a web-based platform for managing varsity student-athletes, coaches, teams, schedules, attendance, academic eligibility, documents, announcements, and reports. The system organizes daily varsity operations into role-based workspaces for administrators, coaches, and student-athletes.
 
 The main purpose of AC-VMIS is to keep varsity records centralized, traceable, and easier to monitor. It supports student-athlete registration, coach review, team assignment, schedule management, attendance recording, academic submission, document access, notification delivery, and administrative reporting.
 
