@@ -238,7 +238,26 @@ watch(mobileMenuOpen, (open) => {
 </script>
 
 <template>
-    <Head title="Welcome" />
+    <Head title="Asian College Varsity Management Information System">
+        <meta
+            head-key="description"
+            name="description"
+            content="AC-VMIS helps Asian College manage varsity student-athlete records, team rosters, schedules, attendance, academic eligibility, training requirements, documents, and announcements."
+        />
+        <meta head-key="robots" name="robots" content="index, follow" />
+        <meta head-key="og-title" property="og:title" content="AC-VMIS | Asian College Varsity Management Information System" />
+        <meta
+            head-key="og-description"
+            property="og:description"
+            content="A secure varsity management system for student-athletes, coaches, and administrators at Asian College."
+        />
+        <meta head-key="twitter-title" name="twitter:title" content="AC-VMIS | Asian College Varsity Management Information System" />
+        <meta
+            head-key="twitter-description"
+            name="twitter:description"
+            content="Manage varsity records, schedules, attendance, academic eligibility, and team operations in one secure system."
+        />
+    </Head>
 
     <div class="page min-h-screen">
         <header class="site-header px-3 py-0 sm:px-4 lg:px-6">

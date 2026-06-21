@@ -48,6 +48,23 @@ Route::get('/', function () {
     return Inertia::render('Public/Welcome');
 })->name('Welcome');
 
+Route::get('/sitemap.xml', function () {
+    $urls = collect([
+        ['loc' => url('/'), 'priority' => '1.0'],
+        ['loc' => url('/about'), 'priority' => '0.8'],
+        ['loc' => url('/services'), 'priority' => '0.8'],
+        ['loc' => url('/how-it-works'), 'priority' => '0.7'],
+        ['loc' => url('/faq'), 'priority' => '0.6'],
+        ['loc' => url('/contact'), 'priority' => '0.6'],
+        ['loc' => url('/privacy-policy'), 'priority' => '0.4'],
+        ['loc' => url('/terms-of-use'), 'priority' => '0.4'],
+    ]);
+
+    return response()
+        ->view('sitemap', ['urls' => $urls])
+        ->header('Content-Type', 'application/xml');
+})->name('sitemap');
+
 Route::redirect('/about', '/#about')->name('about');
 Route::redirect('/services', '/#features')->name('services');
 Route::redirect('/how-it-works', '/#how-it-works')->name('how-it-works');

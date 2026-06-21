@@ -4,6 +4,15 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta name="theme-color" content="#034485">
+        <meta name="application-name" content="{{ config('app.name', 'AC-VMIS') }}">
+        <meta property="og:site_name" content="{{ config('app.name', 'AC-VMIS') }}">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:image" content="{{ asset('images/ac-vmis.logo.png') }}">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:image" content="{{ asset('images/ac-vmis.logo.png') }}">
+        <link rel="canonical" href="{{ url()->current() }}">
 
         <title inertia>{{ config('app.name', 'AC-VMIS') }}</title>
 

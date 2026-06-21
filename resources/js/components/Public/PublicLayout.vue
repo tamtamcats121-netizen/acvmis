@@ -9,11 +9,15 @@ const props = withDefaults(
         title?: string;
         pageTitle?: string;
         pageDescription?: string;
+        metaDescription?: string;
+        robots?: string;
     }>(),
     {
         title: '',
         pageTitle: '',
         pageDescription: '',
+        metaDescription: '',
+        robots: '',
     },
 );
 
@@ -33,8 +37,15 @@ const isAuthed = computed(() => Boolean(page.props.auth?.user));
 const userRole = computed(() => String(page.props.auth?.user?.role ?? ''));
 const isLoginPage = computed(() => page.component === 'Auth/Login' || page.url.toLowerCase().includes('/login'));
 const isRegisterPage = computed(() => page.component.includes('Register') || page.url.toLowerCase().includes('/register'));
-const isAuthPage = computed(() => isLoginPage.value || isRegisterPage.value);
+const isAuthPage = computed(() => page.component.startsWith('Auth/') || isLoginPage.value || isRegisterPage.value);
 const isStatusPage = computed(() => page.component.startsWith('Status/') || page.component.toLowerCase().includes('status/'));
+const metaDescription = computed(
+    () =>
+        props.metaDescription ||
+        props.pageDescription ||
+        'AC-VMIS is the Asian College Varsity Management Information System for student-athlete records, teams, schedules, attendance, academic eligibility, and varsity operations.',
+);
+const robotsContent = computed(() => props.robots || (isAuthPage.value || isStatusPage.value ? 'noindex, nofollow' : 'index, follow'));
 const currentPath = computed(() => {
     const path = page.url.split('?')[0].toLowerCase();
     if (path.length > 1 && path.endsWith('/')) {
@@ -90,7 +101,14 @@ watch(mobileMenuOpen, (open) => {
 </script>
 
 <template>
-    <Head :title="props.title || props.pageTitle || 'AC-VMIS'" />
+    <Head :title="props.title || props.pageTitle || 'AC-VMIS'">
+        <meta head-key="description" name="description" :content="metaDescription" />
+        <meta head-key="robots" name="robots" :content="robotsContent" />
+        <meta head-key="og-title" property="og:title" :content="`${props.title || props.pageTitle || 'AC-VMIS'} - AC-VMIS`" />
+        <meta head-key="og-description" property="og:description" :content="metaDescription" />
+        <meta head-key="twitter-title" name="twitter:title" :content="`${props.title || props.pageTitle || 'AC-VMIS'} - AC-VMIS`" />
+        <meta head-key="twitter-description" name="twitter:description" :content="metaDescription" />
+    </Head>
 
     <div class="public-layout public-page" ref="layoutRef">
         <header class="site-header px-3 py-1 sm:px-4 lg:px-6">

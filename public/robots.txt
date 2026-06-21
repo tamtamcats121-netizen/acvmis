@@ -1,2 +1,18 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /AdminDashboard
+Disallow: /coach
+Disallow: /StudentAthleteDashboard
+Disallow: /account
+Disallow: /announcements
+Disallow: /files
+Disallow: /login
+Disallow: /Login
+Disallow: /Register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /pending-approval
+Disallow: /rejected
+Disallow: /deactivated
+
+Sitemap: /sitemap.xml
