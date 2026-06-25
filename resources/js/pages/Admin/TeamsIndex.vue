@@ -73,7 +73,7 @@ const activeFilterCount = computed(() => {
 })
 
 const teamActionDialogOpen = ref(false)
-const pendingTeamAction = ref<{ type: 'archive' | 'reactivate'; team: TeamRow } | null>(null)
+const pendingTeamAction = ref<{ type: 'archive' | 'reactivate' | 'delete'; team: TeamRow } | null>(null)
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
 const { isDarkMode } = useTheme()
 const currentSeasonYear = new Date().getFullYear()
@@ -232,6 +232,11 @@ function reactivateTeam(team: TeamRow) {
     teamActionDialogOpen.value = true
 }
 
+function deleteTeam(team: TeamRow) {
+    pendingTeamAction.value = { type: 'delete', team }
+    teamActionDialogOpen.value = true
+}
+
 watch(
     () => filters.search,
     () => {
@@ -271,6 +276,23 @@ function confirmTeamAction() {
         return
     }
 
+    if (action.type === 'delete') {
+        router.delete(`/teams/${action.team.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                showAppToast(`${action.team.team_name} deleted successfully.`, 'success', {
+                    summary: 'Team Deleted',
+                })
+            },
+            onError: () => {
+                showAppToast('Unable to delete the team right now.', 'error', {
+                    summary: 'Delete Failed',
+                })
+            },
+        })
+        return
+    }
+
     router.post(`/teams/${action.team.id}/reactivate`, {}, {
         preserveScroll: true,
         onSuccess: () => {
@@ -290,6 +312,32 @@ function goToPage(page: number) {
     if (page < 1 || page > props.teams.meta.last_page) return
     reload({ page })
 }
+
+const teamActionDialogTitle = computed(() => {
+    if (pendingTeamAction.value?.type === 'archive') return 'Archive Team'
+    if (pendingTeamAction.value?.type === 'delete') return 'Delete Team'
+    return 'Reactivate Team'
+})
+
+const teamActionDialogDescription = computed(() => {
+    const action = pendingTeamAction.value
+    if (!action) return ''
+    if (action.type === 'delete') return 'Do you want to delete this team?'
+    if (action.type === 'archive') return `Archive ${action.team.team_name}? This can be restored later.`
+    return `Reactivate ${action.team.team_name}?`
+})
+
+const teamActionConfirmText = computed(() => {
+    if (pendingTeamAction.value?.type === 'archive') return 'Archive'
+    if (pendingTeamAction.value?.type === 'delete') return 'Delete'
+    return 'Reactivate'
+})
+
+const teamActionConfirmVariant = computed(() => (
+    pendingTeamAction.value?.type === 'archive' || pendingTeamAction.value?.type === 'delete'
+        ? 'destructive'
+        : 'default'
+))
 
 </script>
 
@@ -449,6 +497,13 @@ function goToPage(page: number) {
                                     Schedules
                                 </button>
                                 <button
+                                    type="button"
+                                    class="rounded-full border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700"
+                                    @click="deleteTeam(team)"
+                                >
+                                    Delete
+                                </button>
+                                <button
                                     v-if="!readOnly && !team.is_archived"
                                     type="button"
                                     class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700"
@@ -499,14 +554,10 @@ function goToPage(page: number) {
 
         <ConfirmDialog
             :open="teamActionDialogOpen"
-            :title="pendingTeamAction?.type === 'archive' ? 'Archive Team' : 'Reactivate Team'"
-            :description="pendingTeamAction
-                ? (pendingTeamAction.type === 'archive'
-                    ? `Archive ${pendingTeamAction.team.team_name}? This can be restored later.`
-                    : `Reactivate ${pendingTeamAction.team.team_name}?`)
-                : ''"
-            :confirm-text="pendingTeamAction?.type === 'archive' ? 'Archive' : 'Reactivate'"
-            :confirm-variant="pendingTeamAction?.type === 'archive' ? 'destructive' : 'default'"
+            :title="teamActionDialogTitle"
+            :description="teamActionDialogDescription"
+            :confirm-text="teamActionConfirmText"
+            :confirm-variant="teamActionConfirmVariant"
             @update:open="teamActionDialogOpen = $event"
             @confirm="confirmTeamAction"
         />

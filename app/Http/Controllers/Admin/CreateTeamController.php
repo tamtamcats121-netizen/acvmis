@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -341,6 +342,39 @@ class CreateTeamController extends Controller
             'readOnly' => true,
             'canArchive' => true,
         ]);
+    }
+
+    public function destroy(Team $team)
+    {
+        $this->authorizeMutation();
+
+        $teamName = $team->team_name;
+        $avatarPath = $team->team_avatar;
+
+        DB::transaction(function () use ($team) {
+            $scheduleIds = DB::table('team_schedules')
+                ->where('team_id', $team->id)
+                ->pluck('id')
+                ->all();
+
+            if (!empty($scheduleIds)) {
+                $this->deleteRowsIfTableExists('training_requirements', 'schedule_id', $scheduleIds);
+                $this->deleteRowsIfTableExists('schedule_attendances', 'schedule_id', $scheduleIds);
+                $this->deleteRowsIfTableExists('wellness_logs', 'schedule_id', $scheduleIds);
+            }
+
+            $this->deleteRowsIfTableExists('team_schedules', 'team_id', [$team->id]);
+            $this->deleteRowsIfTableExists('team_players', 'team_id', [$team->id]);
+            $this->deleteRowsIfTableExists('team_staff_assignments', 'team_id', [$team->id]);
+
+            $team->delete();
+        });
+
+        if (!empty($avatarPath)) {
+            Storage::disk('public')->delete($avatarPath);
+        }
+
+        return back()->with('success', "{$teamName} deleted successfully.");
     }
 
     public function roster(Team $team): JsonResponse
@@ -1599,5 +1633,14 @@ class CreateTeamController extends Controller
         if (auth()->user()?->role !== 'admin') {
             abort(403, 'Only admins can mutate team data.');
         }
+    }
+
+    private function deleteRowsIfTableExists(string $table, string $column, array $values): void
+    {
+        if (empty($values) || !Schema::hasTable($table) || !Schema::hasColumn($table, $column)) {
+            return;
+        }
+
+        DB::table($table)->whereIn($column, $values)->delete();
     }
 }

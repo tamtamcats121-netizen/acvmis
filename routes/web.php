@@ -236,6 +236,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.teams.archive');
     Route::post('/teams/{team}/reactivate', [CreateTeamController::class, 'reactivate'])
         ->name('admin.teams.reactivate');
+    Route::delete('/teams/{team}', [CreateTeamController::class, 'destroy'])
+        ->name('admin.teams.destroy');
 
     Route::get('/operations', [OperationsWorkspaceController::class, 'index'])
         ->name('admin.operations.index');
