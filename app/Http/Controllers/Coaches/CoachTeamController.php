@@ -21,9 +21,39 @@ class CoachTeamController extends Controller
     {
     }
 
+    private function teamAccessStatus($coach): array
+    {
+        $sportId = (int) ($coach?->sport_id ?? 0);
+        $sportName = $coach?->sport?->name;
+        $currentYear = (int) now()->year;
+
+        $activeSportTeam = $sportId > 0
+            ? Team::query()
+                ->where('sport_id', $sportId)
+                ->whereNull('archived_at')
+                ->orderByDesc('year')
+                ->orderBy('team_name')
+                ->first(['id', 'team_name', 'sport_id', 'year'])
+            : null;
+
+        return [
+            'has_coach_profile' => (bool) $coach,
+            'sport_id' => $sportId ?: null,
+            'sport_name' => $sportName,
+            'current_year' => $currentYear,
+            'can_create_team' => $sportId > 0 && !$activeSportTeam,
+            'active_sport_team' => $activeSportTeam ? [
+                'id' => $activeSportTeam->id,
+                'team_name' => $activeSportTeam->team_name,
+                'year' => $activeSportTeam->year,
+            ] : null,
+        ];
+    }
+
     public function index()
     {
         $coach = request()->user()?->coach;
+        $teamAccessStatus = $this->teamAccessStatus($coach);
 
         if (!$coach) {
             return Inertia::render('Coaches/CoachTeam', [
@@ -31,6 +61,7 @@ class CoachTeamController extends Controller
                 'teams' => [],
                 'selectedTeamId' => null,
                 'currentUserId' => request()->user()?->id,
+                'teamAccessStatus' => $teamAccessStatus,
             ]);
         }
 
@@ -46,6 +77,7 @@ class CoachTeamController extends Controller
                 'teams' => [],
                 'selectedTeamId' => null,
                 'currentUserId' => request()->user()?->id,
+                'teamAccessStatus' => $teamAccessStatus,
             ]);
         }
 
@@ -109,6 +141,7 @@ class CoachTeamController extends Controller
             })->values(),
             'selectedTeamId' => $selectedTeamId,
             'currentUserId' => request()->user()?->id,
+            'teamAccessStatus' => $teamAccessStatus,
         ]);
     }
 

@@ -8,7 +8,6 @@ use App\Models\Sport;
 use App\Models\Student;
 use App\Models\Team;
 use App\Models\TeamPlayer;
-use App\Models\TeamStaffAssignment;
 use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -21,6 +20,31 @@ class CoachTeamManagementController extends Controller
 {
     public function __construct(private SecureUploadService $secureUpload)
     {
+    }
+
+    private function activeTeamForSport(int $sportId): ?Team
+    {
+        return Team::query()
+            ->where('sport_id', $sportId)
+            ->whereNull('archived_at')
+            ->orderByDesc('year')
+            ->orderBy('team_name')
+            ->first(['id', 'team_name', 'sport_id', 'year']);
+    }
+
+    private function teamCreationStatus(?Coach $coach): array
+    {
+        $sportId = (int) ($coach?->sport_id ?? 0);
+        $activeSportTeam = $sportId > 0 ? $this->activeTeamForSport($sportId) : null;
+
+        return [
+            'can_create_team' => $sportId > 0 && !$activeSportTeam,
+            'active_sport_team' => $activeSportTeam ? [
+                'id' => $activeSportTeam->id,
+                'team_name' => $activeSportTeam->team_name,
+                'year' => $activeSportTeam->year,
+            ] : null,
+        ];
     }
 
     public function index(Request $request)
@@ -38,6 +62,7 @@ class CoachTeamManagementController extends Controller
                 'seasonTemplates' => [],
                 'maxPlayers' => 0,
                 'mode' => 'create',
+                'teamCreationStatus' => $this->teamCreationStatus($coach),
             ]);
         }
 
@@ -77,6 +102,7 @@ class CoachTeamManagementController extends Controller
             'seasonTemplates' => $this->seasonTemplatesForCoach($teams, $selectedTeam?->id),
             'maxPlayers' => $this->maxPlayersForSport($sportId),
             'mode' => $createMode ? 'create' : 'edit',
+            'teamCreationStatus' => $this->teamCreationStatus($coach),
         ]);
     }
 
@@ -95,22 +121,16 @@ class CoachTeamManagementController extends Controller
             'copy_assistant_coach' => 'nullable|boolean',
         ]);
 
-        $existingTeam = Team::query()
-            ->where('sport_id', (int) $coach->sport_id)
-            ->where('year', $validated['year'])
-            ->whereHas('staffAssignments', function ($assignmentQuery) use ($coach) {
-                $assignmentQuery
-                    ->where('coach_id', (int) $coach->id)
-                    ->where('role', TeamStaffAssignment::ROLE_HEAD)
-                    ->whereNull('ends_at');
-            })
-            ->first(['id', 'team_name', 'year']);
+        $activeSportTeam = $this->activeTeamForSport((int) $coach->sport_id);
 
-        if ($existingTeam) {
+        if ($activeSportTeam) {
             $sportName = $coach->sport?->name ?? 'this sport';
+            $isCurrentCoachTeam = (int) $activeSportTeam->coach_id === (int) $coach->id;
 
             throw ValidationException::withMessages([
-                'year' => "You already have a {$validated['year']} {$sportName} team. Edit or delete \"{$existingTeam->team_name}\" before creating another one.",
+                'year' => $isCurrentCoachTeam
+                    ? "You already have an active {$sportName} team. Archive \"{$activeSportTeam->team_name}\" before creating another one."
+                    : "You cannot create a new {$sportName} team because \"{$activeSportTeam->team_name}\" is already active for this sport.",
             ]);
         }
 

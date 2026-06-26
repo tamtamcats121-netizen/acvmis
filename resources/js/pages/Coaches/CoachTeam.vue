@@ -41,11 +41,25 @@ type PlayerRow = {
     }
 }
 
+type TeamAccessStatus = {
+    has_coach_profile: boolean
+    sport_id: number | null
+    sport_name: string | null
+    current_year: number
+    can_create_team: boolean
+    active_sport_team: {
+        id: number
+        team_name: string
+        year: string | number | null
+    } | null
+}
+
 const props = defineProps<{
     team: any | null
     teams: Array<{ id: number; team_name: string; sport: string }>
     selectedTeamId: number | null
     currentUserId: number | null
+    teamAccessStatus?: TeamAccessStatus
 }>()
 
 const positionDrafts = ref<Record<number, string>>({})
@@ -70,6 +84,34 @@ const totalPlayers = computed(() => players.value.length)
 const positionsFilled = computed(() => players.value.filter((player) => String(player.athlete_position ?? '').trim() !== '').length)
 const jerseysAssigned = computed(() => players.value.filter((player) => String(player.jersey_number ?? '').trim() !== '').length)
 const teamInvite = computed(() => props.team?.invite ?? null)
+const teamAccessStatus = computed(() => props.teamAccessStatus ?? null)
+const assignedSportName = computed(() => teamAccessStatus.value?.sport_name || 'your sport')
+const emptyStateTitle = computed(() => {
+    if (!teamAccessStatus.value?.has_coach_profile) return 'Coach profile unavailable.'
+    if (!teamAccessStatus.value?.sport_id) return 'Your coach account has no assigned sport yet.'
+    if (teamAccessStatus.value.can_create_team) return 'You are not assigned to an active team.'
+
+    return 'You are not assigned to an active team.'
+})
+const emptyStateDescription = computed(() => {
+    if (!teamAccessStatus.value?.has_coach_profile) {
+        return 'Please contact the administrator to complete your coach profile before managing teams.'
+    }
+
+    if (!teamAccessStatus.value?.sport_id) {
+        return 'Please contact the administrator to assign your sport before creating a team.'
+    }
+
+    if (teamAccessStatus.value.can_create_team) {
+        return 'No active team exists for your sport.'
+    }
+
+    const activeTeamName = teamAccessStatus.value.active_sport_team?.team_name ?? 'another team'
+    const sportName = assignedSportName.value
+    const year = teamAccessStatus.value.active_sport_team?.year ?? teamAccessStatus.value.current_year
+
+    return `You cannot currently create a new team for ${sportName} because ${activeTeamName} is already active for ${year}.`
+})
 const inviteCode = computed(() => String(teamInvite.value?.code ?? ''))
 const inviteLink = computed(() => String(teamInvite.value?.join_url ?? ''))
 const inviteAvailable = computed(() => Boolean(teamInvite.value?.is_available))
@@ -264,6 +306,12 @@ function openManageTeams() {
     })
 }
 
+function openCreateTeam() {
+    router.get('/coach/teams/manage', { mode: 'create' }, {
+        preserveScroll: true,
+    })
+}
+
 function generateInviteCode() {
     if (!props.team?.id) return
     router.post(`/coach/teams/${props.team.id}/invite-code`, {}, {
@@ -346,8 +394,39 @@ function openJoinPage() {
             </div>
         </div>
 
-        <div v-if="!props.team" class="page-card rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p class="text-slate-500">You are not assigned to any team yet.</p>
+        <div v-if="!props.team" class="page-card rounded-xl border border-[#034485]/20 bg-white p-6 shadow-sm">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Team Status</p>
+            <h2 class="mt-2 text-xl font-bold text-slate-900">{{ emptyStateTitle }}</h2>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{{ emptyStateDescription }}</p>
+
+            <div v-if="teamAccessStatus?.sport_id" class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+                <span class="rounded-full bg-[#eef5ff] px-3 py-1 text-[#034485]">Sport: {{ assignedSportName }}</span>
+                <span
+                    v-if="teamAccessStatus.active_sport_team"
+                    class="rounded-full bg-amber-100 px-3 py-1 text-amber-700"
+                >
+                    Active Team: {{ teamAccessStatus.active_sport_team.team_name }}
+                </span>
+            </div>
+
+            <div class="mt-5 flex flex-col gap-2 sm:flex-row">
+                <button
+                    v-if="teamAccessStatus?.can_create_team"
+                    type="button"
+                    class="rounded-xl bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#02315f]"
+                    @click="openCreateTeam"
+                >
+                    Create Team
+                </button>
+                <button
+                    v-else-if="teamAccessStatus?.sport_id"
+                    type="button"
+                    class="rounded-xl border border-[#034485]/25 bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
+                    @click="openManageTeams"
+                >
+                    View Team Management
+                </button>
+            </div>
         </div>
 
         <div v-else class="space-y-5">

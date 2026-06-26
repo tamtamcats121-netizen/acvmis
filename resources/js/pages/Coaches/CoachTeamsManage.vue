@@ -81,6 +81,15 @@ type SeasonTemplate = {
     archived_at: string | null
 }
 
+type TeamCreationStatus = {
+    can_create_team: boolean
+    active_sport_team: {
+        id: number
+        team_name: string
+        year: string | number | null
+    } | null
+}
+
 const props = defineProps<{
     sport: { id: number | null; name: string | null } | null
     teams: TeamListRow[]
@@ -90,6 +99,7 @@ const props = defineProps<{
     seasonTemplates: SeasonTemplate[]
     maxPlayers: number
     mode: 'create' | 'edit'
+    teamCreationStatus?: TeamCreationStatus
 }>()
 
 const { isDarkMode } = useTheme()
@@ -144,6 +154,7 @@ watch(
 const createMode = computed(() => props.mode === 'create')
 const isEditMode = computed(() => Boolean(props.selectedTeam?.id) && !createMode.value)
 const isArchived = computed(() => Boolean(props.selectedTeam?.archived_at))
+const canCreateTeam = computed(() => props.teamCreationStatus?.can_create_team ?? false)
 const currentPlayerCount = computed(() => rosterForm.player_ids.length)
 const selectedTemplate = computed(() => props.seasonTemplates.find((team) => String(team.id) === String(createForm.clone_from_team_id)) ?? null)
 const duplicateCreateYearTeam = computed(() => {
@@ -161,6 +172,20 @@ const seasonTemplateOptions = computed(() =>
 const yearOptions = computed(() => {
     const currentYear = new Date().getFullYear()
     return Array.from({ length: 10 }, (_, index) => String(currentYear + 3 - index))
+})
+const blockedCreateMessage = computed(() => {
+    if (!props.sport?.id) {
+        return 'Please contact the administrator to assign your sport before creating a team.'
+    }
+
+    const sportName = props.sport?.name ?? 'this sport'
+    const activeTeamName = props.teamCreationStatus?.active_sport_team?.team_name ?? 'another team'
+
+    return `You cannot currently create a new team for ${sportName} because ${activeTeamName} is already active for this sport.`
+})
+const blockedCreateTitle = computed(() => {
+    if (!props.sport?.id) return 'Your coach account has no assigned sport yet.'
+    return 'An active team already exists for your sport.'
 })
 
 function selectTeam(teamId: number) {
@@ -331,6 +356,7 @@ function canAssignAssistant(option: AssistantCoachOption) {
                     </p>
                 </div>
                 <button
+                    v-if="canCreateTeam"
                     class="rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_-18px_rgba(15,23,42,0.8)] backdrop-blur-md transition hover:bg-white/20"
                     @click="startCreate"
                 >
@@ -383,7 +409,7 @@ function canAssignAssistant(option: AssistantCoachOption) {
 
             <div class="space-y-6">
                 <section
-                    v-if="createMode"
+                    v-if="createMode && canCreateTeam"
                     class="rounded-3xl border p-5"
                     :class="isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-[#034485]/20 bg-white'"
                 >
@@ -497,6 +523,20 @@ function canAssignAssistant(option: AssistantCoachOption) {
                             </button>
                         </div>
                     </form>
+                </section>
+
+                <section
+                    v-else-if="createMode && !canCreateTeam"
+                    class="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900"
+                >
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Team Creation Unavailable</p>
+                    <h2 class="mt-2 text-xl font-bold">{{ blockedCreateTitle }}</h2>
+                    <p class="mt-2 max-w-2xl text-sm leading-6">
+                        {{ blockedCreateMessage }}
+                    </p>
+                    <p v-if="props.sport?.id" class="mt-2 text-sm leading-6">
+                        Please ask the current head coach or administrator to assign you, or wait until the current team is archived.
+                    </p>
                 </section>
 
                 <template v-else-if="isEditMode && props.selectedTeam">
