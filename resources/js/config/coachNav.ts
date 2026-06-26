@@ -14,6 +14,4 @@ export const coachPrimaryNav: CoachNavItem[] = [
   { key: 'documents', label: 'Team Documents', route: '/coach/documents', icon: 'file-text', mobileLabel: 'Documents' },
 ]
 
-export const coachSecondaryNav: CoachNavItem[] = [
-  { key: 'team-management', label: 'Manage Teams', route: '/coach/teams/manage', icon: 'users', mobileLabel: 'Teams' },
-]
+export const coachSecondaryNav: CoachNavItem[] = []
