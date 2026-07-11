@@ -3,16 +3,21 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PasswordResetLinkMail;
 use App\Models\User;
+use App\Services\SystemNotificationService;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Inertia\Inertia;
 
 class ForgotPasswordController extends Controller
 {
+    public function __construct(private SystemNotificationService $notifications) {}
+
     public function showLinkRequestForm()
     {
         return Inertia::render('Auth/ForgotPassword');
@@ -24,17 +29,54 @@ class ForgotPasswordController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        $status = Password::broker()->sendResetLink([
-            'email' => $validated['email'],
-        ]);
+        $user = User::query()
+            ->where('email', $validated['email'])
+            ->first();
 
-        if ($status !== Password::RESET_LINK_SENT) {
+        if (! $user) {
             return back()->withErrors([
-                'email' => __($status),
+                'email' => __(Password::INVALID_USER),
             ]);
         }
 
-        return back()->with('success', __($status));
+        try {
+            $token = Password::broker()->createToken($user);
+            $resetUrl = route('password.reset', [
+                'token' => $token,
+                'email' => $user->email,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Password reset token generation failed.', [
+                'email' => $validated['email'],
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'email' => 'Unable to generate a password reset link right now. Please try again later.',
+            ]);
+        }
+
+        $sent = $this->notifications->sendUserEmail(
+            $user,
+            new PasswordResetLinkMail($user, $resetUrl),
+            [
+                'defer' => false,
+                'respect_preferences' => false,
+                'context' => [
+                    'communication' => 'password_reset_link',
+                    'user_id' => $user->id,
+                ],
+            ]
+        );
+
+        if (! $sent) {
+            return back()->withErrors([
+                'email' => 'Unable to send the password reset link right now. Please try again later.',
+            ]);
+        }
+
+        return back()->with('success', __(Password::RESET_LINK_SENT));
     }
 
     public function showResetForm(Request $request, string $token)
@@ -66,7 +108,7 @@ class ForgotPasswordController extends Controller
                 'token' => $validated['token'],
                 'email' => $validated['email'],
                 'password' => $validated['password'],
-                'password_confirmation' => $validated['password_confirmation'],
+                'password_confirmation' => $request->input('password_confirmation'),
             ],
             function (User $user, string $password) {
                 $user->forceFill([
